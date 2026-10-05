@@ -44,6 +44,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.ui.formatAgo
+import io.github.isaiahyoder.recipebox.update.AppUpdater
 import io.github.isaiahyoder.recipebox.update.AvailableUpdate
 import io.github.isaiahyoder.recipebox.update.UpdateState
 import kotlinx.coroutines.launch
@@ -168,6 +169,7 @@ fun UpdateBanner() {
                             TextButton(onClick = { runCatching { context.startActivity(confirm) } }) { Text("Install") }
                         }
                         is UpdateState.Failed -> current.update?.let { update ->
+                            TextButton(onClick = { openReleasePage(context) }) { Text("Download") }
                             TextButton(onClick = { startUpdate(update) }) { Text("Try again") }
                         }
                         else -> Unit
@@ -220,7 +222,8 @@ fun UpdateSettingsItem() {
                     is UpdateState.Available -> "Tap to see what's new and update."
                     is UpdateState.Downloading -> "Downloading… ${(current.progress * 100).toInt()}%"
                     is UpdateState.Installing -> "Installing…"
-                    is UpdateState.Failed -> current.message
+                    is UpdateState.Failed -> listOfNotNull(current.message, updater.lastProblem?.let { "Details: $it" })
+                        .joinToString(" ")
                 }
             )
         },
@@ -239,6 +242,13 @@ fun UpdateSettingsItem() {
         },
     )
 
+    if (current is UpdateState.Failed) {
+        val context = LocalContext.current
+        TextButton(onClick = { openReleasePage(context) }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            Text("Download from GitHub")
+        }
+    }
+
     if (showNotes && current is UpdateState.Available) {
         WhatsNewDialog(
             current.update,
@@ -247,6 +257,15 @@ fun UpdateSettingsItem() {
                 showNotes = false
                 startUpdate(current.update)
             },
+        )
+    }
+}
+
+/** Opens the release page in her browser, where she can download and install the APK herself. */
+private fun openReleasePage(context: android.content.Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, AppUpdater.RELEASE_PAGE_URL.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
 }

@@ -123,6 +123,11 @@ class AppSettings(context: Context, fileName: String = "settings") {
         _refreshStatus.value = status
     }
 
+    /** What Android said about the last update that didn't install, or null. */
+    var updateProblem: String?
+        get() = prefs.getString(KEY_UPDATE_PROBLEM, null)
+        set(value) = prefs.edit { putString(KEY_UPDATE_PROBLEM, value) }
+
     /** The update version whose banner she put off, and when. */
     val updatePutOffVersion: String? get() = prefs.getString(KEY_UPDATE_PUT_OFF_VERSION, null)
     val updatePutOffAt: Long get() = prefs.getLong(KEY_UPDATE_PUT_OFF_AT, 0)
@@ -156,5 +161,6 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_UPDATE_PUT_OFF_AT = "update_put_off_at"
         const val KEY_GEMINI = "gemini_api_key"
         const val KEY_REFRESH = "recipe_refresh_status"
+        const val KEY_UPDATE_PROBLEM = "update_problem"
     }
 }

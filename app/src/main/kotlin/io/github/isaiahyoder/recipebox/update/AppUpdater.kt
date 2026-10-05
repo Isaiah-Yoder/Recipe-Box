@@ -221,9 +221,17 @@ class AppUpdater(
         _state.value = current.copy(confirm = confirm)
     }
 
+    /** Android's own words for the last update that didn't install, for Settings to show. */
+    val lastProblem: String? get() = settings.updateProblem
+
     /** [verificationFailure] is Android's developer verification reason, or -1. */
     internal fun onInstallFailed(status: Int, message: String?, verificationFailure: Int = -1) {
         val update = (_state.value as? UpdateState.Installing)?.update
+        settings.updateProblem = buildString {
+            append("Android answered ").append(STATUS_NAMES[status] ?: "status $status")
+            if (!message.isNullOrBlank()) append(": ").append(message)
+            if (verificationFailure >= 0) append(" (developer verification reason $verificationFailure)")
+        }
         if (verificationFailure >= 0) {
             _state.value = UpdateState.Failed(
                 update,
@@ -235,19 +243,18 @@ class AppUpdater(
             )
             return
         }
-        if (status == PackageInstaller.STATUS_FAILURE_ABORTED && update != null) {
-            // She tapped Cancel on Android's screen.
-            _state.value = UpdateState.Available(update)
-            return
-        }
         val text = when {
+            // Cancel on Android's screen reports this too, but so do blocks by security settings,
+            // so it isn't treated as a choice to skip the update.
+            status == PackageInstaller.STATUS_FAILURE_ABORTED ->
+                "The update was canceled or blocked. Tap Try again, or download it from GitHub."
             // Play Protect warns about apps that aren't from the Play Store, and its
             // Install anyway button is hidden until she opens More details.
             status == PackageInstaller.STATUS_FAILURE_BLOCKED || message?.contains("VERIFICATION") == true ->
                 "Play Protect stopped the update. Tap Try again, then on its warning tap More details and Install anyway."
             status == PackageInstaller.STATUS_FAILURE_STORAGE ->
                 "There isn't enough free space on the phone for the update."
-            else -> "Android didn't install the update. Try again later."
+            else -> "Android didn't install the update. Tap Try again, or download it from GitHub."
         }
         _state.value = UpdateState.Failed(update, text)
     }
@@ -256,6 +263,20 @@ class AppUpdater(
 
     companion object {
         const val LATEST_RELEASE_URL = "https://api.github.com/repos/Isaiah-Yoder/Recipe-Box/releases/latest"
+
+        /** The release page, where she can download the APK herself if installing from the app fails. */
+        const val RELEASE_PAGE_URL = "https://github.com/Isaiah-Yoder/Recipe-Box/releases/latest"
+
+        private val STATUS_NAMES = mapOf(
+            PackageInstaller.STATUS_FAILURE to "failure",
+            PackageInstaller.STATUS_FAILURE_BLOCKED to "blocked",
+            PackageInstaller.STATUS_FAILURE_ABORTED to "aborted",
+            PackageInstaller.STATUS_FAILURE_INVALID to "invalid",
+            PackageInstaller.STATUS_FAILURE_CONFLICT to "conflict",
+            PackageInstaller.STATUS_FAILURE_STORAGE to "storage",
+            PackageInstaller.STATUS_FAILURE_INCOMPATIBLE to "incompatible",
+            PackageInstaller.STATUS_FAILURE_TIMEOUT to "timeout",
+        )
     }
 }
 
@@ -276,12 +297,9 @@ class UpdateInstallReceiver : BroadcastReceiver() {
             else -> updater.onInstallFailed(
                 status,
                 intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE),
-                // Android 17 and later report a failed developer verification as a cancel with a reason.
-                if (Build.VERSION.SDK_INT >= 37) {
-                    intent.getIntExtra(PackageInstaller.EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON, -1)
-                } else {
-                    -1
-                },
+                // Developer verification reports a failure as a cancel with a reason. Older Android
+                // versions never add the extra, so reading it there gives -1.
+                intent.getIntExtra(PackageInstaller.EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON, -1),
             )
         }
     }
