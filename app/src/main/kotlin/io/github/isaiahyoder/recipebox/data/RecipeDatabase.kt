@@ -27,13 +27,15 @@ import androidx.room.TypeConverters
         GroceryLineStateEntity::class,
         SectionOverrideEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
     autoMigrations = [
         // Version 2 adds the import queue table; recipes are unchanged.
         AutoMigration(from = 1, to = 2),
         // Version 3 adds grocery list tables; existing tables are unchanged.
         AutoMigration(from = 2, to = 3),
+        // Version 4 adds recipe card photos to recipes, defaulting to none.
+        AutoMigration(from = 3, to = 4),
     ],
 )
 @TypeConverters(Converters::class)

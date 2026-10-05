@@ -17,7 +17,8 @@ Recipe Box stores the following data on your phone:
 - Recipes you import or type, including their source links and cover photos
 - Photos you take or choose, such as photos of recipe cards
 - Categories, tags, notes, grocery lists, and settings
-- An optional Gemini API key that you enter yourself
+- An optional Gemini API key that you enter yourself. The app keeps it out
+  of its backup files.
 
 ## Network connections
 
@@ -36,9 +37,15 @@ Recipe Box connects to other services only for the following tasks:
   account data. GitHub sees your phone's IP address, as it would for any
   download.
 - **Optional cloud AI.** If you enter your own Gemini API key, the app sends
-  the recipe text or photo that needs help to Google's Gemini API. Google's
-  terms for that key apply, including how Google uses free-tier content.
-  On-device AI runs on the phone and sends nothing.
+  the recipe card photos you ask it to read to Google's Gemini API. Google's
+  terms for that key apply. On Gemini's free tier, Google may use what you
+  send to improve its products.
+- **On-device reading.** Without a key, or when Gemini isn't available, the
+  app reads cards on the phone with Google's on-device AI or ML Kit text
+  recognition. The photos stay on the phone. Google Play services downloads
+  and updates these models, and Google's
+  [ML Kit terms](https://developers.google.com/ml-kit/terms) describe the
+  usage information ML Kit may send to Google.
 
 ## Google user data
 

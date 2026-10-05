@@ -1,0 +1,137 @@
+package io.github.isaiahyoder.recipebox.cards
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import com.google.mlkit.genai.common.FeatureStatus
+import com.google.mlkit.genai.prompt.GenerativeModel
+import com.google.mlkit.genai.prompt.Generation
+import com.google.mlkit.genai.prompt.content
+import com.google.mlkit.genai.prompt.generateContentRequest
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import java.io.File
+import kotlin.math.max
+
+enum class OnDeviceAiStatus { CHECKING, READY, DOWNLOADING, UNAVAILABLE }
+
+/**
+ * Reads card photos with Gemini Nano, the AI model built into some phones,
+ * such as the Galaxy S26. Nothing leaves the phone. Phones without it,
+ * including the emulator, report [OnDeviceAiStatus.UNAVAILABLE].
+ */
+class NanoCardReader(private val assets: CardAssets, private val scope: CoroutineScope) {
+    private val model: GenerativeModel? by lazy { runCatching { Generation.getClient() }.getOrNull() }
+
+    private val _status = MutableStateFlow(OnDeviceAiStatus.CHECKING)
+    val status: StateFlow<OnDeviceAiStatus> = _status.asStateFlow()
+
+    /** Checks the phone and starts the model download when it's needed. */
+    fun refresh() {
+        scope.launch {
+            val current = runCatching { model?.checkStatus() }.getOrNull()
+            _status.value = when (current) {
+                FeatureStatus.AVAILABLE -> OnDeviceAiStatus.READY
+                FeatureStatus.DOWNLOADING -> OnDeviceAiStatus.DOWNLOADING
+                FeatureStatus.DOWNLOADABLE -> {
+                    download()
+                    OnDeviceAiStatus.DOWNLOADING
+                }
+                else -> OnDeviceAiStatus.UNAVAILABLE
+            }
+        }
+    }
+
+    private fun download() {
+        scope.launch {
+            val succeeded = runCatching { model?.download()?.collect {} }.isSuccess
+            _status.value = if (succeeded && runCatching { model?.checkStatus() }.getOrNull() == FeatureStatus.AVAILABLE) {
+                OnDeviceAiStatus.READY
+            } else {
+                OnDeviceAiStatus.UNAVAILABLE
+            }
+        }
+    }
+
+    suspend fun read(photos: List<File>): CardRecipe {
+        val model = model ?: throw CardReadException("This phone doesn't have on-device AI.")
+        if (runCatching { model.checkStatus() }.getOrNull() != FeatureStatus.AVAILABLE) {
+            throw CardReadException("On-device AI isn't ready on this phone.")
+        }
+        // Smaller images keep the request within the on-device model's limit.
+        val bitmaps = withContext(Dispatchers.IO) { photos.mapNotNull { decode(it, NANO_EDGE) } }
+        val request = generateContentRequest(
+            content {
+                bitmaps.forEach { image(it) }
+                text(assets.prompt + "\n\n" + NANO_FORMAT)
+            }
+        ) {
+            temperature = 0.1f
+            maxOutputTokens = 2048
+        }
+        val text = runCatching { model.generateContent(request).candidates.firstOrNull()?.text }
+            .getOrElse { throw CardReadException("On-device AI couldn't read the card.") }
+        val recipe = text?.let(CardJson::parse)
+        if (recipe == null || recipe.isEmpty) throw CardReadException("On-device AI couldn't find a recipe in the photos.")
+        return recipe
+    }
+
+    private companion object {
+        const val NANO_EDGE = 1024
+
+        /** The on-device model has no answer schema, so the prompt describes the layout. */
+        const val NANO_FORMAT = "Answer with only a JSON object with the keys title, servings, prepTime, cookTime, " +
+            "ingredients, steps, and notes. ingredients and steps are lists of objects with the keys text and isHeading."
+    }
+}
+
+/**
+ * Reads the text on card photos with ML Kit text recognition and sorts it
+ * with [CardTextParser]. It works on any phone with Google Play services and
+ * reads printed cards well, but often misreads handwriting.
+ */
+class TextCardReader(private val context: Context) {
+    suspend fun read(photos: List<File>): CardRecipe {
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        try {
+            val pages = photos.map { file ->
+                val text = recognizer.process(InputImage.fromFilePath(context, Uri.fromFile(file))).await()
+                text.textBlocks.flatMap { block -> block.lines.map { it.text } }
+            }
+            val recipe = CardTextParser.parse(pages)
+            if (recipe.isEmpty) throw CardReadException("No writing was found in the photos.")
+            return recipe
+        } catch (error: CardReadException) {
+            throw error
+        } catch (error: Exception) {
+            throw CardReadException("Text recognition couldn't read the photos.")
+        } finally {
+            recognizer.close()
+        }
+    }
+}
+
+internal fun decode(file: File, maxEdge: Int): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(file.path, bounds)
+    if (bounds.outWidth <= 0) return null
+    var sample = 1
+    while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxEdge) sample *= 2
+    val decoded = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+    val scale = maxEdge.toFloat() / max(decoded.width, decoded.height)
+    return if (scale < 1f) {
+        Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt(), (decoded.height * scale).toInt(), true)
+    } else {
+        decoded
+    }
+}

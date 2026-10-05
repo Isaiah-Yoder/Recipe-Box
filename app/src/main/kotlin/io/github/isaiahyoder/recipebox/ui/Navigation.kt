@@ -32,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.ImportStatus
+import io.github.isaiahyoder.recipebox.ui.cards.CardScanScreen
 import io.github.isaiahyoder.recipebox.ui.categories.CategoriesScreen
 import io.github.isaiahyoder.recipebox.ui.editor.RecipeEditorScreen
 import io.github.isaiahyoder.recipebox.ui.grocery.GroceryListScreen
@@ -50,7 +51,13 @@ import kotlinx.serialization.Serializable
 @Serializable data object CategoriesRoute
 @Serializable data object GroceryListsRoute
 @Serializable data class GroceryListRoute(val id: Long)
-@Serializable data class RecipeEditRoute(val recipeId: Long = 0, val sourceUrl: String? = null, val importJobId: Long = 0)
+@Serializable data class RecipeEditRoute(
+    val recipeId: Long = 0,
+    val sourceUrl: String? = null,
+    val importJobId: Long = 0,
+    val cardDraftId: Long = 0,
+)
+@Serializable data object CardScanRoute
 
 @Composable
 fun RecipeBoxNavHost() {
@@ -78,6 +85,15 @@ fun RecipeBoxNavHost() {
                     onOpenQueue = { navController.navigate(QueueRoute) },
                     onOpenMenu = { scope.launch { drawerState.open() } },
                     onNewRecipe = { navController.navigate(RecipeEditRoute()) },
+                    onScanCard = { navController.navigate(CardScanRoute) },
+                )
+            }
+            composable<CardScanRoute> {
+                CardScanScreen(
+                    onDraft = { draftId ->
+                        navController.navigate(RecipeEditRoute(cardDraftId = draftId)) { popUpTo<CardScanRoute> { inclusive = true } }
+                    },
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable<QueueRoute> {
@@ -120,6 +136,7 @@ fun RecipeBoxNavHost() {
                     recipeId = route.recipeId,
                     sourceUrl = route.sourceUrl,
                     importJobId = route.importJobId,
+                    cardDraftId = route.cardDraftId,
                     onSaved = { id ->
                         if (route.recipeId == 0L) {
                             // A new recipe opens after saving; Back returns to where she started.

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The camera writes card photos here before the app saves its own copy. -->
+<paths>
+    <cache-path name="camera" path="camera/" />
+</paths>

@@ -85,6 +85,7 @@ import io.github.isaiahyoder.recipebox.ingredients.Fractions
 import io.github.isaiahyoder.recipebox.ingredients.IngredientParser
 import io.github.isaiahyoder.recipebox.ingredients.IngredientScaler
 import io.github.isaiahyoder.recipebox.ingredients.StepText
+import io.github.isaiahyoder.recipebox.ui.cards.CardPhotoRow
 import io.github.isaiahyoder.recipebox.ui.grocery.AddToGroceryListDialog
 import io.github.isaiahyoder.recipebox.ui.formatMinutes
 import kotlin.math.abs
@@ -282,6 +283,12 @@ private fun RecipeContent(
                         .aspectRatio(4f / 3f)
                         .clip(RoundedCornerShape(16.dp)),
                 )
+            }
+        }
+        if (recipe.cardPhotos.isNotEmpty() && !cookMode) {
+            item {
+                // The original card, for checking what was read or seeing her handwriting.
+                CardPhotoRow(recipe.cardPhotos, modifier = Modifier.padding(top = 8.dp))
             }
         }
         item {

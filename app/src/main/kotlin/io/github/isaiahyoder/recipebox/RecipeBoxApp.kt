@@ -4,6 +4,11 @@ import android.app.Application
 import android.content.Context
 import android.webkit.WebSettings
 import io.github.isaiahyoder.recipebox.backup.BackupManager
+import io.github.isaiahyoder.recipebox.cards.CardAssets
+import io.github.isaiahyoder.recipebox.cards.CardReader
+import io.github.isaiahyoder.recipebox.cards.GeminiCardReader
+import io.github.isaiahyoder.recipebox.cards.NanoCardReader
+import io.github.isaiahyoder.recipebox.cards.TextCardReader
 import io.github.isaiahyoder.recipebox.backup.DriveBackup
 import io.github.isaiahyoder.recipebox.backup.PhotoRestorer
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
@@ -17,6 +22,7 @@ import io.github.isaiahyoder.recipebox.tags.TagRefresher
 import io.github.isaiahyoder.recipebox.update.AppUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -31,6 +37,8 @@ class RecipeBoxApp : Application() {
         // A cover photo file can go missing; download it again in the background.
         CoroutineScope(Dispatchers.IO).launch {
             if (container.photoRestorer.forgetMissingFiles() > 0) PhotoRestorer.schedule(this@RecipeBoxApp)
+            // Card photos from a scan she didn't save.
+            container.photos.deleteUnusedCardPhotos(container.database.recipeDao().allCardPhotos().flatMap { it.cardPhotos }.toSet())
         }
     }
 }
@@ -79,6 +87,17 @@ class AppContainer(context: Context) {
     val driveBackup: DriveBackup by lazy { DriveBackup(context, httpClient, backupManager, settings, photos) }
 
     val updater: AppUpdater by lazy { AppUpdater(context, httpClient, settings) }
+
+    /** Work that outlives a screen, such as downloading the on-device AI model. */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private val cardAssets = CardAssets { path -> context.assets.open(path).use { it.readBytes().decodeToString() } }
+
+    val geminiCards: GeminiCardReader by lazy { GeminiCardReader(httpClient, cardAssets) }
+
+    val onDeviceCards: NanoCardReader by lazy { NanoCardReader(cardAssets, appScope) }
+
+    val cardReader: CardReader by lazy { CardReader(settings, geminiCards, onDeviceCards, TextCardReader(context)) }
 
     private companion object {
         const val FALLBACK_USER_AGENT =

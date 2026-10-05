@@ -70,6 +70,8 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
             SectionTitle("Organization")
             UpdateTagsItem()
+            SectionTitle("Recipe cards")
+            CardReadingSection()
             SectionTitle("Backups")
             BackupSection()
             SectionTitle("About")

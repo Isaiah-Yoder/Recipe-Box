@@ -102,8 +102,53 @@ class MigrationTest {
         }
     }
 
+    @Test fun version3RecipesAndListsSurviveTheUpdateToVersion4() {
+        helper.createDatabase(DB_NAME_V3, 3).apply {
+            execSQL(
+                """
+                INSERT INTO recipes (id, title, imageFile, imageIsOwn, ingredients, steps, siteCategories,
+                    siteCuisines, siteKeywords, notes, favorite, lastScale, showUsUnits, createdAt, updatedAt)
+                VALUES (3, 'Test Pie', 'own-3.jpg', 1, '[{"text":"1 cup sugar"}]', '[{"text":"Bake."}]', '[]',
+                    '[]', '[]', 'Grandma''s', 1, 1.5, 1, 100, 200)
+                """.trimIndent()
+            )
+            execSQL("INSERT INTO grocery_lists (id, name, hideStaples, createdAt, updatedAt) VALUES (1, 'Sunday', 1, 100, 200)")
+            execSQL("INSERT INTO grocery_list_recipes (listId, recipeId, scale, addedAt) VALUES (1, 3, 2.0, 100)")
+            execSQL("INSERT INTO grocery_line_state (listId, lineKey, checked, hidden, customText) VALUES (1, 'r:sugar', 1, 0, NULL)")
+            close()
+        }
+
+        helper.runMigrationsAndValidate(DB_NAME_V3, 4, true).close()
+
+        val database = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RecipeDatabase::class.java,
+            DB_NAME_V3,
+        ).build()
+        try {
+            runBlocking {
+                val dao = database.recipeDao()
+                val recipe = dao.getRecipe(3)!!
+                assertEquals("Test Pie", recipe.title)
+                assertEquals("own-3.jpg", recipe.imageFile)
+                assertEquals("Grandma's", recipe.notes)
+                assertEquals(1.5, recipe.lastScale, 0.0)
+                assertTrue(recipe.cardPhotos.isEmpty())
+                dao.update(recipe.copy(cardPhotos = listOf("card-a.jpg", "card-b.jpg")))
+                assertEquals(listOf("card-a.jpg", "card-b.jpg"), dao.getRecipe(3)!!.cardPhotos)
+
+                val grocery = database.groceryDao()
+                assertEquals(listOf("Sunday"), grocery.getLists().map { it.name })
+                assertEquals(2.0, grocery.getRecipeLink(1, 3)!!.scale, 0.0)
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     private companion object {
         const val DB_NAME = "migration-test.db"
         const val DB_NAME_V2 = "migration-test-v2.db"
+        const val DB_NAME_V3 = "migration-test-v3.db"
     }
 }

@@ -65,6 +65,11 @@ class BackupManagerTest {
         val typed = dao.insert(
             RecipeEntity(title = "Grandma's Card", imageFile = "own-test.jpg", imageIsOwn = true, createdAt = 3, updatedAt = 4)
         )
+        photos.file("card-front.jpg").writeBytes(byteArrayOf(4, 5))
+        photos.file("card-back.jpg").writeBytes(byteArrayOf(6))
+        val card = dao.insert(
+            RecipeEntity(title = "Card Cookies", cardPhotos = listOf("card-front.jpg", "card-back.jpg"), createdAt = 5, updatedAt = 6)
+        )
         dao.addManualTag(imported, "Family")
         dao.replaceAutoTags(imported, listOf("Soup", "Old"))
         dao.removeTag(imported, "Old")
@@ -78,17 +83,20 @@ class BackupManagerTest {
 
         val bytes = ByteArrayOutputStream().also { manager.writeZip(manager.snapshot(), it, includePhotos = true) }.toByteArray()
         val (backup, photoBytes) = manager.readZip(ByteArrayInputStream(bytes))
-        assertEquals(listOf("own-test.jpg"), photoBytes.keys.toList())
+        assertEquals(setOf("own-test.jpg", "card-front.jpg", "card-back.jpg"), photoBytes.keys)
 
         // A different library is replaced by the restore.
         dao.delete(imported)
         dao.insert(RecipeEntity(title = "Added Later", createdAt = 9, updatedAt = 9))
         photos.file("own-test.jpg").delete()
+        photos.file("card-back.jpg").delete()
 
         manager.restore(backup) { photoBytes[it] }
 
         val titles = database.backupDao().recipes().map { it.title }.toSet()
-        assertEquals(setOf("Imported Soup", "Grandma's Card"), titles)
+        assertEquals(setOf("Imported Soup", "Grandma's Card", "Card Cookies"), titles)
+        assertEquals(listOf("card-front.jpg", "card-back.jpg"), dao.getRecipe(card)!!.cardPhotos)
+        assertTrue(photos.file("card-back.jpg").exists())
         val soup = dao.getRecipe(imported)!!
         assertNull("Cover photos download again", soup.imageFile)
         assertEquals("https://example.com/soup.jpg", soup.imageUrl)
@@ -103,6 +111,21 @@ class BackupManagerTest {
         assertEquals(listOf("paper towels"), grocery.observeManualItems(list).first().map { it.text })
         assertTrue(grocery.getLineState(list, "r:milk")!!.checked)
         assertEquals(listOf(imported), dao.recipesMissingCover().map { it.id })
+    }
+
+    @Test fun aBackupFromBeforeCardPhotosStillReads() {
+        // Written by 0.3.0, whose recipes had no cardPhotos field.
+        val backup = manager.decode(
+            """
+            {"format": 1, "appVersion": "0.3.0", "exportedAt": 1,
+             "recipes": [{"id": 1, "title": "Old Soup", "createdAt": 1, "updatedAt": 2}],
+             "tags": [], "recipeTags": [], "categories": [], "recipeCategories": [], "groceryLists": [],
+             "groceryListRecipes": [], "groceryManualItems": [], "groceryLineStates": [], "sectionOverrides": []}
+            """.trimIndent().toByteArray()
+        )
+        assertEquals("Old Soup", backup.recipes.single().title)
+        assertTrue(backup.recipes.single().cardPhotos.isEmpty())
+        assertTrue(backup.ownPhotoNames.isEmpty())
     }
 
     @Test fun theFingerprintIgnoresTheBackupTime() = runBlocking {

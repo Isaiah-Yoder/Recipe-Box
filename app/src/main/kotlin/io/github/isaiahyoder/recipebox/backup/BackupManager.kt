@@ -29,8 +29,9 @@ import java.util.zip.ZipOutputStream
 /**
  * Everything in a backup. Cover photos aren't included: each recipe keeps
  * the address its photo came from, and the photo downloads again after a
- * restore. Photos she took herself are included, because they can't be
- * downloaded again.
+ * restore. Photos she took herself and recipe card photos are included,
+ * because they can't be downloaded again. Backups from before card photos
+ * existed read as recipes without card photos.
  */
 @Serializable
 data class BackupFile(
@@ -49,8 +50,9 @@ data class BackupFile(
     val sectionOverrides: List<SectionOverrideEntity>,
     val themeMode: String? = null,
 ) {
-    /** File names of her own photos, which travel with the backup. */
-    val ownPhotoNames: List<String> get() = recipes.filter { it.imageIsOwn }.mapNotNull { it.imageFile }
+    /** File names of her own photos and card photos, which travel with the backup. */
+    val ownPhotoNames: List<String>
+        get() = recipes.flatMap { recipe -> listOfNotNull(recipe.imageFile.takeIf { recipe.imageIsOwn }) + recipe.cardPhotos }
 
     companion object {
         /** Raise when the backup layout changes; restore must keep reading older formats. */
@@ -155,7 +157,8 @@ class BackupManager(
         }
         val recipes = backup.recipes.map { recipe ->
             // A photo that didn't come with the backup is treated as missing.
-            if (recipe.imageIsOwn && recipe.imageFile !in restoredPhotos) recipe.copy(imageFile = null) else recipe
+            val image = if (recipe.imageIsOwn && recipe.imageFile !in restoredPhotos) null else recipe.imageFile
+            recipe.copy(imageFile = image, cardPhotos = recipe.cardPhotos.filter { it in restoredPhotos })
         }
 
         database.withTransaction {
@@ -183,7 +186,7 @@ class BackupManager(
         }
 
         // Old photo files no restored recipe uses are removed; cover photos download again.
-        val keep = recipes.mapNotNull { it.imageFile }.toSet()
+        val keep = recipes.flatMap { listOfNotNull(it.imageFile) + it.cardPhotos }.toSet()
         withContext(Dispatchers.IO) { photos.deleteAllExcept(keep) }
         backup.themeMode?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }?.let(settings::setThemeMode)
     }

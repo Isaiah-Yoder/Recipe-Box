@@ -50,6 +50,12 @@ data class RecipeEntity(
     val lastScale: Double = 1.0,
     /** Whether the recipe screen shows metric amounts in US units. */
     val showUsUnits: Boolean = true,
+    /**
+     * File names of the recipe card photos it was read from, front first. They
+     * can't be downloaded again, so backups include them.
+     */
+    @ColumnInfo(defaultValue = "[]")
+    val cardPhotos: List<String> = emptyList(),
     val createdAt: Long,
     val updatedAt: Long,
 )

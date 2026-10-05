@@ -19,6 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -35,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import io.github.isaiahyoder.recipebox.appContainer
+import io.github.isaiahyoder.recipebox.ui.cards.CardPhotoRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,9 +55,10 @@ fun RecipeEditorScreen(
     importJobId: Long,
     onSaved: (Long) -> Unit,
     onCancel: () -> Unit,
+    cardDraftId: Long = 0,
 ) {
     val container = LocalContext.current.appContainer
-    val vm = viewModel(key = "edit-$recipeId-$importJobId") {
+    val vm = viewModel(key = "edit-$recipeId-$importJobId-$cardDraftId") {
         RecipeEditorViewModel(
             container.database.recipeDao(),
             container.photos,
@@ -61,16 +66,20 @@ fun RecipeEditorScreen(
             recipeId,
             sourceUrl,
             importJobId,
+            cardDraftId,
         )
     }
     val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) vm.choosePhoto(uri)
     }
+    val pickCardPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) vm.addCardPhoto(uri)
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (recipeId == 0L) "New recipe" else "Edit recipe") },
+                title = { Text(if (vm.isCardDraft) "Check recipe card" else if (recipeId == 0L) "New recipe" else "Edit recipe") },
                 navigationIcon = {
                     IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Cancel") }
                 },
@@ -96,6 +105,43 @@ fun RecipeEditorScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            vm.readBy?.let { reader ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Read with ${reader.label}", style = MaterialTheme.typography.titleSmall)
+                        Text("Compare each line with the card photos, fix anything misread, then tap Save.")
+                        vm.readProblems.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    }
+                }
+            }
+
+            if (vm.cardPhotos.isNotEmpty() || vm.isCardDraft) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Card photos", style = MaterialTheme.typography.titleSmall)
+                    // The row runs edge to edge, so it undoes the column's side padding.
+                    CardPhotoRow(
+                        vm.cardPhotos,
+                        modifier = Modifier.layout { measurable, constraints ->
+                            val extra = 32.dp.roundToPx()
+                            val placeable = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth + extra))
+                            layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
+                        },
+                        onRemove = vm::removeCardPhoto,
+                        onMoveEarlier = vm::moveCardPhotoEarlier,
+                    )
+                    OutlinedButton(
+                        onClick = { pickCardPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        enabled = !vm.addingCardPhoto,
+                    ) {
+                        Icon(Icons.Filled.Image, contentDescription = null)
+                        Text("Add card photo", Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+
             OutlinedTextField(
                 value = vm.title,
                 onValueChange = { vm.title = it },
@@ -109,6 +155,8 @@ fun RecipeEditorScreen(
 
             PhotoField(
                 photo = vm.newPhoto ?: vm.photoFile?.takeIf { !vm.removePhoto }?.let { container.photos.file(it) },
+                // Beside card photos, "photo" alone would be unclear.
+                noun = if (vm.cardPhotos.isNotEmpty()) "cover photo" else "photo",
                 onChoose = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onRemove = vm::clearPhoto,
             )
@@ -174,7 +222,7 @@ private fun NumberField(label: String, value: String, onChange: (String) -> Unit
 }
 
 @Composable
-private fun PhotoField(photo: Any?, onChoose: () -> Unit, onRemove: () -> Unit) {
+private fun PhotoField(photo: Any?, noun: String, onChoose: () -> Unit, onRemove: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (photo != null) {
             AsyncImage(
@@ -187,11 +235,11 @@ private fun PhotoField(photo: Any?, onChoose: () -> Unit, onRemove: () -> Unit) 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onChoose) {
                 Icon(Icons.Filled.Image, contentDescription = null)
-                Text(if (photo == null) "Add photo" else "Change photo", Modifier.padding(start = 8.dp))
+                Text(if (photo == null) "Add $noun" else "Change $noun", Modifier.padding(start = 8.dp))
             }
             if (photo != null) {
                 TextButton(onClick = onRemove) {
-                    Text("Remove photo", color = MaterialTheme.colorScheme.error)
+                    Text("Remove $noun", color = MaterialTheme.colorScheme.error)
                 }
             }
         }

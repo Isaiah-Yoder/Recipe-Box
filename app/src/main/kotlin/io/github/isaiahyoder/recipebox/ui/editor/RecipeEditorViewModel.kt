@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.isaiahyoder.recipebox.cards.CardDrafts
+import io.github.isaiahyoder.recipebox.cards.CardReaderKind
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.data.RecipeText
@@ -18,7 +20,8 @@ import kotlinx.coroutines.launch
 /**
  * Edits an existing recipe, or creates one when [recipeId] is 0. A recipe
  * started from a failed import keeps its link, and saving it removes the
- * failed entry from the queue.
+ * failed entry from the queue. A recipe read from card photos starts from
+ * the draft [cardDraftId] names.
  */
 class RecipeEditorViewModel(
     private val dao: RecipeDao,
@@ -27,6 +30,7 @@ class RecipeEditorViewModel(
     private val recipeId: Long,
     initialSourceUrl: String?,
     private val importJobId: Long,
+    private val cardDraftId: Long = 0,
 ) : ViewModel() {
     var loaded by mutableStateOf(recipeId == 0L)
         private set
@@ -52,27 +56,73 @@ class RecipeEditorViewModel(
     var saving by mutableStateOf(false)
         private set
 
+    /** Card photos, front first. Removed photos are deleted when she saves. */
+    var cardPhotos by mutableStateOf<List<String>>(emptyList())
+        private set
+    var addingCardPhoto by mutableStateOf(false)
+        private set
+
+    /** Which reader filled in a card draft, and what didn't work first; null otherwise. */
+    var readBy by mutableStateOf<CardReaderKind?>(null)
+        private set
+    var readProblems by mutableStateOf<List<String>>(emptyList())
+        private set
+    val isCardDraft: Boolean = cardDraftId != 0L
+
     private var original: RecipeEntity? = null
 
+    /** A new recipe's starting values, such as a card draft's yield text. */
+    private var draftBase: RecipeEntity? = null
+
     init {
+        CardDrafts.get(cardDraftId)?.let { draft ->
+            val now = System.currentTimeMillis()
+            val entity = draft.recipe.toEntity(draft.photos, now)
+            draftBase = entity
+            fill(entity)
+            readBy = draft.kind
+            readProblems = draft.problems
+        }
         if (recipeId != 0L) {
             viewModelScope.launch {
                 dao.getRecipe(recipeId)?.let { recipe ->
                     original = recipe
-                    title = recipe.title
-                    servings = recipe.servings?.toString().orEmpty()
-                    prepMinutes = recipe.prepMinutes?.toString().orEmpty()
-                    cookMinutes = recipe.cookMinutes?.toString().orEmpty()
-                    totalMinutes = recipe.totalMinutes?.toString().orEmpty()
-                    ingredients = RecipeText.toText(recipe.ingredients)
-                    steps = RecipeText.toText(recipe.steps)
-                    notes = recipe.notes
-                    sourceUrl = recipe.sourceUrl.orEmpty()
-                    photoFile = recipe.imageFile
+                    fill(recipe)
                 }
                 loaded = true
             }
         }
+    }
+
+    private fun fill(recipe: RecipeEntity) {
+        title = recipe.title
+        servings = recipe.servings?.toString().orEmpty()
+        prepMinutes = recipe.prepMinutes?.toString().orEmpty()
+        cookMinutes = recipe.cookMinutes?.toString().orEmpty()
+        totalMinutes = recipe.totalMinutes?.toString().orEmpty()
+        ingredients = RecipeText.toText(recipe.ingredients)
+        steps = RecipeText.toText(recipe.steps)
+        notes = recipe.notes
+        sourceUrl = recipe.sourceUrl.orEmpty()
+        photoFile = recipe.imageFile
+        cardPhotos = recipe.cardPhotos
+    }
+
+    fun addCardPhoto(uri: Uri) {
+        addingCardPhoto = true
+        viewModelScope.launch {
+            photos.saveCardPhoto(uri)?.let { cardPhotos = cardPhotos + it }
+            addingCardPhoto = false
+        }
+    }
+
+    fun removeCardPhoto(name: String) {
+        cardPhotos = cardPhotos - name
+    }
+
+    fun moveCardPhotoEarlier(name: String) {
+        val index = cardPhotos.indexOf(name)
+        if (index > 0) cardPhotos = cardPhotos.toMutableList().apply { add(index - 1, removeAt(index)) }
     }
 
     val canSave: Boolean get() = title.isNotBlank() && !saving
@@ -93,7 +143,7 @@ class RecipeEditorViewModel(
         saving = true
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            val base = original ?: RecipeEntity(title = "", createdAt = now, updatedAt = now)
+            val base = original ?: draftBase ?: RecipeEntity(title = "", createdAt = now, updatedAt = now)
             val edited = base.copy(
                 title = title.trim(),
                 servings = servings.trim().toIntOrNull()?.takeIf { it > 0 },
@@ -104,6 +154,7 @@ class RecipeEditorViewModel(
                 steps = RecipeText.fromText(steps),
                 notes = notes.trim(),
                 sourceUrl = sourceUrl.trim().ifBlank { null },
+                cardPhotos = cardPhotos,
                 updatedAt = now,
             )
             val id = if (original == null) dao.insert(edited) else edited.id.also { dao.update(edited) }
@@ -120,6 +171,12 @@ class RecipeEditorViewModel(
                     dao.update(edited.copy(id = id, imageFile = null, imageIsOwn = false, imageUrl = null))
                 }
             }
+
+            // Card photos she removed are deleted only once the recipe no longer uses them.
+            (base.cardPhotos + (CardDrafts.get(cardDraftId)?.photos ?: emptyList()))
+                .filter { it !in cardPhotos }
+                .forEach(photos::delete)
+            CardDrafts.remove(cardDraftId)
 
             dao.getRecipe(id)?.let { dao.replaceAutoTags(id, AutoTagger.tags(it.toTaggable())) }
             if (importJobId != 0L) queue.remove(importJobId)

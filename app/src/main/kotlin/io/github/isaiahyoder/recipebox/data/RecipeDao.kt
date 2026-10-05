@@ -14,16 +14,20 @@ data class RecipeSummary(
     val title: String,
     val siteName: String?,
     val imageFile: String?,
+    val cardPhotos: List<String>,
     val totalMinutes: Int?,
     val favorite: Boolean,
     val tagNames: String?,
 )
 
+/** One recipe's card photo file names. */
+data class CardPhotoNames(val cardPhotos: List<String>)
+
 @Dao
 interface RecipeDao {
     @Query(
         """
-        SELECT r.id, r.title, r.siteName, r.imageFile, r.totalMinutes, r.favorite,
+        SELECT r.id, r.title, r.siteName, r.imageFile, r.cardPhotos, r.totalMinutes, r.favorite,
             (SELECT GROUP_CONCAT(t.name, '|') FROM recipe_tags rt
                 JOIN tags t ON t.id = rt.tagId
                 WHERE rt.recipeId = r.id AND rt.hidden = 0) AS tagNames
@@ -80,6 +84,9 @@ interface RecipeDao {
 
     @Query("UPDATE recipes SET favorite = :favorite WHERE id = :id")
     suspend fun setFavorite(id: Long, favorite: Boolean)
+
+    @Query("SELECT cardPhotos FROM recipes WHERE cardPhotos != '[]'")
+    suspend fun allCardPhotos(): List<CardPhotoNames>
 
     @Query("UPDATE recipes SET imageFile = :imageFile WHERE id = :id")
     suspend fun setImageFile(id: Long, imageFile: String?)

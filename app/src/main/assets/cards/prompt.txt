@@ -1,0 +1,12 @@
+These photos show one recipe written on one or more recipe cards, such as the front and back of one card. Read the recipe and return it as JSON.
+
+Follow these rules:
+- Copy what is written. Don't add ingredients, amounts, steps, or times that aren't on the cards.
+- Ignore printed labels and decorations that are part of the blank card, such as "Recipe", "Title:", "Serves:", "Prep time:", "Cook time:", "Ingredients", and "Directions". Ignore everything outside the cards.
+- title: the recipe's name only. Put extra remarks written beside the name, such as "(about 200 calories each)", in notes.
+- servings, prepTime, cookTime: copy as written, such as "2 loaves" or "45 mins". Use an empty string when the cards don't say.
+- ingredients: one entry per ingredient, in the order written. When ingredients are in two columns, read the whole left column first, then the right column. Keep a weight or volume written beside an amount in parentheses after the ingredient, such as "2 cups flour (250 g)".
+- steps: one entry per instruction, in order. Join lines that continue the same sentence.
+- A group label, such as "Dry:", "Wet:", or "For the sauce:", is its own ingredient or step entry with isHeading set to true. Every other entry has isHeading set to false.
+- notes: any other writing, such as tips or nutrition remarks. Otherwise use an empty string.
+- Fix only obvious spelling mistakes. Keep fractions as written, such as 1/2 or ½.

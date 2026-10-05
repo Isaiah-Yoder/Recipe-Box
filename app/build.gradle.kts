@@ -31,8 +31,8 @@ android {
         minSdk = 26
         targetSdk = 37
         // Increase versionCode for every release, or the update won't install.
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -98,6 +98,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.play.services.auth)
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.mlkit.genai.prompt)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)

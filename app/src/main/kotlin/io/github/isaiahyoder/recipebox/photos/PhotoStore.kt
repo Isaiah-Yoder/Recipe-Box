@@ -56,22 +56,45 @@ class PhotoStore(
     suspend fun saveOwnPhoto(uri: Uri, recipeId: Long): String? = withContext(Dispatchers.IO) {
         runCatching {
             val name = "own-$recipeId-${System.currentTimeMillis()}.jpg"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                // ImageDecoder applies the camera's rotation, so a card photo isn't sideways.
-                val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, uri)) { decoder, info, _ ->
-                    val edge = max(info.size.width, info.size.height)
-                    if (edge > OWN_PHOTO_EDGE) {
-                        val scale = OWN_PHOTO_EDGE.toFloat() / edge
-                        decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
-                    }
-                }
-                writeJpeg(bitmap, file(name))
-            } else {
-                val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: return@runCatching null
-                saveResized(bytes, file(name), OWN_PHOTO_EDGE) ?: return@runCatching null
-            }
+            saveUri(uri, file(name), OWN_PHOTO_EDGE)
             name
         }.getOrNull()
+    }
+
+    private fun saveUri(uri: Uri, target: File, maxEdge: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            // ImageDecoder applies the camera's rotation, so a card photo isn't sideways.
+            val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, uri)) { decoder, info, _ ->
+                val edge = max(info.size.width, info.size.height)
+                if (edge > maxEdge) {
+                    val scale = maxEdge.toFloat() / edge
+                    decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
+                }
+            }
+            writeJpeg(bitmap, target)
+        } else {
+            val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Couldn't open the photo")
+            saveResized(bytes, target, maxEdge) ?: error("Couldn't read the photo")
+        }
+    }
+
+    /**
+     * Saves a recipe card photo at a size that keeps handwriting readable for
+     * the card readers. Returns the new file name.
+     */
+    suspend fun saveCardPhoto(uri: Uri): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val name = "$CARD_PREFIX${System.currentTimeMillis()}-${(1000..9999).random()}.jpg"
+            saveUri(uri, file(name), CARD_PHOTO_EDGE)
+            name
+        }.getOrNull()
+    }
+
+    /** Deletes card photos no recipe uses that are over a day old, such as from a scan she didn't save. */
+    fun deleteUnusedCardPhotos(used: Set<String>, now: Long = System.currentTimeMillis()) {
+        folder.listFiles()
+            ?.filter { it.name.startsWith(CARD_PREFIX) && it.name !in used && now - it.lastModified() > DAY_MS }
+            ?.forEach { it.delete() }
     }
 
     fun delete(name: String?) {
@@ -115,5 +138,8 @@ class PhotoStore(
     private companion object {
         const val MAX_EDGE = 1080
         const val OWN_PHOTO_EDGE = 1600
+        const val CARD_PHOTO_EDGE = 2048
+        const val CARD_PREFIX = "card-"
+        const val DAY_MS = 24 * 60 * 60 * 1000L
     }
 }

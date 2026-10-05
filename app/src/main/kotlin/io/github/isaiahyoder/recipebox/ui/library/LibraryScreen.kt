@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Favorite
@@ -78,6 +79,7 @@ fun LibraryScreen(
     onOpenQueue: () -> Unit,
     onOpenMenu: () -> Unit,
     onNewRecipe: () -> Unit,
+    onScanCard: () -> Unit,
 ) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel { LibraryViewModel(container.database.recipeDao()) }
@@ -172,6 +174,10 @@ fun LibraryScreen(
                 showAddDialog = false
                 onNewRecipe()
             },
+            onScanCard = {
+                showAddDialog = false
+                onScanCard()
+            },
         )
     }
 }
@@ -248,7 +254,7 @@ private fun RecipeRow(recipe: RecipeSummary, onClick: () -> Unit) {
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RecipeThumbnail(container.photos.existing(recipe.imageFile))
+        RecipeThumbnail(container.photos.existing(recipe.imageFile) ?: container.photos.existing(recipe.cardPhotos.firstOrNull()))
         Column(Modifier.padding(start = 12.dp).weight(1f)) {
             Text(
                 recipe.title,
@@ -311,7 +317,7 @@ private fun EmptyLibrary() {
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         Text(
             "No recipes yet.\n\nIn your browser, open a recipe and tap Share, then Recipe Box. " +
-                "Or tap Add recipe and paste a link.",
+                "Or tap Add recipe to paste a link or scan a recipe card.",
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -321,7 +327,12 @@ private fun EmptyLibrary() {
 
 /** Takes one or more pasted links and adds them all to the import queue. */
 @Composable
-private fun AddRecipeDialog(onDismiss: () -> Unit, onAdd: (List<String>) -> Unit, onTypeIn: () -> Unit) {
+private fun AddRecipeDialog(
+    onDismiss: () -> Unit,
+    onAdd: (List<String>) -> Unit,
+    onTypeIn: () -> Unit,
+    onScanCard: () -> Unit,
+) {
     val context = LocalContext.current
     var text by rememberSaveable { mutableStateOf("") }
     val links = remember(text) { Links.findAllUrls(text) }
@@ -347,6 +358,10 @@ private fun AddRecipeDialog(onDismiss: () -> Unit, onAdd: (List<String>) -> Unit
                 }) {
                     Icon(Icons.Filled.ContentPaste, contentDescription = null)
                     Text("Paste", Modifier.padding(start = 8.dp))
+                }
+                TextButton(onClick = onScanCard) {
+                    Icon(Icons.Filled.CameraAlt, contentDescription = null)
+                    Text("Scan a recipe card", Modifier.padding(start = 8.dp))
                 }
                 TextButton(onClick = onTypeIn) {
                     Icon(Icons.Filled.Edit, contentDescription = null)

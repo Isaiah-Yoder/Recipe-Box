@@ -82,6 +82,20 @@ class AppSettings(context: Context, fileName: String = "settings") {
         get() = prefs.getString(KEY_DRIVE_HASH, null)
         set(value) = prefs.edit { putString(KEY_DRIVE_HASH, value) }
 
+    private val _geminiKey = MutableStateFlow(prefs.getString(KEY_GEMINI, null)?.takeIf { it.isNotBlank() })
+
+    /**
+     * Her own Gemini API key for reading recipe cards, or null. It's kept in
+     * the app's private settings and never written into the app's backup files.
+     */
+    val geminiKey: StateFlow<String?> = _geminiKey.asStateFlow()
+
+    fun setGeminiKey(key: String?) {
+        val cleaned = key?.trim()?.takeIf { it.isNotEmpty() }
+        prefs.edit { if (cleaned == null) remove(KEY_GEMINI) else putString(KEY_GEMINI, cleaned) }
+        _geminiKey.value = cleaned
+    }
+
     /** The update version whose banner she put off, and when. */
     val updatePutOffVersion: String? get() = prefs.getString(KEY_UPDATE_PUT_OFF_VERSION, null)
     val updatePutOffAt: Long get() = prefs.getLong(KEY_UPDATE_PUT_OFF_AT, 0)
@@ -113,5 +127,6 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_DRIVE_HASH = "drive_last_hash"
         const val KEY_UPDATE_PUT_OFF_VERSION = "update_put_off_version"
         const val KEY_UPDATE_PUT_OFF_AT = "update_put_off_at"
+        const val KEY_GEMINI = "gemini_api_key"
     }
 }
