@@ -41,7 +41,8 @@ object IngredientParser {
         return ParsedIngredient(line, Quantity(low, high), unit, unitText, rest)
     }
 
-    private fun matchUnit(text: String): Triple<Unit?, String?, String> {
+    /** Reads a unit at the start of [text]: the unit, the unit as written, and the text after it. */
+    fun matchUnit(text: String): Triple<Unit?, String?, String> {
         for ((alias, unit) in Unit.aliasTable) {
             if (text.length < alias.length) continue
             val candidate = text.substring(0, alias.length)

@@ -65,7 +65,45 @@ class MigrationTest {
         }
     }
 
+    @Test fun version2QueueAndRecipesSurviveTheUpdateToVersion3() {
+        helper.createDatabase(DB_NAME_V2, 2).apply {
+            execSQL(
+                """
+                INSERT INTO recipes (id, title, imageIsOwn, ingredients, steps, siteCategories, siteCuisines,
+                    siteKeywords, notes, favorite, lastScale, showUsUnits, createdAt, updatedAt)
+                VALUES (7, 'Test Bread', 0, '[{"text":"3 cups flour"}]', '[{"text":"Bake."}]', '[]',
+                    '[]', '[]', '', 0, 1.0, 1, 100, 200)
+                """.trimIndent()
+            )
+            execSQL(
+                """
+                INSERT INTO import_jobs (id, url, status, attempts, nextAttemptAt, createdAt, updatedAt)
+                VALUES (1, 'https://example.com/a', 'FAILED', 3, 0, 100, 200)
+                """.trimIndent()
+            )
+            close()
+        }
+
+        helper.runMigrationsAndValidate(DB_NAME_V2, 3, true).close()
+
+        val database = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RecipeDatabase::class.java,
+            DB_NAME_V2,
+        ).build()
+        try {
+            runBlocking {
+                assertEquals("Test Bread", database.recipeDao().getRecipe(7)!!.title)
+                assertEquals(ImportStatus.FAILED, database.importJobDao().observeAll().first().single().status)
+                assertTrue(database.groceryDao().getLists().isEmpty())
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     private companion object {
         const val DB_NAME = "migration-test.db"
+        const val DB_NAME_V2 = "migration-test-v2.db"
     }
 }

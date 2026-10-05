@@ -30,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.ImportStatus
+import io.github.isaiahyoder.recipebox.ui.editor.RecipeEditorScreen
 import io.github.isaiahyoder.recipebox.ui.library.LibraryScreen
 import io.github.isaiahyoder.recipebox.ui.queue.QueueScreen
 import io.github.isaiahyoder.recipebox.ui.recipe.RecipeScreen
@@ -41,6 +42,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class RecipeRoute(val id: Long)
 @Serializable data object QueueRoute
 @Serializable data object SettingsRoute
+@Serializable data class RecipeEditRoute(val recipeId: Long = 0, val sourceUrl: String? = null, val importJobId: Long = 0)
 
 @Composable
 fun RecipeBoxNavHost() {
@@ -67,11 +69,13 @@ fun RecipeBoxNavHost() {
                     onOpenRecipe = { navController.navigate(RecipeRoute(it)) },
                     onOpenQueue = { navController.navigate(QueueRoute) },
                     onOpenMenu = { scope.launch { drawerState.open() } },
+                    onNewRecipe = { navController.navigate(RecipeEditRoute()) },
                 )
             }
             composable<QueueRoute> {
                 QueueScreen(
                     onOpenRecipe = { navController.navigate(RecipeRoute(it)) },
+                    onEnterManually = { url, jobId -> navController.navigate(RecipeEditRoute(sourceUrl = url, importJobId = jobId)) },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -79,9 +83,28 @@ fun RecipeBoxNavHost() {
                 SettingsScreen(onBack = { navController.popBackStack() })
             }
             composable<RecipeRoute> { entry ->
+                val id = entry.toRoute<RecipeRoute>().id
                 RecipeScreen(
-                    recipeId = entry.toRoute<RecipeRoute>().id,
+                    recipeId = id,
+                    onEdit = { navController.navigate(RecipeEditRoute(recipeId = id)) },
                     onBack = { navController.popBackStack() },
+                )
+            }
+            composable<RecipeEditRoute> { entry ->
+                val route = entry.toRoute<RecipeEditRoute>()
+                RecipeEditorScreen(
+                    recipeId = route.recipeId,
+                    sourceUrl = route.sourceUrl,
+                    importJobId = route.importJobId,
+                    onSaved = { id ->
+                        if (route.recipeId == 0L) {
+                            // A new recipe opens after saving; Back returns to where she started.
+                            navController.navigate(RecipeRoute(id)) { popUpTo<RecipeEditRoute> { inclusive = true } }
+                        } else {
+                            navController.popBackStack()
+                        }
+                    },
+                    onCancel = { navController.popBackStack() },
                 )
             }
         }

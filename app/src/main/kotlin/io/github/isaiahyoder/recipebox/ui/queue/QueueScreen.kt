@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,7 +51,7 @@ import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QueueScreen(onOpenRecipe: (Long) -> Unit, onBack: () -> Unit) {
+fun QueueScreen(onOpenRecipe: (Long) -> Unit, onEnterManually: (String, Long) -> Unit, onBack: () -> Unit) {
     val container = LocalContext.current.appContainer
     val jobs by container.database.importJobDao().observeAll().collectAsStateWithLifecycle(initialValue = null)
     val queue = container.importQueue
@@ -93,6 +95,7 @@ fun QueueScreen(onOpenRecipe: (Long) -> Unit, onBack: () -> Unit) {
                     job = job,
                     onOpenRecipe = onOpenRecipe,
                     onRetry = { scope.launch { queue.retry(job.id) } },
+                    onEnterManually = { onEnterManually(job.url, job.id) },
                     onRemove = { scope.launch { queue.remove(job.id) } },
                 )
                 HorizontalDivider()
@@ -101,11 +104,13 @@ fun QueueScreen(onOpenRecipe: (Long) -> Unit, onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun JobRow(
     job: ImportJobEntity,
     onOpenRecipe: (Long) -> Unit,
     onRetry: () -> Unit,
+    onEnterManually: () -> Unit,
     onRemove: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -137,11 +142,12 @@ private fun JobRow(
             }
         }
         if (job.status == ImportStatus.FAILED) {
-            Row(Modifier.padding(start = 36.dp)) {
+            FlowRow(Modifier.padding(start = 36.dp)) {
                 TextButton(onClick = onRetry) { Text("Retry") }
                 TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, job.url.toUri())) }) {
                     Text("Open page")
                 }
+                TextButton(onClick = onEnterManually) { Text("Type it in") }
                 TextButton(onClick = onRemove) { Text("Remove") }
             }
         } else if (job.status == ImportStatus.PENDING && job.attempts > 0) {

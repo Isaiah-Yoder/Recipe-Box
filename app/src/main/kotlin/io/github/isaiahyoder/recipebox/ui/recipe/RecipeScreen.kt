@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Lightbulb
@@ -59,7 +60,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -72,6 +76,7 @@ import io.github.isaiahyoder.recipebox.ingredients.DisplayIngredient
 import io.github.isaiahyoder.recipebox.ingredients.Fractions
 import io.github.isaiahyoder.recipebox.ingredients.IngredientParser
 import io.github.isaiahyoder.recipebox.ingredients.IngredientScaler
+import io.github.isaiahyoder.recipebox.ingredients.StepText
 import io.github.isaiahyoder.recipebox.ui.formatMinutes
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -81,7 +86,7 @@ private val scaleStops = listOf(0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecipeScreen(recipeId: Long, onBack: () -> Unit) {
+fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel(key = "recipe-$recipeId") {
         RecipeViewModel(container.database.recipeDao(), container.photos, recipeId)
@@ -130,6 +135,14 @@ fun RecipeScreen(recipeId: Long, onBack: () -> Unit) {
                                 Icon(Icons.Filled.MoreVert, contentDescription = "More options")
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Edit recipe") },
+                                    leadingIcon = { Icon(Icons.Filled.Edit, null) },
+                                    onClick = {
+                                        menuOpen = false
+                                        onEdit()
+                                    },
+                                )
                                 recipe.sourceUrl?.let { url ->
                                     DropdownMenuItem(
                                         text = { Text("Open original page") },
@@ -262,12 +275,12 @@ private fun RecipeContent(
                 onShowUsUnits = onShowUsUnits,
             )
         }
-        sectionHeading("Ingredients")
+        if (recipe.ingredients.isNotEmpty()) sectionHeading("Ingredients")
         lines(recipe.ingredients) { line ->
             val shown = remember(line.text, scale, toUs) { IngredientScaler.display(line.text, scale, toUs) }
             IngredientRow(shown, bodyStyle)
         }
-        sectionHeading("Steps")
+        if (recipe.steps.isNotEmpty()) sectionHeading("Steps")
         var stepNumber = 0
         val numbered = recipe.steps.map { line -> if (line.isHeader) line to 0 else line to ++stepNumber }
         itemsIndexed(numbered) { _, (line, number) ->
@@ -282,8 +295,31 @@ private fun RecipeContent(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.width(32.dp),
                     )
-                    Text(line.text, style = bodyStyle)
+                    val pieces = remember(line.text, scale, toUs) { StepText.display(line.text, scale, toUs) }
+                    val highlight = MaterialTheme.colorScheme.primary
+                    Text(
+                        buildAnnotatedString {
+                            pieces.forEach { piece ->
+                                if (piece.changed) {
+                                    withStyle(SpanStyle(color = highlight, fontWeight = FontWeight.SemiBold)) { append(piece.text) }
+                                } else {
+                                    append(piece.text)
+                                }
+                            }
+                        },
+                        style = bodyStyle,
+                    )
                 }
+            }
+        }
+        if (recipe.notes.isNotBlank()) {
+            sectionHeading("Notes")
+            item {
+                Text(
+                    recipe.notes,
+                    style = bodyStyle,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
             }
         }
     }
@@ -302,7 +338,10 @@ private fun ScaleCard(
 ) {
     Card(Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            val makes = recipe.servings?.let { "Makes ${Fractions.format(it * scale)} servings" }
+            val makes = recipe.servings?.let {
+                val count = it * scale
+                "Makes ${Fractions.format(count)} ${if (Fractions.isPlural(count)) "servings" else "serving"}"
+            }
             Text(
                 listOfNotNull("${Fractions.format(scale)}× recipe", makes).joinToString(" · "),
                 style = MaterialTheme.typography.titleMedium,

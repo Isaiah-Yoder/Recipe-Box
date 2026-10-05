@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,7 +63,12 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(onOpenRecipe: (Long) -> Unit, onOpenQueue: () -> Unit, onOpenMenu: () -> Unit) {
+fun LibraryScreen(
+    onOpenRecipe: (Long) -> Unit,
+    onOpenQueue: () -> Unit,
+    onOpenMenu: () -> Unit,
+    onNewRecipe: () -> Unit,
+) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel { LibraryViewModel(container.database.recipeDao()) }
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -132,6 +138,10 @@ fun LibraryScreen(onOpenRecipe: (Long) -> Unit, onOpenQueue: () -> Unit, onOpenM
             onAdd = { links ->
                 showAddDialog = false
                 scope.launch { container.importQueue.enqueue(links) }
+            },
+            onTypeIn = {
+                showAddDialog = false
+                onNewRecipe()
             },
         )
     }
@@ -221,7 +231,7 @@ private fun EmptyLibrary() {
 
 /** Takes one or more pasted links and adds them all to the import queue. */
 @Composable
-private fun AddRecipeDialog(onDismiss: () -> Unit, onAdd: (List<String>) -> Unit) {
+private fun AddRecipeDialog(onDismiss: () -> Unit, onAdd: (List<String>) -> Unit, onTypeIn: () -> Unit) {
     val context = LocalContext.current
     var text by rememberSaveable { mutableStateOf("") }
     val links = remember(text) { Links.findAllUrls(text) }
@@ -247,6 +257,10 @@ private fun AddRecipeDialog(onDismiss: () -> Unit, onAdd: (List<String>) -> Unit
                 }) {
                     Icon(Icons.Filled.ContentPaste, contentDescription = null)
                     Text("Paste", Modifier.padding(start = 8.dp))
+                }
+                TextButton(onClick = onTypeIn) {
+                    Icon(Icons.Filled.Edit, contentDescription = null)
+                    Text("Type in a recipe instead", Modifier.padding(start = 8.dp))
                 }
             }
         },

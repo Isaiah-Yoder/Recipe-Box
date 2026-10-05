@@ -21,12 +21,19 @@ import androidx.room.TypeConverters
         CategoryEntity::class,
         RecipeCategoryEntity::class,
         ImportJobEntity::class,
+        GroceryListEntity::class,
+        GroceryListRecipeEntity::class,
+        GroceryManualItemEntity::class,
+        GroceryLineStateEntity::class,
+        SectionOverrideEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
     autoMigrations = [
         // Version 2 adds the import queue table; recipes are unchanged.
         AutoMigration(from = 1, to = 2),
+        // Version 3 adds grocery list tables; existing tables are unchanged.
+        AutoMigration(from = 2, to = 3),
     ],
 )
 @TypeConverters(Converters::class)
@@ -34,6 +41,8 @@ abstract class RecipeDatabase : RoomDatabase() {
     abstract fun recipeDao(): RecipeDao
 
     abstract fun importJobDao(): ImportJobDao
+
+    abstract fun groceryDao(): GroceryDao
 
     companion object {
         fun create(context: Context): RecipeDatabase =

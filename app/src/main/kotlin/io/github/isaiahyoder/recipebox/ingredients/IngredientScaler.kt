@@ -23,6 +23,7 @@ data class DisplayIngredient(
 object IngredientScaler {
     private const val ML_PER_TEASPOON = 4.928922
     private const val GRAMS_PER_OUNCE = 28.349523
+    private const val TEASPOONS_PER_CUP = 48.0
 
     fun display(line: String, factor: Double, toUsUnits: Boolean): DisplayIngredient =
         display(IngredientParser.parse(line), factor, toUsUnits)
@@ -37,8 +38,11 @@ object IngredientScaler {
 
         val scaled = quantity.times(factor)
         val unit = parsed.unit
+        // Grams of flour, sugar, and similar ingredients read best as approximate cups.
+        val density = if (convert && unit?.measure == Measure.METRIC_WEIGHT) Densities.gramsPerCup(parsed.rest) else null
         val (amount, unitWord) = when {
             unit == null -> scaled to null
+            density != null -> tidyUsVolume(scaled.times(unit!!.base / density * TEASPOONS_PER_CUP))
             convert && unit.measure == Measure.METRIC_VOLUME ->
                 tidyUsVolume(scaled.times(unit.base / ML_PER_TEASPOON))
             convert && unit.measure == Measure.METRIC_WEIGHT ->
@@ -53,7 +57,12 @@ object IngredientScaler {
             parsed.rest
         }
 
-        val parts = listOfNotNull(formatQuantity(amount), unitWord, rest.takeIf { it.isNotEmpty() })
+        val parts = listOfNotNull(
+            "about".takeIf { density != null },
+            formatQuantity(amount),
+            unitWord,
+            rest.takeIf { it.isNotEmpty() },
+        )
         return DisplayIngredient(parts.joinToString(" "), changed = true, unscaled = false, converted = convert)
     }
 
@@ -67,6 +76,21 @@ object IngredientScaler {
         return listOfNotNull(formatQuantity(quantity), parsed.unitText, parsed.rest.takeIf { it.isNotEmpty() })
             .joinToString(" ")
     }
+
+    /** "1½ cups" for an amount in teaspoons, using the spoon and cup sizes people own. */
+    fun usVolumeText(teaspoons: Double): String {
+        val (amount, word) = tidyUsVolume(Quantity(teaspoons))
+        return "${formatQuantity(amount)} $word"
+    }
+
+    /** "12 ounces" or "1½ pounds" for an amount in ounces. */
+    fun usWeightText(ounces: Double): String {
+        val (amount, word) = tidyUsWeight(Quantity(ounces))
+        return "${formatQuantity(amount)} $word"
+    }
+
+    const val TEASPOONS_PER_ML = 1 / ML_PER_TEASPOON
+    const val OUNCES_PER_GRAM = 1 / GRAMS_PER_OUNCE
 
     private val tidyVolumeUnits = setOf(Unit.TEASPOON, Unit.TABLESPOON, Unit.CUP)
 
