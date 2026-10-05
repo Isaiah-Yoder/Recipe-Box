@@ -61,9 +61,9 @@ fun RecipeEditorScreen(
     val vm = viewModel(key = "edit-$recipeId-$importJobId-$cardDraftId") {
         RecipeEditorViewModel(
             container.database.recipeDao(),
+            container.recipes,
             container.photos,
             container.importQueue,
-            container.tagRefresher,
             recipeId,
             sourceUrl,
             importJobId,

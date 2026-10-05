@@ -18,19 +18,19 @@ class TagRefresher(private val database: RecipeDatabase) {
 
     /** Returns the number of recipes checked. */
     suspend fun refreshAll(): Int = database.withTransaction {
-        val dao = database.recipeDao()
-        val recipes = dao.getAllRecipes()
+        val tags = database.tagDao()
+        val recipes = database.recipeDao().getAllRecipes()
         for (recipe in recipes) {
-            dao.replaceAutoTags(recipe.id, AutoTagger.tags(recipe.toTaggable()))
+            tags.replaceAutoTags(recipe.id, AutoTagger.tags(recipe.toTaggable()))
         }
-        dao.deleteUnusedTags()
+        tags.deleteUnusedTags()
         categories.applyAll()
         recipes.size
     }
 
     /** Updates one recipe's tags, such as after an import or an edit, and the categories they feed. */
     suspend fun refreshRecipe(recipe: RecipeEntity) = database.withTransaction {
-        database.recipeDao().replaceAutoTags(recipe.id, AutoTagger.tags(recipe.toTaggable()))
+        database.tagDao().replaceAutoTags(recipe.id, AutoTagger.tags(recipe.toTaggable()))
         categories.applyAll()
     }
 

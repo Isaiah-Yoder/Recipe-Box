@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.importer
 
 import android.util.Log
+import io.github.isaiahyoder.recipebox.data.PageDao
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.data.RecipePageEntity
@@ -28,6 +29,7 @@ data class PageLoad(val recipe: ExtractedRecipe?, val reason: String, val pageLo
 /** Turns a shared link into a saved recipe. */
 class RecipeImporter(
     private val dao: RecipeDao,
+    private val pages: PageDao,
     private val fetcher: PageFetcher,
     private val browserLoader: WebViewPageLoader,
     private val photos: PhotoStore,
@@ -65,7 +67,7 @@ class RecipeImporter(
                 updatedAt = now,
             )
         )
-        recipe.pageSnapshot?.let { dao.savePage(RecipePageEntity(id, it, now)) }
+        recipe.pageSnapshot?.let { pages.savePage(RecipePageEntity(id, it, now)) }
         dao.getRecipe(id)?.let { tags.refreshRecipe(it) }
         // A missing photo doesn't stop the import; the recipe shows a placeholder.
         recipe.imageUrl?.let { imageUrl ->

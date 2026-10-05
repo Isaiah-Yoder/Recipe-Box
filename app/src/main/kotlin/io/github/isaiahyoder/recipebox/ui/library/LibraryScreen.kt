@@ -93,7 +93,8 @@ fun HomeScreen(
 ) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel {
-        HomeViewModel(container.database.recipeDao(), container.settings, container.tagRefresher)
+        val database = container.database
+        HomeViewModel(database.recipeDao(), database.tagDao(), database.categoryDao(), container.settings, container.library)
     }
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
@@ -286,7 +287,10 @@ private fun FeederOfferCard(offers: List<FeederOffer>, onAccept: (List<FeederOff
 fun RecipeListScreen(key: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel(key = "shelf-$key") {
-        RecipeListViewModel(container.database.recipeDao(), container.tagRefresher, key)
+        RecipeListViewModel(
+            container.database.recipeDao(), container.database.tagDao(), container.database.categoryDao(),
+            container.library, key,
+        )
     }
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()

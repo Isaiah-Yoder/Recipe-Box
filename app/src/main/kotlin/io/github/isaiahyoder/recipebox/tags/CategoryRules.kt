@@ -16,16 +16,15 @@ import io.github.isaiahyoder.recipebox.data.TagSource
  */
 class CategoryRules(private val database: RecipeDatabase) {
     suspend fun applyAll() = database.withTransaction {
-        val dao = database.recipeDao()
-        for (category in dao.getCategories()) apply(category)
+        for (category in database.categoryDao().getCategories()) apply(category)
     }
 
     private suspend fun apply(category: CategoryEntity) {
-        val dao = database.recipeDao()
+        val dao = database.categoryDao()
         val wanted = if (category.feederTags.isEmpty()) {
             emptySet()
         } else {
-            dao.recipeIdsWithTags(category.feederTags.map { it.lowercase() }).toSet()
+            database.tagDao().recipeIdsWithTags(category.feederTags.map { it.lowercase() }).toSet()
         }
         val members = dao.getCategoryMembers(category.id).associateBy { it.recipeId }
         for (recipeId in wanted) {

@@ -2,6 +2,8 @@ package io.github.isaiahyoder.recipebox
 
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import io.github.isaiahyoder.recipebox.diagnostics.StallWatchdog
+import io.github.isaiahyoder.recipebox.repository.LibraryRepository
+import io.github.isaiahyoder.recipebox.repository.RecipeRepository
 import android.app.Application
 import android.content.Context
 import android.os.Build
@@ -89,6 +91,12 @@ class AppContainer(context: Context) {
 
     val tagRefresher: TagRefresher by lazy { TagRefresher(database) }
 
+    /** Tag and category changes, each with the category update it causes. */
+    val library: LibraryRepository by lazy { LibraryRepository(database, tagRefresher) }
+
+    /** Saving and deleting whole recipes with their tags and photo files. */
+    val recipes: RecipeRepository by lazy { RecipeRepository(database, photos, tagRefresher) }
+
     /**
      * A browser identity like the phone's own Chrome, so sites see an ordinary
      * visitor. It's built from the installed WebView's version instead of asking
@@ -117,6 +125,7 @@ class AppContainer(context: Context) {
     val importer: RecipeImporter by lazy {
         RecipeImporter(
             dao = database.recipeDao(),
+            pages = database.pageDao(),
             fetcher = pageFetcher,
             browserLoader = browserLoader,
             photos = photos,
@@ -139,7 +148,7 @@ class AppContainer(context: Context) {
     val updater: AppUpdater by lazy { AppUpdater(context, httpClient, settings) }
 
     val recipeRefresher: RecipeRefresher by lazy {
-        RecipeRefresher(context, database.recipeDao(), importer, tagRefresher, settings)
+        RecipeRefresher(context, database.recipeDao(), database.pageDao(), importer, tagRefresher, settings)
     }
 
     /** Work that outlives a screen, such as downloading the on-device AI model. */

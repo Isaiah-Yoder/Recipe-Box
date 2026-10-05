@@ -14,7 +14,8 @@ import io.github.isaiahyoder.recipebox.data.RecipeText
 import io.github.isaiahyoder.recipebox.importer.ImportQueue
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.data.EditedField
-import io.github.isaiahyoder.recipebox.tags.TagRefresher
+import io.github.isaiahyoder.recipebox.repository.PhotoChange
+import io.github.isaiahyoder.recipebox.repository.RecipeRepository
 import kotlinx.coroutines.launch
 
 /**
@@ -25,9 +26,9 @@ import kotlinx.coroutines.launch
  */
 class RecipeEditorViewModel(
     private val dao: RecipeDao,
+    private val recipes: RecipeRepository,
     private val photos: PhotoStore,
     private val queue: ImportQueue,
-    private val tags: TagRefresher,
     private val recipeId: Long,
     initialSourceUrl: String?,
     private val importJobId: Long,
@@ -182,28 +183,19 @@ class RecipeEditorViewModel(
                 cardPhotos = cardPhotos,
                 updatedAt = now,
             ).let { it.copy(editedFields = editedFields(base, it)) }
-            val id = if (original == null) dao.insert(edited) else edited.id.also { dao.update(edited) }
 
+            // Her own photo is written to a file first; the save then switches to it in one transaction.
             val chosen = newPhoto
-            when {
-                chosen != null -> photos.saveOwnPhoto(chosen, id)?.let { name ->
-                    photos.delete(edited.imageFile)
-                    // Her own photo replaces the downloaded one for good.
-                    dao.update(edited.copy(id = id, imageFile = name, imageIsOwn = true, imageUrl = null))
-                }
-                removePhoto -> {
-                    photos.delete(edited.imageFile)
-                    dao.update(edited.copy(id = id, imageFile = null, imageIsOwn = false, imageUrl = null))
-                }
+            val photo = when {
+                chosen != null -> photos.saveOwnPhoto(chosen, base.id)?.let(PhotoChange::Replace) ?: PhotoChange.Keep
+                removePhoto -> PhotoChange.Remove
+                else -> PhotoChange.Keep
             }
-
-            // Card photos she removed are deleted only once the recipe no longer uses them.
-            (base.cardPhotos + (CardDrafts.get(cardDraftId)?.photos ?: emptyList()))
+            // Card photos she removed are deleted only once the saved recipe no longer uses them.
+            val removedCards = (base.cardPhotos + (CardDrafts.get(cardDraftId)?.photos ?: emptyList()))
                 .filter { it !in cardPhotos }
-                .forEach(photos::delete)
+            val id = recipes.save(edited, photo, removedCards)
             CardDrafts.remove(cardDraftId)
-
-            dao.getRecipe(id)?.let { tags.refreshRecipe(it) }
             if (importJobId != 0L) queue.remove(importJobId)
             saving = false
             onSaved(id)

@@ -49,9 +49,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun CategoriesScreen(onBack: () -> Unit) {
     val container = LocalContext.current.appContainer
-    val dao = container.database.recipeDao()
+    val dao = container.database.categoryDao()
+    val library = container.library
     val categories by dao.observeCategories().collectAsStateWithLifecycle(initialValue = emptyList())
-    val tagsInUse by dao.observeTagNamesInUse().collectAsStateWithLifecycle(initialValue = emptyList())
+    val tagsInUse by container.database.tagDao().observeTagNamesInUse().collectAsStateWithLifecycle(initialValue = emptyList())
     var editingFeeders by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
     var creating by rememberSaveable { mutableStateOf(false) }
@@ -133,10 +134,7 @@ fun CategoriesScreen(onBack: () -> Unit) {
             tagsInUse = tagsInUse,
             onSave = { tags ->
                 editingFeeders = null
-                scope.launch {
-                    dao.setFeederTags(category.id, tags)
-                    container.tagRefresher.applyCategories()
-                }
+                scope.launch { library.setFeederTags(category.id, tags) }
             },
             onDismiss = { editingFeeders = null },
         )

@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.EditedField
+import io.github.isaiahyoder.recipebox.data.PageDao
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.data.RecipePageEntity
@@ -37,6 +38,7 @@ import java.util.concurrent.TimeUnit
 class RecipeRefresher(
     private val context: Context,
     private val dao: RecipeDao,
+    private val pages: PageDao,
     private val importer: RecipeImporter,
     private val tags: TagRefresher,
     private val settings: AppSettings,
@@ -77,7 +79,7 @@ class RecipeRefresher(
      */
     suspend fun upgradeReading() {
         reparseSaved()
-        val missing = dao.getAllRecipes().filter { it.sourceUrl != null && dao.getPage(it.id) == null }.map { it.id }
+        val missing = dao.getAllRecipes().filter { it.sourceUrl != null && pages.getPage(it.id) == null }.map { it.id }
         if (missing.isNotEmpty() && !settings.refreshStatus.value.running) {
             begin(RefreshStatus(running = true, pending = missing, total = missing.size, wifiOnly = true))
         }
@@ -88,7 +90,7 @@ class RecipeRefresher(
         var changed = 0
         for (recipe in dao.getAllRecipes()) {
             val url = recipe.sourceUrl ?: continue
-            val page = dao.getPage(recipe.id) ?: continue
+            val page = pages.getPage(recipe.id) ?: continue
             val extracted = RecipeExtractor.extract(page.html, url)?.takeIf { it.isComplete } ?: continue
             val refreshed = recipe.refreshedWith(extracted)
             if (refreshed != recipe) {
@@ -108,7 +110,7 @@ class RecipeRefresher(
         val recipe = dao.getRecipe(id) ?: return false
         val url = recipe.sourceUrl ?: return false
         val unedited = recipe.copy(editedFields = emptyList())
-        val saved = dao.getPage(id)?.let { RecipeExtractor.extract(it.html, url) }?.takeIf { it.isComplete }
+        val saved = pages.getPage(id)?.let { RecipeExtractor.extract(it.html, url) }?.takeIf { it.isComplete }
         val page = saved ?: runCatchingCancellable { importer.load(url).recipe }.getOrNull() ?: return false
         apply(unedited, page)
         return true
@@ -149,7 +151,7 @@ class RecipeRefresher(
     private suspend fun apply(recipe: RecipeEntity, page: ExtractedRecipe) {
         val refreshed = recipe.refreshedWith(page)
         dao.update(refreshed)
-        page.pageSnapshot?.let { dao.savePage(RecipePageEntity(recipe.id, it, clock())) }
+        page.pageSnapshot?.let { pages.savePage(RecipePageEntity(recipe.id, it, clock())) }
         tags.refreshRecipe(refreshed)
     }
 

@@ -3,11 +3,14 @@ package io.github.isaiahyoder.recipebox.ui.recipe
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
+import io.github.isaiahyoder.recipebox.data.CategoryDao
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
+import io.github.isaiahyoder.recipebox.data.TagDao
 import io.github.isaiahyoder.recipebox.importer.RecipeRefresher
-import io.github.isaiahyoder.recipebox.photos.PhotoStore
-import io.github.isaiahyoder.recipebox.tags.TagRefresher
+import io.github.isaiahyoder.recipebox.repository.LibraryRepository
+import io.github.isaiahyoder.recipebox.repository.RecipeRepository
+import io.github.isaiahyoder.recipebox.repository.RecipeTag
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,8 +27,10 @@ sealed interface RecipeUiState {
 
 class RecipeViewModel(
     private val dao: RecipeDao,
-    private val photos: PhotoStore,
-    private val tagRefresher: TagRefresher,
+    tagDao: TagDao,
+    categoryDao: CategoryDao,
+    private val library: LibraryRepository,
+    private val recipes: RecipeRepository,
     private val refresher: RecipeRefresher,
     private val recipeId: Long,
 ) : ViewModel() {
@@ -33,63 +38,40 @@ class RecipeViewModel(
         .map { recipe -> if (recipe == null) RecipeUiState.Missing else RecipeUiState.Loaded(recipe) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecipeUiState.Loading)
 
-    val tags: StateFlow<List<String>> = dao.observeTagNames(recipeId)
+    val tags: StateFlow<List<String>> = tagDao.observeTagNames(recipeId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val categories: StateFlow<List<CategoryEntity>> = dao.observeRecipeCategories(recipeId)
+    val categories: StateFlow<List<CategoryEntity>> = categoryDao.observeRecipeCategories(recipeId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val allCategories: StateFlow<List<CategoryEntity>> = dao.observeCategories()
+    val allCategories: StateFlow<List<CategoryEntity>> = categoryDao.observeCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val allTags: StateFlow<List<String>> = dao.observeTagNamesInUse()
+    val allTags: StateFlow<List<String>> = tagDao.observeTagNamesInUse()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Guessed tags, such as an occasion, waiting for her yes or no. */
-    val suggestions: StateFlow<List<String>> = dao.observeSuggestedTags(recipeId)
+    val suggestions: StateFlow<List<String>> = tagDao.observeSuggestedTags(recipeId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** A tag she adds is hers: updating automatic tags never removes it. It can fill categories. */
-    fun addTag(name: String) = viewModelScope.launch {
-        if (name.isNotBlank()) {
-            dao.addManualTag(recipeId, name.trim())
-            tagRefresher.applyCategories()
-        }
-    }
+    fun addTag(name: String) = viewModelScope.launch { library.addTag(recipeId, name) }
 
-    /** Removed tags stay removed, even automatic ones the rules would add again. */
-    fun removeTag(name: String) = viewModelScope.launch {
-        dao.removeTag(recipeId, name)
-        tagRefresher.applyCategories()
-    }
+    fun removeTag(name: String) = viewModelScope.launch { library.removeTag(recipeId, name) }
 
-    fun acceptSuggestion(name: String) = viewModelScope.launch {
-        dao.acceptSuggestion(recipeId, name)
-        tagRefresher.applyCategories()
-    }
+    fun acceptSuggestion(name: String) = viewModelScope.launch { library.acceptSuggestions(listOf(RecipeTag(recipeId, name))) }
 
-    /** A dismissed suggestion stays dismissed, like a removed tag. */
-    fun dismissSuggestion(name: String) = viewModelScope.launch { dao.removeTag(recipeId, name) }
+    fun dismissSuggestion(name: String) = viewModelScope.launch { library.dismissSuggestion(recipeId, name) }
 
-    /**
-     * Creates a category filled by [tag], or adds [tag] as a feeder to the
-     * category with that name, so recipes with the tag join it now and later.
-     */
-    fun makeCategory(tag: String) = viewModelScope.launch {
-        val id = dao.createCategory(tag)
-        val category = dao.getCategories().first { it.id == id }
-        dao.setFeederTags(id, (category.feederTags + tag).distinct())
-        tagRefresher.applyCategories()
-    }
+    fun makeCategory(tag: String) = viewModelScope.launch { library.makeCategory(tag) }
 
     /** Drops her edits and uses what the recipe's web page says. */
     fun useWebsiteVersion(onDone: (Boolean) -> Unit) = viewModelScope.launch {
         onDone(refresher.useWebsiteVersion(recipeId))
     }
 
-    fun saveCategories(ids: Set<Long>) = viewModelScope.launch { dao.setRecipeCategories(recipeId, ids) }
+    fun saveCategories(ids: Set<Long>) = viewModelScope.launch { library.setRecipeCategories(recipeId, ids) }
 
-    suspend fun createCategory(name: String): Long = dao.createCategory(name)
+    suspend fun createCategory(name: String): Long = library.createCategory(name)
 
     private val _cookMode = MutableStateFlow(false)
     /** Keeps the screen on while she cooks. It isn't saved; it ends when she leaves the recipe. */
@@ -104,9 +86,7 @@ class RecipeViewModel(
     }
 
     fun delete(onDeleted: () -> Unit) = viewModelScope.launch {
-        val recipe = dao.getRecipe(recipeId)
-        dao.delete(recipeId)
-        photos.delete(recipe?.imageFile)
+        recipes.delete(recipeId)
         onDeleted()
     }
 }

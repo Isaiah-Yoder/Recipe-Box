@@ -50,6 +50,12 @@ import androidx.room.TypeConverters
 abstract class RecipeDatabase : RoomDatabase() {
     abstract fun recipeDao(): RecipeDao
 
+    abstract fun tagDao(): TagDao
+
+    abstract fun categoryDao(): CategoryDao
+
+    abstract fun pageDao(): PageDao
+
     abstract fun importJobDao(): ImportJobDao
 
     abstract fun groceryDao(): GroceryDao

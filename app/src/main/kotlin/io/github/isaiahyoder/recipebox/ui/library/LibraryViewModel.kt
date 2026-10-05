@@ -3,12 +3,15 @@ package io.github.isaiahyoder.recipebox.ui.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
+import io.github.isaiahyoder.recipebox.data.CategoryDao
 import io.github.isaiahyoder.recipebox.data.RecipeDao
+import io.github.isaiahyoder.recipebox.data.TagDao
 import io.github.isaiahyoder.recipebox.data.RecipeSummary
 import io.github.isaiahyoder.recipebox.data.UNCATEGORIZED
 import io.github.isaiahyoder.recipebox.settings.AppSettings
+import io.github.isaiahyoder.recipebox.repository.LibraryRepository
+import io.github.isaiahyoder.recipebox.repository.RecipeTag
 import io.github.isaiahyoder.recipebox.tags.CategoryRules
-import io.github.isaiahyoder.recipebox.tags.TagRefresher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,8 +50,10 @@ data class FeederOffer(val category: CategoryEntity, val tags: List<String>, val
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     private val dao: RecipeDao,
+    tagDao: TagDao,
+    categoryDao: CategoryDao,
     private val settings: AppSettings,
-    private val tags: TagRefresher,
+    private val library: LibraryRepository,
 ) : ViewModel() {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -66,9 +71,9 @@ class HomeViewModel(
     /** Null until the first load finishes, so the empty-library message doesn't flash. */
     val rows: StateFlow<List<HomeRow>?> = combine(
         dao.observeSummaries(""),
-        dao.observeCategories(),
-        dao.observeCategoryLinks(),
-        dao.observeSuggestions(),
+        categoryDao.observeCategories(),
+        categoryDao.observeCategoryLinks(),
+        tagDao.observeSuggestions(),
     ) { all, categories, links, suggestions ->
         if (all.isEmpty()) return@combine emptyList()
         val byId = all.associateBy { it.id }
@@ -96,10 +101,10 @@ class HomeViewModel(
 
     /** Categories she made before feeder tags existed, with tags that fit their names. */
     val feederOffers: StateFlow<List<FeederOffer>> = combine(
-        dao.observeCategories(),
-        dao.observeConfirmedTags(),
-        dao.observeCategoryLinks(),
-        dao.observeSuggestions(),
+        categoryDao.observeCategories(),
+        tagDao.observeConfirmedTags(),
+        categoryDao.observeCategoryLinks(),
+        tagDao.observeSuggestions(),
         offerSeen,
     ) { categories, confirmed, links, suggestions, seen ->
         if (seen) return@combine emptyList()
@@ -119,8 +124,7 @@ class HomeViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun acceptFeeders(chosen: List<FeederOffer>) = viewModelScope.launch {
-        chosen.forEach { dao.setFeederTags(it.category.id, it.tags) }
-        tags.applyCategories()
+        library.setFeederTags(chosen.associate { it.category.id to it.tags })
         dismissFeederOffer()
     }
 
@@ -142,13 +146,15 @@ data class SuggestedRecipe(val recipe: RecipeSummary, val tag: String)
 @OptIn(ExperimentalCoroutinesApi::class)
 class RecipeListViewModel(
     private val dao: RecipeDao,
-    private val tags: TagRefresher,
+    tagDao: TagDao,
+    categoryDao: CategoryDao,
+    private val library: LibraryRepository,
     val key: Long,
 ) : ViewModel() {
     private val _filter = MutableStateFlow(ListFilter())
     val filter: StateFlow<ListFilter> = _filter.asStateFlow()
 
-    val category: StateFlow<CategoryEntity?> = dao.observeCategories()
+    val category: StateFlow<CategoryEntity?> = categoryDao.observeCategories()
         .map { list -> list.firstOrNull { it.id == key } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -163,14 +169,14 @@ class RecipeListViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val tagsInUse: StateFlow<List<String>> = dao.observeTagNamesInUse()
+    val tagsInUse: StateFlow<List<String>> = tagDao.observeTagNamesInUse()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Recipes a feeder tag was guessed for, which she hasn't answered. */
     val suggested: StateFlow<List<SuggestedRecipe>> = combine(
         category,
-        dao.observeSuggestions(),
-        dao.observeCategoryLinks(),
+        tagDao.observeSuggestions(),
+        categoryDao.observeCategoryLinks(),
         dao.observeSummaries(""),
     ) { category, suggestions, links, all ->
         if (category == null || category.feederTags.isEmpty()) return@combine emptyList()
@@ -191,16 +197,14 @@ class RecipeListViewModel(
 
     /** Yes: the suggested tag becomes hers, which adds the recipe to this category. */
     fun accept(vararg items: SuggestedRecipe) = viewModelScope.launch {
-        items.forEach { dao.acceptSuggestion(it.recipe.id, it.tag) }
-        tags.applyCategories()
+        library.acceptSuggestions(items.map { RecipeTag(it.recipe.id, it.tag) })
     }
 
     /** No: the suggestion is dismissed for good. */
-    fun dismiss(item: SuggestedRecipe) = viewModelScope.launch { dao.removeTag(item.recipe.id, item.tag) }
+    fun dismiss(item: SuggestedRecipe) = viewModelScope.launch { library.dismissSuggestion(item.recipe.id, item.tag) }
 
     fun setFeeders(tagNames: List<String>) = viewModelScope.launch {
         val current = category.value ?: return@launch
-        dao.setFeederTags(current.id, tagNames)
-        tags.applyCategories()
+        library.setFeederTags(current.id, tagNames)
     }
 }

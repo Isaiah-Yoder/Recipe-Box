@@ -105,7 +105,11 @@ private val scaleStops = listOf(0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0)
 fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel(key = "recipe-$recipeId") {
-        RecipeViewModel(container.database.recipeDao(), container.photos, container.tagRefresher, container.recipeRefresher, recipeId)
+        val database = container.database
+        RecipeViewModel(
+            database.recipeDao(), database.tagDao(), database.categoryDao(),
+            container.library, container.recipes, container.recipeRefresher, recipeId,
+        )
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val tags by viewModel.tags.collectAsStateWithLifecycle()

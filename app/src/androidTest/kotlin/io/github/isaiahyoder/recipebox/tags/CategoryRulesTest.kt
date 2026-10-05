@@ -40,46 +40,46 @@ class CategoryRulesTest {
         val soup = add("Tomato Soup", listOf("4 tomatoes"))
         refresher.refreshAll()
 
-        val dessert = dao.createCategory("Dessert")
-        dao.addToCategoryByHand(soup, dessert) // her odd choice stays
-        dao.setFeederTags(dessert, listOf(AutoTagger.DESSERT))
+        val dessert = database.categoryDao().createCategory("Dessert")
+        database.categoryDao().addToCategoryByHand(soup, dessert) // her odd choice stays
+        database.categoryDao().setFeederTags(dessert, listOf(AutoTagger.DESSERT))
         refresher.applyCategories()
-        assertEquals(setOf(cookies, pie, soup), dao.getCategoryMembers(dessert).filter { !it.hidden }.map { it.recipeId }.toSet())
+        assertEquals(setOf(cookies, pie, soup), database.categoryDao().getCategoryMembers(dessert).filter { !it.hidden }.map { it.recipeId }.toSet())
 
         // She takes the pie out; feeders don't add it back.
-        dao.setRecipeCategories(pie, emptyList())
+        database.categoryDao().setRecipeCategories(pie, emptyList())
         refresher.refreshAll()
-        assertTrue(dessert !in dao.getCategoryIds(pie))
-        assertTrue(dessert in dao.getCategoryIds(soup))
+        assertTrue(dessert !in database.categoryDao().getCategoryIds(pie))
+        assertTrue(dessert in database.categoryDao().getCategoryIds(soup))
 
         // Removing the feeder takes out only recipes it added.
-        dao.setFeederTags(dessert, emptyList())
+        database.categoryDao().setFeederTags(dessert, emptyList())
         refresher.applyCategories()
-        assertEquals(listOf(soup), dao.getCategoryMembers(dessert).filter { !it.hidden }.map { it.recipeId })
+        assertEquals(listOf(soup), database.categoryDao().getCategoryMembers(dessert).filter { !it.hidden }.map { it.recipeId })
     }
 
     @Test fun suggestionsCountOnlyOnceConfirmed() = runBlocking {
         val dao = database.recipeDao()
         val pie = add("Pumpkin Pie", listOf("1 can pumpkin"))
         refresher.refreshAll()
-        val thanksgiving = dao.createCategory("Thanksgiving")
-        dao.setFeederTags(thanksgiving, listOf(AutoTagger.THANKSGIVING))
+        val thanksgiving = database.categoryDao().createCategory("Thanksgiving")
+        database.categoryDao().setFeederTags(thanksgiving, listOf(AutoTagger.THANKSGIVING))
         refresher.applyCategories()
-        assertTrue(dao.getCategoryIds(pie).isEmpty())
-        assertEquals(TagSource.SUGGESTED, dao.getRecipeTags(pie).single { dao.findTagId(AutoTagger.THANKSGIVING) == it.tagId }.source)
+        assertTrue(database.categoryDao().getCategoryIds(pie).isEmpty())
+        assertEquals(TagSource.SUGGESTED, database.tagDao().getRecipeTags(pie).single { database.tagDao().findTagId(AutoTagger.THANKSGIVING) == it.tagId }.source)
 
-        dao.acceptSuggestion(pie, AutoTagger.THANKSGIVING)
+        database.tagDao().acceptSuggestion(pie, AutoTagger.THANKSGIVING)
         refresher.refreshAll()
-        assertEquals(listOf(thanksgiving), dao.getCategoryIds(pie))
+        assertEquals(listOf(thanksgiving), database.categoryDao().getCategoryIds(pie))
     }
 
     @Test fun aDismissedSuggestionStaysDismissed() = runBlocking {
         val dao = database.recipeDao()
         val gravy = add("Turkey Gravy", listOf("giblets", "2 tablespoons flour"))
         refresher.refreshAll()
-        dao.removeTag(gravy, AutoTagger.THANKSGIVING)
+        database.tagDao().removeTag(gravy, AutoTagger.THANKSGIVING)
         refresher.refreshAll()
-        val link = dao.getRecipeTags(gravy).single { dao.findTagId(AutoTagger.THANKSGIVING) == it.tagId }
+        val link = database.tagDao().getRecipeTags(gravy).single { database.tagDao().findTagId(AutoTagger.THANKSGIVING) == it.tagId }
         assertTrue(link.hidden)
     }
 }

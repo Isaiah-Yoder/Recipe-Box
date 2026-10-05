@@ -46,17 +46,17 @@ class TagRefresherTest {
         )
     )
 
-    private suspend fun tags(recipeId: Long) = dao.observeTagNames(recipeId).first().toSet()
+    private suspend fun tags(recipeId: Long) = database.tagDao().observeTagNames(recipeId).first().toSet()
 
     @Test fun keepsManualTagsHiddenTagsAndCategories() = runBlocking {
         val id = insertSoup()
         // An earlier version's rules produced "Old Rule Tag"; the current rules don't.
-        dao.replaceAutoTags(id, TagResult(setOf("Soup", "Chicken", "Slow Cooker", "Old Rule Tag"), emptySet()))
-        dao.addManualTag(id, "Grandma's")
-        dao.addManualTag(id, "Soup") // She also chose a tag the rules produce.
-        dao.removeTag(id, "Slow Cooker") // She removed an automatic tag.
-        val category = dao.insertCategory(CategoryEntity(name = "Weeknight", position = 0))
-        dao.addToCategory(RecipeCategoryEntity(id, category))
+        database.tagDao().replaceAutoTags(id, TagResult(setOf("Soup", "Chicken", "Slow Cooker", "Old Rule Tag"), emptySet()))
+        database.tagDao().addManualTag(id, "Grandma's")
+        database.tagDao().addManualTag(id, "Soup") // She also chose a tag the rules produce.
+        database.tagDao().removeTag(id, "Slow Cooker") // She removed an automatic tag.
+        val category = database.categoryDao().insertCategory(CategoryEntity(name = "Weeknight", position = 0))
+        database.categoryDao().addToCategory(RecipeCategoryEntity(id, category))
 
         val checked = TagRefresher(database).refreshAll()
 
@@ -68,12 +68,12 @@ class TagRefresherTest {
         assertTrue("New rule tag added", AutoTagger.QUICK in after)
         assertTrue("Removed tag stays removed", "Slow Cooker" !in after)
         assertTrue("Stale automatic tag dropped", "Old Rule Tag" !in after)
-        assertEquals(listOf(category), dao.getCategoryIds(id))
+        assertEquals(listOf(category), database.categoryDao().getCategoryIds(id))
     }
 
     @Test fun runningTwiceGivesTheSameResult() = runBlocking {
         val id = insertSoup()
-        dao.addManualTag(id, "Favorite Soup")
+        database.tagDao().addManualTag(id, "Favorite Soup")
         TagRefresher(database).refreshAll()
         val first = tags(id)
         TagRefresher(database).refreshAll()
@@ -83,12 +83,12 @@ class TagRefresherTest {
     @Test fun aRemovedTagStaysRemovedEvenWhenTheRulesProduceIt() = runBlocking {
         val id = insertSoup()
         TagRefresher(database).refreshAll()
-        dao.addManualTag(id, "Chicken") // She confirmed a rule tag by hand,
-        dao.removeTag(id, "Chicken") // then changed her mind.
+        database.tagDao().addManualTag(id, "Chicken") // She confirmed a rule tag by hand,
+        database.tagDao().removeTag(id, "Chicken") // then changed her mind.
         TagRefresher(database).refreshAll()
         assertTrue("Chicken" !in tags(id))
 
-        dao.addManualTag(id, "Chicken") // Adding it again shows it again.
+        database.tagDao().addManualTag(id, "Chicken") // Adding it again shows it again.
         TagRefresher(database).refreshAll()
         assertTrue("Chicken" in tags(id))
     }

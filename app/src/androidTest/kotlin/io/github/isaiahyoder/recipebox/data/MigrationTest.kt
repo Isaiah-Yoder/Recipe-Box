@@ -56,8 +56,8 @@ class MigrationTest {
                 assertTrue(recipe.favorite)
                 assertEquals(2.0, recipe.lastScale, 0.0)
                 assertEquals(listOf(RecipeLine("2 cups broth")), recipe.ingredients)
-                assertEquals(listOf("Family Favorite"), dao.observeTagNames(1).first())
-                assertEquals(listOf(1L), dao.getCategoryIds(1))
+                assertEquals(listOf("Family Favorite"), database.tagDao().observeTagNames(1).first())
+                assertEquals(listOf(1L), database.categoryDao().getCategoryIds(1))
                 assertTrue(database.importJobDao().observeAll().first().isEmpty())
             }
         } finally {
@@ -174,11 +174,11 @@ class MigrationTest {
                 val recipe = dao.getRecipe(4)!!
                 assertEquals("Use cake flour", recipe.notes)
                 assertTrue(recipe.editedFields.isEmpty())
-                val link = dao.getCategoryLinks(4).single()
+                val link = database.categoryDao().getCategoryLinks(4).single()
                 assertEquals(TagSource.MANUAL, link.source)
                 assertEquals(false, link.hidden)
-                assertTrue(dao.getCategories().single().feederTags.isEmpty())
-                assertEquals(null, dao.getPage(4))
+                assertTrue(database.categoryDao().getCategories().single().feederTags.isEmpty())
+                assertEquals(null, database.pageDao().getPage(4))
             }
         } finally {
             database.close()
