@@ -109,4 +109,41 @@ interface RecipeDao {
             }
         }
     }
+
+    /** Adds a tag she chose. It becomes hers, so recomputing automatic tags never removes it. */
+    @Transaction
+    suspend fun addManualTag(recipeId: Long, name: String) {
+        val tagId = findTagId(name) ?: insertTag(TagEntity(name = name))
+        upsertRecipeTag(RecipeTagEntity(recipeId, tagId, TagSource.MANUAL))
+    }
+
+    /**
+     * Removes a tag from a recipe. The link is hidden rather than deleted, so
+     * recomputing automatic tags never brings back a tag she removed, even
+     * when the rules would produce it. Adding the tag again shows it again.
+     */
+    @Transaction
+    suspend fun removeTag(recipeId: Long, name: String) {
+        val tagId = findTagId(name) ?: return
+        val link = getRecipeTags(recipeId).firstOrNull { it.tagId == tagId } ?: return
+        upsertRecipeTag(link.copy(hidden = true))
+    }
+
+    @Query("SELECT * FROM recipes")
+    suspend fun getAllRecipes(): List<RecipeEntity>
+
+    /** Deletes tag names that no recipe uses any more, including hidden links. */
+    @Query("DELETE FROM tags WHERE id NOT IN (SELECT tagId FROM recipe_tags)")
+    suspend fun deleteUnusedTags()
+
+    // Categories
+
+    @Insert
+    suspend fun insertCategory(category: CategoryEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun addToCategory(link: RecipeCategoryEntity)
+
+    @Query("SELECT categoryId FROM recipe_categories WHERE recipeId = :recipeId")
+    suspend fun getCategoryIds(recipeId: Long): List<Long>
 }
