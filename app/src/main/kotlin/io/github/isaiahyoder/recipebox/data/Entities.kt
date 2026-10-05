@@ -1,0 +1,106 @@
+package io.github.isaiahyoder.recipebox.data
+
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
+
+/** One ingredient or step line. A header line names a group, such as "For the sauce". */
+@Serializable
+data class RecipeLine(
+    val text: String,
+    val isHeader: Boolean = false,
+)
+
+@Entity(
+    tableName = "recipes",
+    indices = [Index("sourceUrl")],
+)
+data class RecipeEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val sourceUrl: String? = null,
+    val siteName: String? = null,
+    val description: String? = null,
+    /** Address the cover photo was downloaded from. Backups keep this, not the image. */
+    val imageUrl: String? = null,
+    /** File name of the downloaded or taken photo inside the app's photo folder. */
+    val imageFile: String? = null,
+    /** True when the photo was taken or chosen by the user and can't be downloaded again. */
+    val imageIsOwn: Boolean = false,
+    val yieldText: String? = null,
+    val servings: Int? = null,
+    val prepMinutes: Int? = null,
+    val cookMinutes: Int? = null,
+    val totalMinutes: Int? = null,
+    val ingredients: List<RecipeLine> = emptyList(),
+    val steps: List<RecipeLine> = emptyList(),
+    /** The site's own category, cuisine, and keyword data, kept for re-tagging. */
+    val siteCategories: List<String> = emptyList(),
+    val siteCuisines: List<String> = emptyList(),
+    val siteKeywords: List<String> = emptyList(),
+    /** Raw structured data from the page, so a later parser can re-read it offline. */
+    val rawJsonLd: String? = null,
+    val notes: String = "",
+    val favorite: Boolean = false,
+    /** Last scale chosen on the recipe screen; 1.0 is the recipe as written. */
+    val lastScale: Double = 1.0,
+    /** Whether the recipe screen shows metric amounts in US units. */
+    val showUsUnits: Boolean = true,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
+
+@Entity(
+    tableName = "tags",
+    indices = [Index(value = ["name"], unique = true)],
+)
+data class TagEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+)
+
+enum class TagSource { AUTO, MANUAL }
+
+@Entity(
+    tableName = "recipe_tags",
+    primaryKeys = ["recipeId", "tagId"],
+    foreignKeys = [
+        ForeignKey(RecipeEntity::class, ["id"], ["recipeId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(TagEntity::class, ["id"], ["tagId"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("tagId")],
+)
+data class RecipeTagEntity(
+    val recipeId: Long,
+    val tagId: Long,
+    val source: TagSource,
+    /** An automatic tag the user removed. It stays hidden when tags are recomputed. */
+    @ColumnInfo(defaultValue = "0") val hidden: Boolean = false,
+)
+
+@Entity(
+    tableName = "categories",
+    indices = [Index(value = ["name"], unique = true)],
+)
+data class CategoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val position: Int,
+)
+
+@Entity(
+    tableName = "recipe_categories",
+    primaryKeys = ["recipeId", "categoryId"],
+    foreignKeys = [
+        ForeignKey(RecipeEntity::class, ["id"], ["recipeId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(CategoryEntity::class, ["id"], ["categoryId"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("categoryId")],
+)
+data class RecipeCategoryEntity(
+    val recipeId: Long,
+    val categoryId: Long,
+)

@@ -3,4 +3,7 @@ plugins {
     // AGP 9 compiles Kotlin itself. This line only pins the Kotlin version.
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.room) apply false
 }
