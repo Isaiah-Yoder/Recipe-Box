@@ -9,6 +9,8 @@ data class TaggableRecipe(
     val siteCategories: List<String>,
     val siteCuisines: List<String>,
     val siteKeywords: List<String>,
+    /** True for a recipe read from a photo of a recipe card. */
+    val fromCard: Boolean = false,
 )
 
 /**
@@ -20,11 +22,14 @@ data class TagResult(val tags: Set<String>, val suggestions: Set<String>)
 /** The groups the fixed tag names belong to, in the order pickers show them. */
 enum class TagGroup(val label: String) {
     COURSE("Course"),
+    KIND("Kind of dish"),
     OCCASION("Occasion"),
     METHOD("Method"),
     MAIN_INGREDIENT("Main ingredient"),
+    DIET("Diet"),
     CUISINE("Cuisine"),
     TIME("Time"),
+    SOURCE("Source"),
 }
 
 /**
@@ -49,6 +54,14 @@ object AutoTagger {
     const val QUICK = "30 Minutes or Less"
     const val VEGETARIAN = "Vegetarian"
     const val THANKSGIVING = "Thanksgiving"
+    const val COOKIES = "Cookies"
+    const val CAKES = "Cakes and Cupcakes"
+    const val PIES = "Pies and Tarts"
+    const val QUICK_BREADS = "Muffins and Quick Breads"
+    const val PANCAKES = "Pancakes and Waffles"
+    const val CHOCOLATE = "Chocolate"
+    const val HIGH_PROTEIN = "High Protein"
+    const val FROM_CARD = "From a Recipe Card"
 
     /** Every name the rules can produce, by group. */
     val VOCABULARY: Map<String, TagGroup> by lazy {
@@ -57,9 +70,12 @@ object AutoTagger {
                 .forEach { put(it, TagGroup.COURSE) }
             occasions.forEach { put(it.tag, TagGroup.OCCASION) }
             methods.forEach { put(it.tag, TagGroup.METHOD) }
-            (proteins.map { it.tag } + VEGETARIAN).forEach { put(it, TagGroup.MAIN_INGREDIENT) }
+            kinds.forEach { put(it.tag, TagGroup.KIND) }
+            (proteins.map { it.tag } + CHOCOLATE).forEach { put(it, TagGroup.MAIN_INGREDIENT) }
+            listOf(VEGETARIAN, HIGH_PROTEIN).forEach { put(it, TagGroup.DIET) }
             cuisines.values.distinct().forEach { put(it, TagGroup.CUISINE) }
             put(QUICK, TagGroup.TIME)
+            put(FROM_CARD, TagGroup.SOURCE)
         }
     }
 
@@ -87,7 +103,10 @@ object AutoTagger {
 
     /** Course words in a title. "Chicken pot pie" is a main dish, not a dessert, so savory rules run first. */
     private val titleRules = listOf(
-        TitleRule(MAIN_DISH, words("pot pie", "chicken pie", "shepherd'?s pie", "meat pie", "quiche", "casserole")),
+        TitleRule(
+            MAIN_DISH,
+            words("pot pie", "chicken pie", "shepherd'?s pie", "meat pie", "quiche", "casserole", "(crab|fish|salmon|tuna) cakes?"),
+        ),
         TitleRule(DOUGH, words("crust", "pastry", "pie dough", "puff pastry")),
         TitleRule(
             DESSERT,
@@ -112,6 +131,23 @@ object AutoTagger {
         TitleRule(APPETIZER, words("dip", "deviled eggs", "egg rolls?", "wings", "bruschetta", "sausage rolls", "sliders", "cha gio", "spring rolls?")),
         TitleRule(SIDE_DISH, words("stuffing", "mashed potatoes", "green beans", "roasted vegetables", "mac and cheese", "rice pilaf", "coleslaw")),
     )
+
+    /**
+     * Kinds of dish within a course, read from the title. Each needs its course,
+     * so crab cakes aren't cakes and chicken pot pie isn't a pie.
+     */
+    private class Kind(val tag: String, val course: String, val pattern: Regex)
+
+    private val kinds = listOf(
+        Kind(COOKIES, DESSERT, words("cookies?", "snickerdoodles?", "biscotti", "gingersnaps?", "macarons?")),
+        Kind(CAKES, DESSERT, words("cakes?", "cupcakes?", "cheesecakes?", "bundt", "pumpkin roll")),
+        Kind(PIES, DESSERT, words("pies?", "tarts?", "tartlets?", "galettes?")),
+        Kind(QUICK_BREADS, BREAKFAST, words("muffins?", "scones?", "banana bread", "zucchini bread", "pumpkin bread", "quick bread")),
+        Kind(PANCAKES, BREAKFAST, words("pancakes?", "waffles?", "crepes?", "french toast")),
+    )
+
+    private val chocolate = words("chocolate", "cocoa", "brownies?", "mocha", "fudge")
+    private val highProtein = words("protein", "high[- ]protein")
 
     // Occasions are suggestions: they're guesses she confirms.
 
@@ -227,6 +263,19 @@ object AutoTagger {
         }
         val hasMeat = meatWords.any { Regex("""\b$it""").containsMatchIn(ingredientText) }
         if (MAIN_DISH in tags && recipe.ingredients.isNotEmpty() && !hasMeat) tags += VEGETARIAN
+
+        // Kind of dish. Muffins and quick breads can be labeled bread instead of breakfast.
+        for (kind in kinds) {
+            val courseFits = kind.course in tags || (kind.tag == QUICK_BREADS && BREAD in tags)
+            if (courseFits && kind.pattern.containsMatchIn(title)) tags += kind.tag
+        }
+        if (chocolate.containsMatchIn(title)) tags += CHOCOLATE
+        if (highProtein.containsMatchIn(title) || siteLabels.any { highProtein.matches(it) } ||
+            "protein powder" in ingredientText
+        ) {
+            tags += HIGH_PROTEIN
+        }
+        if (recipe.fromCard) tags += FROM_CARD
 
         // Method
         val methodText = (listOf(recipe.title) + recipe.steps).joinToString("\n") { it.lowercase() }

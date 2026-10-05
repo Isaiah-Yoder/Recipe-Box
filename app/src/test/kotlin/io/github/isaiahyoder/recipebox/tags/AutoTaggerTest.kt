@@ -14,7 +14,8 @@ class AutoTaggerTest {
         categories: List<String> = emptyList(),
         cuisines: List<String> = emptyList(),
         keywords: List<String> = emptyList(),
-    ) = AutoTagger.tags(TaggableRecipe(title, ingredients, steps, totalMinutes, categories, cuisines, keywords))
+        fromCard: Boolean = false,
+    ) = AutoTagger.tags(TaggableRecipe(title, ingredients, steps, totalMinutes, categories, cuisines, keywords, fromCard))
 
     @Test fun mapsSiteCoursesToTheFixedNames() {
         val result = recipe(categories = listOf("Lunch", "Entree", "Sandwich"), cuisines = listOf("Puerto Rican"))
@@ -98,5 +99,30 @@ class AutoTaggerTest {
         assertEquals(listOf("Slow Cooker"), CategoryRules.suggestedFeeders("Slow Cooker", emptyList()))
         assertEquals(listOf(AutoTagger.THANKSGIVING), CategoryRules.suggestedFeeders("Thanksgiving", emptyList()))
         assertTrue(CategoryRules.suggestedFeeders("Grandma's", emptyList()).isEmpty())
+    }
+
+    @Test fun tagsKindsOfDessertAndBreakfast() {
+        assertTrue(AutoTagger.COOKIES in recipe(title = "Oatmeal Raisin Cookies").tags)
+        assertTrue(AutoTagger.CAKES in recipe(title = "Lemon Cheesecake").tags)
+        assertTrue(AutoTagger.CAKES in recipe(title = "Vanilla Cupcakes").tags)
+        assertTrue(AutoTagger.PIES in recipe(title = "Mixed Berry Pie").tags)
+        assertTrue(AutoTagger.QUICK_BREADS in recipe(title = "Banana Bread").tags)
+        assertTrue(AutoTagger.QUICK_BREADS in recipe(title = "Blueberry Muffins").tags)
+        assertTrue(AutoTagger.PANCAKES in recipe(title = "Buttermilk Pancakes").tags)
+    }
+
+    @Test fun savoryDishesAreNotDessertKinds() {
+        assertFalse(AutoTagger.PIES in recipe(title = "Chicken Pot Pie").tags)
+        assertFalse(AutoTagger.CAKES in recipe(title = "Crab Cakes", ingredients = listOf("1 pound crab meat")).tags)
+        assertFalse(AutoTagger.CAKES in recipe(title = "Buttermilk Pancakes").tags)
+    }
+
+    @Test fun tagsChocolateHighProteinAndCards() {
+        assertTrue(AutoTagger.CHOCOLATE in recipe(title = "Fudgy Brownies").tags)
+        assertTrue(AutoTagger.CHOCOLATE in recipe(title = "Chocolate Chip Cookies").tags)
+        assertTrue(AutoTagger.HIGH_PROTEIN in recipe(title = "Protein Pancakes").tags)
+        assertTrue(AutoTagger.HIGH_PROTEIN in recipe(title = "Berry Shake", ingredients = listOf("1 scoop protein powder")).tags)
+        assertTrue(AutoTagger.FROM_CARD in recipe(title = "Spice Cake", fromCard = true).tags)
+        assertFalse(AutoTagger.FROM_CARD in recipe(title = "Spice Cake").tags)
     }
 }

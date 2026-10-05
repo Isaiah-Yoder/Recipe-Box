@@ -46,4 +46,5 @@ fun RecipeEntity.toTaggable() = TaggableRecipe(
     siteCategories = siteCategories,
     siteCuisines = siteCuisines,
     siteKeywords = siteKeywords,
+    fromCard = cardPhotos.isNotEmpty(),
 )
