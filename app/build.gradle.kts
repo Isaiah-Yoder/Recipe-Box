@@ -31,8 +31,8 @@ android {
         minSdk = 26
         targetSdk = 37
         // Increase versionCode for every release, or the update won't install.
-        versionCode = 5
-        versionName = "0.4.1"
+        versionCode = 6
+        versionName = "0.4.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

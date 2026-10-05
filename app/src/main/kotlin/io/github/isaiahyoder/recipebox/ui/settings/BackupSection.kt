@@ -54,6 +54,7 @@ fun BackupSection() {
     val settings = container.settings
     val drive = container.driveBackup
     val status by settings.driveStatus.collectAsStateWithLifecycle()
+    val connectProblem by settings.driveConnectProblem.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf<String?>(null) }
     var driveBackups by remember { mutableStateOf<List<DriveFile>?>(null) }
@@ -72,14 +73,20 @@ fun BackupSection() {
     }
 
     val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        val token = if (result.resultCode == Activity.RESULT_OK) drive.tokenFromConsent(result.data) else null
-        if (token == null) {
-            toast("Google Drive wasn't connected.")
-        } else {
-            settings.setDriveEnabled(true)
-            drive.schedule()
-            scope.launch { backUpNow() }
-        }
+        // The result's data explains a failure even when the screen didn't return OK.
+        drive.tokenFromConsent(result.data)
+            .onSuccess {
+                settings.setDriveConnectProblem(null)
+                settings.setDriveEnabled(true)
+                drive.schedule()
+                scope.launch { backUpNow() }
+            }
+            .onFailure { error ->
+                val problem = "Google Drive wasn't connected. " +
+                    (if (result.resultCode == Activity.RESULT_CANCELED && result.data == null) "The Google screen was closed." else drive.describe(error))
+                settings.setDriveConnectProblem(problem)
+                toast(problem)
+            }
     }
 
     fun connect() = scope.launch {
@@ -89,6 +96,7 @@ fun BackupSection() {
                 when (auth) {
                     is DriveAuth.NeedsConsent -> consent.launch(IntentSenderRequest.Builder(auth.intent).build())
                     is DriveAuth.Token -> {
+                        settings.setDriveConnectProblem(null)
                         settings.setDriveEnabled(true)
                         drive.schedule()
                         busy = null
@@ -96,7 +104,11 @@ fun BackupSection() {
                     }
                 }
             }
-            .onFailure { toast("Couldn't reach Google: ${it.message}") }
+            .onFailure { error ->
+                val problem = "Couldn't connect Google Drive. " + drive.describe(error)
+                settings.setDriveConnectProblem(problem)
+                toast(problem)
+            }
         busy = null
     }
 
@@ -136,6 +148,7 @@ fun BackupSection() {
                         else -> "On. No backup yet."
                     }
                 )
+                connectProblem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 if (status.enabled && status.lastError != null) {
                     Text(status.lastError!!, color = MaterialTheme.colorScheme.error)
                 }

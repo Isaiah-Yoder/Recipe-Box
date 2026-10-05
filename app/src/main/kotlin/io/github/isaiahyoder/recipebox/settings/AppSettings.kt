@@ -123,6 +123,15 @@ class AppSettings(context: Context, fileName: String = "settings") {
         _refreshStatus.value = status
     }
 
+    /** Why connecting Google Drive last failed, or null after a success. */
+    private val _driveConnectProblem = MutableStateFlow(prefs.getString(KEY_DRIVE_CONNECT_PROBLEM, null))
+    val driveConnectProblem: StateFlow<String?> = _driveConnectProblem.asStateFlow()
+
+    fun setDriveConnectProblem(problem: String?) {
+        prefs.edit { if (problem == null) remove(KEY_DRIVE_CONNECT_PROBLEM) else putString(KEY_DRIVE_CONNECT_PROBLEM, problem) }
+        _driveConnectProblem.value = problem
+    }
+
     /** What Android said about the last update that didn't install, or null. */
     var updateProblem: String?
         get() = prefs.getString(KEY_UPDATE_PROBLEM, null)
@@ -162,5 +171,6 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_GEMINI = "gemini_api_key"
         const val KEY_REFRESH = "recipe_refresh_status"
         const val KEY_UPDATE_PROBLEM = "update_problem"
+        const val KEY_DRIVE_CONNECT_PROBLEM = "drive_connect_problem"
     }
 }

@@ -12,6 +12,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Scope
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
@@ -72,9 +74,29 @@ class DriveBackup(
         }
     }
 
-    /** Reads the result of the consent screen launched for [DriveAuth.NeedsConsent]. */
-    fun tokenFromConsent(data: Intent?): String? =
-        runCatching { Identity.getAuthorizationClient(context).getAuthorizationResultFromIntent(data).accessToken }.getOrNull()
+    /**
+     * Reads the result of the consent screen launched for [DriveAuth.NeedsConsent].
+     * On failure, the exception explains why, such as Google's status code.
+     */
+    fun tokenFromConsent(data: Intent?): Result<String> = runCatching {
+        Identity.getAuthorizationClient(context).getAuthorizationResultFromIntent(data).accessToken
+            ?: throw DriveException(401, "Google didn't grant Drive access.")
+    }
+
+    /** Explains a sign-in failure in words, keeping Google's status code for diagnosis. */
+    fun describe(error: Throwable): String {
+        val api = error as? ApiException ?: return error.message ?: error.javaClass.simpleName
+        val code = api.statusCode
+        val name = CommonStatusCodes.getStatusCodeString(code)
+        val hint = when (code) {
+            CommonStatusCodes.DEVELOPER_ERROR ->
+                "Google doesn't recognize this app's sign-in setup. The Android client in Google Cloud needs this app's package name and signing fingerprint."
+            CommonStatusCodes.NETWORK_ERROR -> "Check the internet connection."
+            CommonStatusCodes.CANCELED -> "Sign-in was canceled."
+            else -> null
+        }
+        return listOfNotNull(hint, "Google code $code ($name)${api.message?.let { ": $it" } ?: ""}").joinToString(" ")
+    }
 
     /**
      * Uploads a backup. Unless [force] is true, it skips the upload when
