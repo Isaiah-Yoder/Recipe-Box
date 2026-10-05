@@ -146,6 +146,15 @@ object AutoTagger {
         Kind(PANCAKES, BREAKFAST, words("pancakes?", "waffles?", "crepes?", "french toast")),
     )
 
+    private val courses = setOf(MAIN_DISH, SIDE_DISH, DESSERT, BREAKFAST, APPETIZER, SNACK, BREAD, SOUP, SALAD, SAUCE, DRINK, DOUGH)
+
+    // Ingredient signs of a course, used only when the title and labels name none.
+    private val yeastDough = words("yeast")
+    private val flour = words("flour")
+    private val sweetener = words("sugar", "brown sugar", "powdered sugar", "honey", "maple syrup", "chocolate", "cocoa")
+    private val bakingBase = words("flour", "butter", "baking powder", "baking soda", "cream cheese", "oats", "graham crackers?")
+    private val savoryBase = words("onions?", "garlic", "broth", "stock", "black pepper", "cheddar", "parmesan", "mozzarella", "soy sauce")
+
     private val chocolate = words("chocolate", "cocoa", "brownies?", "mocha", "fudge")
     private val highProtein = words("protein", "high[- ]protein")
 
@@ -222,6 +231,9 @@ object AutoTagger {
         "lebanese" to "Middle Eastern",
     )
 
+    /** The tag names themselves, such as "eastern european", which the card reader answers with. */
+    private val cuisineNames: Map<String, String> by lazy { cuisines.values.associateBy { it.lowercase() } }
+
     /** Dishes whose name says the cuisine when the site doesn't. */
     private val cuisineTitleWords = listOf(
         "Indian" to words("biryani", "curry", "naan", "tikka", "masala", "dal", "samosas?"),
@@ -261,6 +273,14 @@ object AutoTagger {
         if (savory && proteinTags.isNotEmpty() && tags.none { it in setOf(SOUP, SALAD, APPETIZER, SIDE_DISH, MAIN_DISH) }) {
             tags += MAIN_DISH
         }
+        // When nothing names a course, as on many recipe cards, the ingredients can.
+        if (tags.none { it in courses } && proteinTags.isEmpty()) {
+            when {
+                yeastDough.containsMatchIn(ingredientText) && flour.containsMatchIn(ingredientText) -> tags += BREAD
+                sweetener.containsMatchIn(ingredientText) && bakingBase.containsMatchIn(ingredientText) &&
+                    !savoryBase.containsMatchIn(ingredientText) -> tags += DESSERT
+            }
+        }
         val hasMeat = meatWords.any { Regex("""\b$it""").containsMatchIn(ingredientText) }
         if (MAIN_DISH in tags && recipe.ingredients.isNotEmpty() && !hasMeat) tags += VEGETARIAN
 
@@ -284,7 +304,7 @@ object AutoTagger {
         // Cuisine
         for (value in recipe.siteCuisines + recipe.siteCategories) {
             val key = value.lowercase().trim().removeSuffix(" cuisine").trim()
-            cuisines[key]?.let(tags::add)
+            (cuisines[key] ?: cuisineNames[key])?.let(tags::add)
         }
         cuisineTitleWords.filter { it.second.containsMatchIn(title) }.mapTo(tags) { it.first }
 

@@ -125,4 +125,22 @@ class AutoTaggerTest {
         assertTrue(AutoTagger.FROM_CARD in recipe(title = "Spice Cake", fromCard = true).tags)
         assertFalse(AutoTagger.FROM_CARD in recipe(title = "Spice Cake").tags)
     }
+
+    @Test fun usesACardReadersCourseAndCuisine() {
+        val result = recipe(title = "Grandma's Special", categories = listOf("Dessert"), cuisines = listOf("Eastern European"), fromCard = true)
+        assertTrue(AutoTagger.DESSERT in result.tags)
+        assertTrue("Eastern European" in result.tags)
+    }
+
+    @Test fun guessesTheCourseFromIngredientsWhenNothingNamesIt() {
+        val sweet = recipe(title = "Grandma's Special", ingredients = listOf("2 cups flour", "1 cup sugar", "1/2 cup butter"))
+        assertTrue(AutoTagger.DESSERT in sweet.tags)
+        val dough = recipe(title = "Mom's Rolls", ingredients = listOf("4 cups flour", "1 packet yeast", "2 tablespoons sugar"))
+        assertTrue(AutoTagger.BREAD in dough.tags)
+        assertFalse(AutoTagger.DESSERT in dough.tags)
+        val savory = recipe(title = "Aunt Jo's Bake", ingredients = listOf("2 cups flour", "1 tablespoon sugar", "1 onion", "1 cup cheddar"))
+        assertFalse(AutoTagger.DESSERT in savory.tags)
+        val named = recipe(title = "Breakfast Bake", ingredients = listOf("2 cups flour", "1 cup sugar"))
+        assertFalse(AutoTagger.DESSERT in named.tags)
+    }
 }

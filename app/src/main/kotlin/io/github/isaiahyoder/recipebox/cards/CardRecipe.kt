@@ -23,6 +23,10 @@ data class CardRecipe(
     val ingredients: List<CardLine> = emptyList(),
     val steps: List<CardLine> = emptyList(),
     val notes: String = "",
+    /** The kind of dish the AI reader judged it to be, such as "Dessert", or empty. */
+    val course: String = "",
+    /** The cuisine the AI reader judged it to be, such as "Italian", or empty. */
+    val cuisine: String = "",
 ) {
     val isEmpty: Boolean get() = title.isBlank() && ingredients.isEmpty() && steps.isEmpty()
 
@@ -41,6 +45,9 @@ data class CardRecipe(
             ingredients = ingredients.toLines(),
             steps = steps.toLines(),
             notes = notes.trim(),
+            // The reader's judgment counts like a website's own labels, so automatic tags use it.
+            siteCategories = listOfNotNull(course.trim().takeIf { it.isNotEmpty() }),
+            siteCuisines = listOfNotNull(cuisine.trim().takeIf { it.isNotEmpty() }),
             cardPhotos = photos,
             createdAt = now,
             updatedAt = now,

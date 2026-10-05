@@ -9,4 +9,6 @@ Follow these rules:
 - steps: one entry per instruction, in order. Join lines that continue the same sentence.
 - A group label, such as "Dry:", "Wet:", or "For the sauce:", is its own ingredient or step entry with isHeading set to true. Every other entry has isHeading set to false.
 - notes: any other writing, such as tips or nutrition remarks. Otherwise use an empty string.
+- course: the kind of dish, judged from the title and ingredients, using one of the names allowed in the answer layout, such as "Dessert" or "Main Dish". Use an empty string when unsure.
+- cuisine: the cuisine when the recipe clearly belongs to one, using one of the names allowed in the answer layout. Use an empty string when it doesn't.
 - Fix only obvious spelling mistakes. Keep fractions as written, such as 1/2 or ½.

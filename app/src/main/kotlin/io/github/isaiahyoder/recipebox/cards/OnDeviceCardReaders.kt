@@ -92,7 +92,10 @@ class NanoCardReader(private val assets: CardAssets, private val scope: Coroutin
 
         /** The on-device model has no answer schema, so the prompt describes the layout. */
         const val NANO_FORMAT = "Answer with only a JSON object with the keys title, servings, prepTime, cookTime, " +
-            "ingredients, steps, and notes. ingredients and steps are lists of objects with the keys text and isHeading."
+            "ingredients, steps, notes, course, and cuisine. ingredients and steps are lists of objects with the keys " +
+            "text and isHeading. course is one of Main Dish, Side Dish, Dessert, Breakfast, Appetizer, Snack, Bread, " +
+            "Soup, Salad, Sauce, or Drink, or an empty string. cuisine is a cuisine such as Italian or Mexican, or an " +
+            "empty string."
     }
 }
 
