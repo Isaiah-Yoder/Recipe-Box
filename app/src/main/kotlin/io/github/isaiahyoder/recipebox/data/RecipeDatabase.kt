@@ -28,7 +28,7 @@ import androidx.room.TypeConverters
         SectionOverrideEntity::class,
         RecipePageEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
     autoMigrations = [
         // Version 2 adds the import queue table; recipes are unchanged.
@@ -41,6 +41,9 @@ import androidx.room.TypeConverters
         // category membership came from, and saved recipe pages. Existing memberships
         // become hers (MANUAL), so nothing she sorted changes.
         AutoMigration(from = 4, to = 5),
+        // Version 6 adds the ingredient lines as plain text for search. The app fills
+        // it for existing recipes at startup.
+        AutoMigration(from = 5, to = 6),
     ],
 )
 @TypeConverters(Converters::class)

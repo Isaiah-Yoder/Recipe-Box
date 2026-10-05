@@ -177,7 +177,7 @@ class BackupManager(
             dao.clearRecipeTags()
             dao.clearTags()
             dao.clearRecipes()
-            dao.insertRecipes(recipes)
+            dao.insertRecipes(recipes.map { it.indexed() })
             dao.insertTags(backup.tags)
             dao.insertRecipeTags(backup.recipeTags)
             dao.insertCategories(backup.categories)

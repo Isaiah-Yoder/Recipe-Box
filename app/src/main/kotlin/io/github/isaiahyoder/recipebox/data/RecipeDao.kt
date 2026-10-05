@@ -27,6 +27,9 @@ data class RecipeTagName(val recipeId: Long, val tag: String)
 /** One recipe's card photo file names. */
 data class CardPhotoNames(val cardPhotos: List<String>)
 
+/** Escapes LIKE's wildcards so a search for "50%" finds "50%" and not every recipe with "50". */
+fun escapeLike(text: String): String = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
 /** The category id that lists recipes in no category. */
 const val UNCATEGORIZED = -1L
 
@@ -40,11 +43,11 @@ interface RecipeDao {
                 WHERE rt.recipeId = r.id AND rt.hidden = 0 AND rt.source != 'SUGGESTED') AS tagNames
         FROM recipes r
         WHERE (:query = ''
-            OR r.title LIKE '%' || :query || '%'
-            OR r.ingredients LIKE '%' || :query || '%'
+            OR r.title LIKE '%' || :query || '%' ESCAPE '\'
+            OR r.ingredientText LIKE '%' || :query || '%' ESCAPE '\'
             OR EXISTS (SELECT 1 FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
                 WHERE rt.recipeId = r.id AND rt.hidden = 0 AND rt.source != 'SUGGESTED'
-                AND t.name LIKE '%' || :query || '%'))
+                AND t.name LIKE '%' || :query || '%' ESCAPE '\'))
           AND (:categoryId = 0
             OR (:categoryId = $UNCATEGORIZED AND NOT EXISTS (SELECT 1 FROM recipe_categories rc
                 WHERE rc.recipeId = r.id AND rc.hidden = 0))
@@ -56,12 +59,23 @@ interface RecipeDao {
         ORDER BY r.favorite DESC, r.updatedAt DESC
         """
     )
+    fun observeSummariesMatching(
+        query: String,
+        categoryId: Long,
+        tag: String,
+        favoritesOnly: Boolean,
+    ): Flow<List<RecipeSummary>>
+
+    /**
+     * Recipes whose title, ingredients, or tags contain [query], in a category
+     * or with a tag. "%" and "_" in the query match themselves.
+     */
     fun observeSummaries(
         query: String,
         categoryId: Long = 0,
         tag: String = "",
         favoritesOnly: Boolean = false,
-    ): Flow<List<RecipeSummary>>
+    ): Flow<List<RecipeSummary>> = observeSummariesMatching(escapeLike(query.trim()), categoryId, tag, favoritesOnly)
 
     /** Tag names on at least one recipe, for filters and suggestions. */
     @Query(
@@ -82,10 +96,29 @@ interface RecipeDao {
     suspend fun findIdBySourceUrl(url: String): Long?
 
     @Insert
-    suspend fun insert(recipe: RecipeEntity): Long
+    suspend fun insertRow(recipe: RecipeEntity): Long
 
     @Update
-    suspend fun update(recipe: RecipeEntity)
+    suspend fun updateRow(recipe: RecipeEntity)
+
+    suspend fun insert(recipe: RecipeEntity): Long = insertRow(recipe.indexed())
+
+    suspend fun update(recipe: RecipeEntity) = updateRow(recipe.indexed())
+
+    /** Recipes whose search text is missing, such as those saved before version 6. */
+    @Query("SELECT * FROM recipes WHERE ingredientText = '' AND ingredients != '[]'")
+    suspend fun getUnindexedRecipes(): List<RecipeEntity>
+
+    @Query("UPDATE recipes SET ingredientText = :text WHERE id = :id")
+    suspend fun setIngredientText(id: Long, text: String)
+
+    /** Fills the search text for recipes that don't have it yet. Returns how many. */
+    @Transaction
+    suspend fun indexRecipes(): Int {
+        val missing = getUnindexedRecipes()
+        missing.forEach { setIngredientText(it.id, it.indexed().ingredientText) }
+        return missing.size
+    }
 
     @Query("UPDATE recipes SET lastScale = :scale WHERE id = :id")
     suspend fun setLastScale(id: Long, scale: Double)

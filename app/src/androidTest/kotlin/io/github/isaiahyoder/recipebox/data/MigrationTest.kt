@@ -185,7 +185,45 @@ class MigrationTest {
         }
     }
 
+    @Test fun version5RecipesBecomeSearchableAfterTheUpdateToVersion6() {
+        helper.createDatabase(DB_NAME_V5, 5).apply {
+            execSQL(
+                """
+                INSERT INTO recipes (id, title, imageIsOwn, ingredients, steps, siteCategories, siteCuisines,
+                    siteKeywords, notes, favorite, lastScale, showUsUnits, cardPhotos, editedFields, createdAt, updatedAt)
+                VALUES (5, 'Test Bread', 0, '[{"text":"For the dough","isHeader":true},{"text":"3 cups flour"}]',
+                    '[{"text":"Knead."}]', '[]', '[]', '[]', '', 0, 1.0, 1, '[]', '["title"]', 100, 200)
+                """.trimIndent()
+            )
+            close()
+        }
+
+        helper.runMigrationsAndValidate(DB_NAME_V5, 6, true).close()
+
+        val database = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RecipeDatabase::class.java,
+            DB_NAME_V5,
+        ).build()
+        try {
+            runBlocking {
+                val dao = database.recipeDao()
+                assertEquals(listOf("title"), dao.getRecipe(5)!!.editedFields)
+                // The JSON's own keys never match, before or after filling the search text.
+                assertTrue(dao.observeSummaries("isHeader").first().isEmpty())
+                assertEquals(1, dao.indexRecipes())
+                assertEquals("3 cups flour", dao.getRecipe(5)!!.ingredientText)
+                assertEquals(listOf(5L), dao.observeSummaries("FLOUR").first().map { it.id })
+                assertTrue(dao.observeSummaries("dough").first().isEmpty())
+                assertEquals(0, dao.indexRecipes())
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     private companion object {
+        const val DB_NAME_V5 = "migration-test-v5.db"
         const val DB_NAME_V4 = "migration-test-v4.db"
         const val DB_NAME = "migration-test.db"
         const val DB_NAME_V2 = "migration-test-v2.db"

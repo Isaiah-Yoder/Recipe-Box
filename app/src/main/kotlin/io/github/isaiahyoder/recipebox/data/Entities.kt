@@ -64,7 +64,18 @@ data class RecipeEntity(
     val editedFields: List<String> = emptyList(),
     val createdAt: Long,
     val updatedAt: Long,
-)
+    /**
+     * The ingredient lines as plain text, for search. The DAO fills it on every
+     * write, so search never matches the JSON that stores [ingredients]. It's
+     * rebuilt from the ingredients, so backups leave it out.
+     */
+    @kotlinx.serialization.Transient
+    @ColumnInfo(defaultValue = "")
+    val ingredientText: String = "",
+) {
+    /** This recipe with [ingredientText] matching its ingredients. */
+    fun indexed(): RecipeEntity = copy(ingredientText = ingredients.filterNot { it.isHeader }.joinToString("\n") { it.text })
+}
 
 @Serializable
 @Entity(

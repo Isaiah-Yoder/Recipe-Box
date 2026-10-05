@@ -46,6 +46,9 @@ class RecipeBoxApp : Application() {
             // Card photos from a scan she didn't save.
             container.photos.deleteUnusedCardPhotos(container.database.recipeDao().allCardPhotos().flatMap { it.cardPhotos }.toSet())
             applyNewRules(container)
+            // Recipes saved before search text existed get it once.
+            runCatchingCancellable { container.database.recipeDao().indexRecipes() }
+                .onFailure { Log.w(TAG, "Filling search text failed", it) }
         }
     }
 }
