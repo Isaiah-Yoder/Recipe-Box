@@ -14,6 +14,18 @@ class LinksTest {
         assertNull(Links.findUrl("no link here"))
     }
 
+    @Test fun findsEveryLinkInPastedText() {
+        val text = """
+            https://example.com/a
+            Soup https://example.com/b?utm_source=x
+            https://example.com/a#comments and https://example.org/c.
+        """.trimIndent()
+        assertEquals(
+            listOf("https://example.com/a", "https://example.com/b", "https://example.org/c"),
+            Links.findAllUrls(text),
+        )
+    }
+
     @Test fun removesTrackingAndFragments() {
         assertEquals(
             "https://www.example.com/recipe/1/?page=2",

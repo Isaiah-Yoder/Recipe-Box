@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.webkit.WebSettings
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
+import io.github.isaiahyoder.recipebox.importer.ImportQueue
 import io.github.isaiahyoder.recipebox.importer.PageFetcher
 import io.github.isaiahyoder.recipebox.importer.RecipeImporter
 import io.github.isaiahyoder.recipebox.importer.WebViewPageLoader
@@ -53,6 +54,8 @@ class AppContainer(context: Context) {
             photos = photos,
         )
     }
+
+    val importQueue: ImportQueue by lazy { ImportQueue(context, database.importJobDao(), importer) }
 
     private companion object {
         const val FALLBACK_USER_AGENT =

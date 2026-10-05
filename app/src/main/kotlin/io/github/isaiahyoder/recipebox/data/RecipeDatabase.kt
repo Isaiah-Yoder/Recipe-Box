@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -19,13 +20,20 @@ import androidx.room.TypeConverters
         RecipeTagEntity::class,
         CategoryEntity::class,
         RecipeCategoryEntity::class,
+        ImportJobEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
+    autoMigrations = [
+        // Version 2 adds the import queue table; recipes are unchanged.
+        AutoMigration(from = 1, to = 2),
+    ],
 )
 @TypeConverters(Converters::class)
 abstract class RecipeDatabase : RoomDatabase() {
     abstract fun recipeDao(): RecipeDao
+
+    abstract fun importJobDao(): ImportJobDao
 
     companion object {
         fun create(context: Context): RecipeDatabase =

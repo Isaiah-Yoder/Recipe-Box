@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.library
 
+import android.content.ClipboardManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +21,8 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -35,6 +37,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,29 +54,35 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.RecipeSummary
+import io.github.isaiahyoder.recipebox.importer.Links
+import io.github.isaiahyoder.recipebox.ui.queue.QueueBanner
+import kotlinx.coroutines.launch
 import io.github.isaiahyoder.recipebox.ui.formatMinutes
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(onOpenRecipe: (Long) -> Unit, onImport: (String) -> Unit, onOpenSettings: () -> Unit) {
+fun LibraryScreen(onOpenRecipe: (Long) -> Unit, onOpenQueue: () -> Unit, onOpenMenu: () -> Unit) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel { LibraryViewModel(container.database.recipeDao()) }
     val query by viewModel.query.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    // Owned by the screen, not the dialog: closing the dialog must not cancel adding the links.
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Recipe Box") },
-                actions = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                navigationIcon = {
+                    IconButton(onClick = onOpenMenu) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
                     }
                 },
             )
         },
+        bottomBar = { QueueBanner(onOpenQueue) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
@@ -119,9 +129,9 @@ fun LibraryScreen(onOpenRecipe: (Long) -> Unit, onImport: (String) -> Unit, onOp
     if (showAddDialog) {
         AddRecipeDialog(
             onDismiss = { showAddDialog = false },
-            onImport = { link ->
+            onAdd = { links ->
                 showAddDialog = false
-                onImport(link)
+                scope.launch { container.importQueue.enqueue(links) }
             },
         )
     }
@@ -209,23 +219,46 @@ private fun EmptyLibrary() {
     }
 }
 
+/** Takes one or more pasted links and adds them all to the import queue. */
 @Composable
-private fun AddRecipeDialog(onDismiss: () -> Unit, onImport: (String) -> Unit) {
-    var link by rememberSaveable { mutableStateOf("") }
+private fun AddRecipeDialog(onDismiss: () -> Unit, onAdd: (List<String>) -> Unit) {
+    val context = LocalContext.current
+    var text by rememberSaveable { mutableStateOf("") }
+    val links = remember(text) { Links.findAllUrls(text) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add a recipe") },
+        title = { Text("Add recipes") },
         text = {
-            OutlinedTextField(
-                value = link,
-                onValueChange = { link = it },
-                label = { Text("Recipe link") },
-                placeholder = { Text("https://") },
-                singleLine = true,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Recipe links") },
+                    placeholder = { Text("Paste one or more links") },
+                    minLines = 3,
+                    maxLines = 8,
+                )
+                TextButton(onClick = {
+                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                    val pasted = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
+                    if (!pasted.isNullOrBlank()) {
+                        text = if (text.isBlank()) pasted else text.trimEnd() + System.lineSeparator() + pasted
+                    }
+                }) {
+                    Icon(Icons.Filled.ContentPaste, contentDescription = null)
+                    Text("Paste", Modifier.padding(start = 8.dp))
+                }
+            }
         },
         confirmButton = {
-            TextButton(onClick = { onImport(link) }, enabled = link.contains("http")) { Text("Import") }
+            TextButton(onClick = { onAdd(links) }, enabled = links.isNotEmpty()) {
+                Text(
+                    when (links.size) {
+                        0, 1 -> "Add recipe"
+                        else -> "Add ${links.size} recipes"
+                    }
+                )
+            }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )

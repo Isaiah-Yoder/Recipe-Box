@@ -24,4 +24,10 @@ class Converters {
 
     @TypeConverter
     fun textToTagSource(text: String): TagSource = TagSource.valueOf(text)
+
+    @TypeConverter
+    fun importStatusToText(status: ImportStatus): String = status.name
+
+    @TypeConverter
+    fun textToImportStatus(text: String): ImportStatus = ImportStatus.valueOf(text)
 }

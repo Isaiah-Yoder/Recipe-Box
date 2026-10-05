@@ -13,6 +13,14 @@ object Links {
     fun findUrl(text: String): String? =
         urlPattern.find(text)?.value?.trimEnd('.', ',', ')', ']', '!', '?', ';', ':')
 
+    /** Finds every web address in pasted or shared text, in order, without repeats. */
+    fun findAllUrls(text: String): List<String> =
+        urlPattern.findAll(text)
+            .map { it.value.trimEnd('.', ',', ')', ']', '!', '?', ';', ':') }
+            .map(::normalize)
+            .distinct()
+            .toList()
+
     /** Removes tracking parameters and fragments so the same page is recognized as a duplicate. */
     fun normalize(url: String): String {
         val uri = runCatching { URI(url.trim()) }.getOrNull() ?: return url.trim()
