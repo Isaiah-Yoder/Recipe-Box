@@ -154,7 +154,7 @@ object AutoTagger {
         Protein("Beef", listOf("beef", "steak", "brisket", "ground chuck", "sirloin")),
         Protein("Pork", listOf("pork", "bacon", "ham", "sausage", "prosciutto", "pancetta", "chorizo", "pernil", "ribs?")),
         Protein("Turkey", listOf("turkey")),
-        Protein("Lamb", listOf("lamb")),
+        Protein("Lamb", listOf("lamb", "mutton")),
         Protein(
             "Seafood",
             listOf("salmon", "tuna", "cod", "tilapia", "halibut", "shrimp", "prawn", "crab", "lobster",
@@ -164,7 +164,9 @@ object AutoTagger {
 
     /** Meat and fish words that rule out Vegetarian, including in broths. */
     private val meatWords = proteins.flatMap { it.words } +
-        listOf("veal", "venison", "duck", "pepperoni", "salami", "gelatin", "lard", "worcestershire", "giblets?")
+        listOf("veal", "venison", "duck", "pepperoni", "salami", "gelatin", "lard", "worcestershire", "giblets?",
+            "goat", "rabbit", "bison", "oxtail", "liver", "keema", "squid", "octopus", "calamari", "oysters?",
+            "meats?\\b")
 
     /** "Chicken broth" flavors a dish; it doesn't make chicken the main ingredient. */
     private val flavoringOnly = Regex("""(\s+or\s+[a-z]+)?\s*(broth|stock|bouillon|base|soup|fat|drippings|gravy)\b""")

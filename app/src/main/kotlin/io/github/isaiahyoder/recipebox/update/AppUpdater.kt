@@ -131,6 +131,9 @@ class AppUpdater(
                 _state.value = UpdateState.Installing(update)
                 install(file)
             }.onFailure { error ->
+                // Kept for Copy details in Settings, like Android's install errors.
+                settings.updateProblem = "Download of ${update.versionName} failed: " +
+                    (error.message ?: error::class.java.simpleName)
                 _state.value = UpdateState.Failed(
                     update,
                     (error as? UpdateException)?.message ?: "The download didn't finish. Check your internet connection and try again.",
@@ -244,14 +247,15 @@ class AppUpdater(
             return
         }
         val text = when {
+            // Play Protect warns about apps that aren't from the Play Store, and its
+            // Install anyway button is hidden until she opens More details. Tapping Got it
+            // reports "aborted: INSTALL_FAILED_VERIFICATION_FAILURE", so check the message first.
+            status == PackageInstaller.STATUS_FAILURE_BLOCKED || message?.contains("VERIFICATION") == true ->
+                "Play Protect stopped the update. Tap Try again, then on its warning tap More details and Install anyway."
             // Cancel on Android's screen reports this too, but so do blocks by security settings,
             // so it isn't treated as a choice to skip the update.
             status == PackageInstaller.STATUS_FAILURE_ABORTED ->
                 "The update was canceled or blocked. Tap Try again, or download it from GitHub."
-            // Play Protect warns about apps that aren't from the Play Store, and its
-            // Install anyway button is hidden until she opens More details.
-            status == PackageInstaller.STATUS_FAILURE_BLOCKED || message?.contains("VERIFICATION") == true ->
-                "Play Protect stopped the update. Tap Try again, then on its warning tap More details and Install anyway."
             status == PackageInstaller.STATUS_FAILURE_STORAGE ->
                 "There isn't enough free space on the phone for the update."
             else -> "Android didn't install the update. Tap Try again, or download it from GitHub."

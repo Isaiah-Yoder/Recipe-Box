@@ -20,6 +20,16 @@ class RecipeTextCleanupTest {
         assertEquals("1/2 lb green beans (about 2 cups), trimmed", clean("1/2 lb green beans (about 2 cups), trimmed)"))
     }
 
+    @Test fun movesALeadingRemarkAfterTheName() {
+        assertEquals("Salt, to taste", clean(" to taste Salt"))
+        assertEquals("Turmeric powder, to taste", clean("to taste Turmeric powder "))
+    }
+
+    @Test fun dropsAnAmountRepeatedAfterTheName() {
+        assertEquals("4 bunches spinach leaves", clean("4 bunches spinach leaves - 4 bunches"))
+        assertEquals("2 eggs - beaten", clean("2 eggs - beaten"))
+    }
+
     @Test fun removesShoppingLinkRemarks() {
         assertEquals("1 cup rolled oats", clean("1 cup rolled oats (click to see my favorite brand)"))
     }

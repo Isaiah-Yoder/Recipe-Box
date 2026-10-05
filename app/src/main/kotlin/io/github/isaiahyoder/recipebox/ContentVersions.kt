@@ -6,11 +6,11 @@ package io.github.isaiahyoder.recipebox
  */
 object ContentVersions {
     /** Automatic tag and suggestion rules. Applying them is quick and works offline. */
-    const val TAG_RULES = 2
+    const val TAG_RULES = 3
 
     /**
      * How recipes are read from web pages. Recipes with a saved page are read
      * again on the phone; the rest are downloaded again on Wi-Fi.
      */
-    const val READING = 2
+    const val READING = 3
 }

@@ -54,9 +54,9 @@ object IngredientScaler {
         val density = if (convert && unit?.measure == Measure.METRIC_WEIGHT) Densities.gramsPerCup(parsed.rest) else null
         val (amount, unitWord) = when {
             unit == null -> scaled to null
-            density != null -> tidyUsVolume(scaled.times(unit.base / density * TEASPOONS_PER_CUP))
+            density != null -> tidyUsVolume(scaled.times(unit.base / density * TEASPOONS_PER_CUP), converted = true)
             convert && unit.measure == Measure.METRIC_VOLUME ->
-                tidyUsVolume(scaled.times(unit.base / ML_PER_TEASPOON))
+                tidyUsVolume(scaled.times(unit.base / ML_PER_TEASPOON), converted = true)
             convert && unit.measure == Measure.METRIC_WEIGHT ->
                 tidyUsWeight(scaled.times(unit.base / GRAMS_PER_OUNCE))
             unit in tidyVolumeUnits -> tidyUsVolume(scaled.times(unit.base))
@@ -186,7 +186,7 @@ object IngredientScaler {
     )
 
     /** Picks teaspoons, tablespoons, or cups for an amount given in teaspoons. */
-    private fun tidyUsVolume(teaspoons: Quantity): Pair<Quantity, String> {
+    private fun tidyUsVolume(teaspoons: Quantity, converted: Boolean = false): Pair<Quantity, String> {
         val measurer = measurers.firstOrNull { m ->
             listOf(teaspoons.low, teaspoons.high).all { tsp ->
                 val amount = tsp / m.unit.base
@@ -201,8 +201,23 @@ object IngredientScaler {
             teaspoons.high < 12.0 - 1e-9 -> Unit.TABLESPOON
             else -> Unit.CUP
         }
-        val amount = teaspoons.times(1.0 / unit.base)
+        val exact = teaspoons.times(1.0 / unit.base)
+        // A converted metric amount is rounded to what the spoon or cup set can measure:
+        // 50 ml is 3½ tablespoons, not 3⅜. Scaled US amounts stay exact.
+        val amount = if (measurer != null || !converted) {
+            exact
+        } else {
+            val fractions = measurers.first { it.unit == unit }.fractions
+            Quantity(measurable(exact.low, fractions), measurable(exact.high, fractions))
+        }
         return amount to unit.word(amount.high)
+    }
+
+    /** The closest amount made of whole units and one of [fractions], never zero. */
+    private fun measurable(amount: Double, fractions: List<Double>): Double {
+        val whole = floor(amount)
+        val candidates = (fractions.map { whole + it } + (whole + 1)).filter { it > 0 }
+        return candidates.minBy { abs(it - amount) }
     }
 
     /** Picks ounces or pounds for an amount given in ounces. */

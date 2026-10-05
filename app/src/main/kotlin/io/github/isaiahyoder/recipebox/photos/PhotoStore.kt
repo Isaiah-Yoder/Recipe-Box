@@ -24,6 +24,8 @@ class PhotoStore(
     private val client: OkHttpClient,
     private val userAgent: String,
     private val folder: File = File(context.filesDir, "photos"),
+    /** Loads a photo through a browser when a site refuses the plain download. */
+    private val browserImage: (suspend (url: String, maxEdge: Int) -> ByteArray?)? = null,
 ) {
     init {
         folder.mkdirs()
@@ -36,17 +38,23 @@ class PhotoStore(
     /** The photo file when it exists, so a missing file shows the placeholder instead of nothing. */
     fun existing(name: String?): File? = name?.let(::file)?.takeIf { it.exists() }
 
-    suspend fun downloadCover(imageUrl: String, recipeId: Long): String? = withContext(Dispatchers.IO) {
-        runCatching {
-            val request = Request.Builder().url(imageUrl).header("User-Agent", userAgent).build()
-            val bytes = client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@runCatching null
-                response.body.bytes()
-            }
-            val name = "cover-$recipeId.jpg"
-            saveResized(bytes, file(name)) ?: return@runCatching null
-            name
-        }.getOrNull()
+    suspend fun downloadCover(imageUrl: String, recipeId: Long): String? {
+        val bytes = withContext(Dispatchers.IO) {
+            runCatching {
+                val request = Request.Builder().url(imageUrl).header("User-Agent", userAgent).build()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) response.body.bytes() else null
+                }
+            }.getOrNull()
+        } ?: browserImage?.let { load -> runCatching { load(imageUrl, MAX_EDGE) }.getOrNull() }
+            ?: return null
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val name = "cover-$recipeId.jpg"
+                saveResized(bytes, file(name)) ?: return@runCatching null
+                name
+            }.getOrNull()
+        }
     }
 
     /**

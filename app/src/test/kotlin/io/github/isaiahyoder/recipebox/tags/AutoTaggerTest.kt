@@ -39,6 +39,14 @@ class AutoTaggerTest {
         assertTrue(AutoTagger.DOUGH in recipe(title = "Graham Cracker Crust").tags)
     }
 
+    @Test fun muttonAndGoatAreNotVegetarian() {
+        val mutton = recipe(title = "Spinach Mutton Curry", ingredients = listOf("½ kg mutton, cubed", "2 onions"))
+        assertTrue("Lamb" in mutton.tags)
+        assertFalse(AutoTagger.VEGETARIAN in mutton.tags)
+        val goat = recipe(title = "Goat Stew", categories = listOf("Main Course"), ingredients = listOf("1 kg goat meat", "2 potatoes"))
+        assertFalse(AutoTagger.VEGETARIAN in goat.tags)
+    }
+
     @Test fun aMeatDishWithoutACourseIsAMainDish() {
         val result = recipe(title = "Garlic Pork Chops", ingredients = listOf("4 pork chops", "3 cloves garlic"))
         assertTrue("Pork" in result.tags)

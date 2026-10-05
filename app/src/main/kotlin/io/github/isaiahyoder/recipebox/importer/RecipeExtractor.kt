@@ -58,7 +58,15 @@ object RecipeExtractor {
         } else {
             listOfNotNull(fromJsonLd, fromMicrodata(document, siteName)).maxByOrNull { it.ingredients.size + it.steps.size }
         }
-        return withCard(fromData, RecipeCardHtml.read(document), document)?.copy(pageSnapshot = snapshot(document))
+        val recipe = withCard(fromData, RecipeCardHtml.read(document), document) ?: return null
+        // Some sites put only ingredient names in the data and the amounts on the page.
+        val pageList = if (PageIngredientList.lacksAmounts(recipe.ingredients)) {
+            PageIngredientList.find(document, recipe.ingredients)
+        } else {
+            null
+        }
+        val read = if (pageList != null) recipe.copy(ingredients = PageIngredientList.lines(pageList)) else recipe
+        return read.copy(pageSnapshot = snapshot(document, pageList))
     }
 
     /**
@@ -66,7 +74,7 @@ object RecipeExtractor {
      * title, and the recipe card. Reading the snapshot gives the same recipe
      * as reading the whole page, at a small fraction of its size.
      */
-    private fun snapshot(document: Document): String {
+    private fun snapshot(document: Document, ingredientList: Element?): String {
         val head = buildString {
             document.select("script[type*=ld+json]").forEach { append(it.outerHtml()).append('\n') }
             document.select("meta[property=og:site_name], meta[property=og:title]").forEach { append(it.outerHtml()) }
@@ -74,7 +82,7 @@ object RecipeExtractor {
         }
         val card = document.select(".wprm-recipe-container, .wprm-recipe, .tasty-recipes, [itemtype*=schema.org/Recipe]")
             .firstOrNull()?.outerHtml().orEmpty()
-        return "<html><head>$head</head><body>$card</body></html>"
+        return "<html><head>$head</head><body>$card${ingredientList?.outerHtml().orEmpty()}</body></html>"
     }
 
     /** Uses the card's lists when they hold at least as much as the data. */

@@ -12,6 +12,8 @@ import kotlin.math.abs
 object RecipeTextCleanup {
     private val leadingAmount = Regex("""^\s*(\d+(?:\.\d+)?(?:\s+\d+/\d+)?|\d+/\d+|\.\d+|[½¼¾⅓⅔⅛])""")
     private val decimalAmount = Regex("""^(\d*\.\d+)(?=\s)""")
+    private val leadingRemark = Regex("""^\s*(to taste|as needed|as required)\s+(.+)$""", RegexOption.IGNORE_CASE)
+    private val repeatedAmount = Regex("""^(\S+(?:\s+[a-zA-Z]+\.?)?)\s+(.+?)\s+[-–]\s+\1\s*$""")
     private val dashAfterAmount = Regex("""^([\d½¼¾⅓⅔⅛⅜⅝⅞/.\s]+?)\s+-\s+""")
     private val pluralMarker = Regex("""(\p{L}+)\(s\)""")
     private val doubleWrapped = Regex("""\(\(([^()]*)\)\)""")
@@ -36,6 +38,10 @@ object RecipeTextCleanup {
             match.groupValues[1] + if (amount != null && amount > 1.0) "s" else ""
         }
         line = line.replace(dashAfterAmount, "$1 ")
+        // "to taste Salt" puts the remark where the amount goes: "Salt, to taste".
+        line = line.replace(leadingRemark, "$2, $1")
+        // "4 bunches spinach leaves - 4 bunches" repeats the amount after the name.
+        line = line.replace(repeatedAmount, "$1 $2")
         line = line.replace(decimalAmount) { match -> kitchenAmount(match.value) ?: match.value }
         line = squeeze(line).trim().trimEnd(',').trim()
         if (line.isEmpty()) return null

@@ -177,6 +177,38 @@ class RecipeExtractorTest {
             </head></html>"""
         assertEquals("OK", RecipeExtractor.extract(html, "https://example.com")!!.title)
     }
+
+    private val namesOnly = """
+        {"@type":"Recipe","name":"Lamb Curry",
+         "recipeIngredient":["Lamb","Salt","Onions","For the curry:","Oil","Curry leaves"],
+         "recipeInstructions":"Cook the lamb. Add the onions."}
+        """
+
+    @Test fun readsAmountsFromThePageWhenTheDataHasOnlyNames() {
+        val html = """<html><head><script type="application/ld+json">$namesOnly</script></head><body>
+            <ul class="related"><li>Lamb Biryani</li><li>Onion Rings</li></ul>
+            <ul class="ingredients">
+              <li>250 Gram Lamb</li><li> to taste Salt</li><li>3 tbsp Onions, chopped</li>
+              <li><b>For the curry:</b></li><li>2 tbsp Oil</li><li>10  Curry leaves</li>
+            </ul></body></html>"""
+        val r = RecipeExtractor.extract(html, "https://example.com/curry")!!
+        assertEquals(
+            listOf("250 Gram Lamb", "Salt, to taste", "3 tbsp Onions, chopped", "For the curry", "2 tbsp Oil", "10 Curry leaves"),
+            r.ingredients.map { it.text },
+        )
+        assertTrue(r.ingredients[3].isHeader)
+        // The saved copy keeps the list, so reading it again offline gives the same amounts.
+        val again = RecipeExtractor.extract(r.pageSnapshot!!, "https://example.com/curry")!!
+        assertEquals(r.ingredients, again.ingredients)
+    }
+
+    @Test fun keepsTheDataWhenNoPageListMatches() {
+        val html = """<html><head><script type="application/ld+json">$namesOnly</script></head><body>
+            <ul><li>1 Lamb Biryani</li><li>2 Onion Rings</li><li>3 Fish Curry</li><li>4 Salt Cod</li><li>5 Rice</li></ul>
+            </body></html>"""
+        val r = RecipeExtractor.extract(html, "https://example.com/curry")!!
+        assertEquals("Lamb", r.ingredients.first().text)
+    }
 }
 
 /**

@@ -160,6 +160,12 @@ class IngredientScalerTest {
         assertEquals("2¼ pounds chicken", show("1 kg chicken", 1.0, us = true).text)
     }
 
+    @Test fun roundsConvertedVolumesToMeasurableAmounts() {
+        assertEquals("3½ tablespoons water", show("50 ml water", 1.0, us = true).text)
+        assertEquals("1½ teaspoons vanilla", show("7 ml vanilla", 1.0, us = true).text)
+        assertEquals("1⅔ cups stock", show("400 ml stock", 1.0, us = true).text)
+    }
+
     @Test fun leavesMetricAloneWhenTheToggleIsOff() {
         assertEquals("250 ml milk", show("250 ml milk", 1.0).text)
         assertEquals("500 ml milk", show("250 ml milk", 2.0).text)

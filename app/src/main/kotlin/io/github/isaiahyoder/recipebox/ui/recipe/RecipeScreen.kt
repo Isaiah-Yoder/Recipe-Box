@@ -349,44 +349,6 @@ private fun RecipeContent(
                     formatMinutes(recipe.totalMinutes)?.let { "Total $it" },
                 )
                 if (times.isNotEmpty()) Text(times.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    tags.forEach { tag ->
-                        InputChip(
-                            selected = false,
-                            onClick = { tagMenuFor = tag },
-                            label = { Text(tag) },
-                            trailingIcon = {
-                                Icon(
-                                    Icons.Filled.Close,
-                                    contentDescription = "Remove tag $tag",
-                                    modifier = Modifier.size(18.dp).clickable { viewModel.removeTag(tag) },
-                                )
-                            },
-                        )
-                    }
-                    suggestions.forEach { tag ->
-                        SuggestionChip(
-                            onClick = { askingAbout = tag },
-                            label = { Text("$tag?") },
-                            icon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, Modifier.size(18.dp)) },
-                        )
-                    }
-                    AssistChip(
-                        onClick = { addingTag = true },
-                        label = { Text("Add tag") },
-                        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, Modifier.size(18.dp)) },
-                    )
-                }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    categories.forEach { category ->
-                        SuggestionChip(onClick = { editingCategories = true }, label = { Text(category.name) })
-                    }
-                    AssistChip(
-                        onClick = { editingCategories = true },
-                        label = { Text(if (categories.isEmpty()) "Add to category" else "Categories") },
-                        leadingIcon = { Icon(Icons.Filled.Folder, contentDescription = null, Modifier.size(18.dp)) },
-                    )
-                }
             }
         }
         item {
@@ -451,6 +413,50 @@ private fun RecipeContent(
                     style = bodyStyle,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
+            }
+        }
+        // Tags and categories come last, so the recipe itself is what she sees first.
+        sectionHeading("Tags and categories")
+        item {
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    tags.forEach { tag ->
+                        InputChip(
+                            selected = false,
+                            onClick = { tagMenuFor = tag },
+                            label = { Text(tag) },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = "Remove tag $tag",
+                                    modifier = Modifier.size(18.dp).clickable { viewModel.removeTag(tag) },
+                                )
+                            },
+                        )
+                    }
+                    suggestions.forEach { tag ->
+                        SuggestionChip(
+                            onClick = { askingAbout = tag },
+                            label = { Text("$tag?") },
+                            icon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, Modifier.size(18.dp)) },
+                        )
+                    }
+                    AssistChip(
+                        onClick = { addingTag = true },
+                        label = { Text("Add tag") },
+                        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, Modifier.size(18.dp)) },
+                    )
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    categories.forEach { category ->
+                        SuggestionChip(onClick = { editingCategories = true }, label = { Text(category.name) })
+                    }
+                    AssistChip(
+                        onClick = { editingCategories = true },
+                        label = { Text(if (categories.isEmpty()) "Add to category" else "Categories") },
+                        leadingIcon = { Icon(Icons.Filled.Folder, contentDescription = null, Modifier.size(18.dp)) },
+                    )
+                }
             }
         }
     }

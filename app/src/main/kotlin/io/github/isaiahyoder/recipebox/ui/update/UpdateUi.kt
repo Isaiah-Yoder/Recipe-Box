@@ -156,6 +156,14 @@ fun UpdateBanner() {
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp, end = 8.dp, bottom = 12.dp),
                     )
                 }
+                // Play Protect's warning covers this banner, so the hint comes before it appears.
+                if (current is UpdateState.Downloading || current is UpdateState.Installing) {
+                    Text(
+                        PLAY_PROTECT_HINT,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(end = 8.dp, bottom = 12.dp),
+                    )
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     when (current) {
                         is UpdateState.Available -> {
@@ -278,3 +286,7 @@ private fun openReleasePage(context: android.content.Context) {
         )
     }
 }
+
+/** Google Play Protect blocks updates from developers it hasn't seen, with its way past hidden. */
+private const val PLAY_PROTECT_HINT =
+    "If Google Play Protect says the app is blocked, tap More details, then Install anyway."

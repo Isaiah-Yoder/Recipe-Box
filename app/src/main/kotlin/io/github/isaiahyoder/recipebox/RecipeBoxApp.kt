@@ -2,7 +2,8 @@ package io.github.isaiahyoder.recipebox
 
 import android.app.Application
 import android.content.Context
-import android.webkit.WebSettings
+import android.os.Build
+import android.webkit.WebView
 import io.github.isaiahyoder.recipebox.backup.BackupManager
 import io.github.isaiahyoder.recipebox.cards.CardAssets
 import io.github.isaiahyoder.recipebox.cards.CardReader
@@ -68,9 +69,16 @@ class AppContainer(context: Context) {
 
     val tagRefresher: TagRefresher by lazy { TagRefresher(database) }
 
-    /** The phone's own browser identity, so sites see an ordinary visitor. */
+    /**
+     * A browser identity like the phone's own Chrome, so sites see an ordinary
+     * visitor. It's built from the installed WebView's version instead of asking
+     * WebView, which waits for the main thread and froze a cold start from Share.
+     */
     private val userAgent: String by lazy {
-        runCatching { WebSettings.getDefaultUserAgent(context) }.getOrDefault(FALLBACK_USER_AGENT)
+        val chrome = runCatching { WebView.getCurrentWebViewPackage()?.versionName }.getOrNull()
+            ?.substringBefore(' ')?.takeIf { it.isNotBlank() } ?: FALLBACK_CHROME_VERSION
+        "Mozilla/5.0 (Linux; Android ${Build.VERSION.RELEASE}; ${Build.MODEL}) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chrome Mobile Safari/537.36"
     }
 
     private val httpClient: OkHttpClient by lazy {
@@ -80,13 +88,17 @@ class AppContainer(context: Context) {
             .build()
     }
 
-    val photos: PhotoStore by lazy { PhotoStore(context, httpClient, userAgent) }
+    private val browserLoader: WebViewPageLoader by lazy { WebViewPageLoader(context) }
+
+    val photos: PhotoStore by lazy {
+        PhotoStore(context, httpClient, userAgent, browserImage = { url, maxEdge -> browserLoader.loadImage(url, maxEdge) })
+    }
 
     val importer: RecipeImporter by lazy {
         RecipeImporter(
             dao = database.recipeDao(),
             fetcher = pageFetcher,
-            browserLoader = WebViewPageLoader(context),
+            browserLoader = browserLoader,
             photos = photos,
             tags = tagRefresher,
         )
@@ -122,8 +134,7 @@ class AppContainer(context: Context) {
     val cardReader: CardReader by lazy { CardReader(settings, geminiCards, onDeviceCards, TextCardReader(context)) }
 
     private companion object {
-        const val FALLBACK_USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+        const val FALLBACK_CHROME_VERSION = "140.0.0.0"
     }
 }
 
