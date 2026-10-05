@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Recipe Box</string>
+    <string name="share_target_label">Save to Recipe Box</string>
 </resources>
