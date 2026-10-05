@@ -20,6 +20,8 @@ object IngredientNames {
         "cold", "warm", "hot", "torn", "trimmed", "rinsed", "drained", "seeded", "deveined", "julienned",
         "zested", "juiced", "pitted", "toasted", "of", "into", "pieces", "cut", "plus", "more",
         "taste", "to", "for", "serving", "garnish", "needed", "as", "desired", "extra",
+        // Loose amounts that aren't units: "small handful cilantro", "dollop of sour cream".
+        "handful", "handfuls", "dollop", "dollops", "splash", "drizzle", "sprinkle", "sprinkling", "few",
     )
 
     /** Joining words kept inside a name ("milk or broth") but not at its ends. */

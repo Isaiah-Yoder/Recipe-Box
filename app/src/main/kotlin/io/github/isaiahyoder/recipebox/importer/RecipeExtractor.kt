@@ -39,8 +39,10 @@ data class ExtractedRecipe(
 /**
  * Reads the structured recipe data that sites publish for search engines.
  *
- * It tries schema.org JSON-LD first, then schema.org microdata. It never reads
- * the page's visible article text, so stories, ads, and comments stay out.
+ * It tries schema.org JSON-LD first, then schema.org microdata. When the page
+ * shows a recipe card from a known recipe plugin, its ingredients and steps
+ * replace the data's, because the card keeps group headings and full steps.
+ * It never reads the page's article text, so stories, ads, and comments stay out.
  */
 object RecipeExtractor {
     private val json = Json { isLenient = true; ignoreUnknownKeys = true }
@@ -49,10 +51,25 @@ object RecipeExtractor {
         val document = Jsoup.parse(html, pageUrl)
         val siteName = siteName(document, pageUrl)
         val fromJsonLd = fromJsonLd(document, siteName)
-        if (fromJsonLd?.isComplete == true) return fromJsonLd
-        val fromMicrodata = fromMicrodata(document, siteName)
-        return listOfNotNull(fromJsonLd, fromMicrodata)
-            .maxByOrNull { it.ingredients.size + it.steps.size }
+        val fromData = if (fromJsonLd?.isComplete == true) {
+            fromJsonLd
+        } else {
+            listOfNotNull(fromJsonLd, fromMicrodata(document, siteName)).maxByOrNull { it.ingredients.size + it.steps.size }
+        }
+        return withCard(fromData, RecipeCardHtml.read(document), document)
+    }
+
+    /** Uses the card's lists when they hold at least as much as the data. */
+    private fun withCard(recipe: ExtractedRecipe?, card: RecipeCardHtml.Lists?, document: Document): ExtractedRecipe? {
+        if (card == null) return recipe
+        fun count(lines: List<RecipeLine>) = lines.count { !it.isHeader }
+        val base = recipe ?: ExtractedRecipe(
+            title = RecipeTextCleanup.title(document.selectFirst("meta[property=og:title]")?.attr("content") ?: document.title()),
+        )
+        return base.copy(
+            ingredients = if (count(card.ingredients) >= count(base.ingredients)) card.ingredients else base.ingredients,
+            steps = if (count(card.steps) >= count(base.steps) && card.steps.isNotEmpty()) card.steps else base.steps,
+        )
     }
 
     // JSON-LD
@@ -89,11 +106,12 @@ object RecipeExtractor {
     private fun toExtracted(recipe: JsonObject, siteName: String?): ExtractedRecipe {
         val yields = strings(recipe["recipeYield"])
         val servings = yields.firstNotNullOfOrNull { Regex("""\d+""").find(it)?.value?.toIntOrNull() }
-        val yieldText = yields.filter { it.toIntOrNull() == null }.distinct().joinToString(", ").ifBlank { null }
+        val yieldText = yields.filter { it.toIntOrNull() == null }.map(RecipeTextCleanup::yieldText).distinct()
+            .joinToString(", ").ifBlank { null }
         val ingredients = strings(recipe["recipeIngredient"] ?: recipe["ingredients"])
-            .map(::cleanText).filter { it.isNotBlank() }.map { RecipeLine(it) }
+            .mapNotNull { RecipeTextCleanup.ingredient(cleanText(it)) }
         return ExtractedRecipe(
-            title = cleanText(text(recipe["name"]) ?: ""),
+            title = RecipeTextCleanup.title(cleanText(text(recipe["name"]) ?: "")),
             description = text(recipe["description"])?.let(::cleanText)?.ifBlank { null },
             imageUrl = image(recipe["image"]),
             siteName = siteName,
@@ -127,12 +145,12 @@ object RecipeExtractor {
                     when {
                         types.any { it == "HowToSection" } -> {
                             text(node["name"])?.let(::cleanText)?.takeIf { it.isNotBlank() }
-                                ?.let { lines += RecipeLine(it, isHeader = true) }
+                                ?.let { lines += RecipeLine(RecipeTextCleanup.heading(it.trimEnd(':').trim()), isHeader = true) }
                             visit(node["itemListElement"])
                         }
                         node["itemListElement"] != null -> visit(node["itemListElement"])
                         else -> {
-                            val text = text(node["text"]) ?: text(node["name"]) ?: text(node["description"])
+                            val text = stepText(text(node["name"]), text(node["text"])) ?: text(node["description"])
                             text?.let { visit(JsonPrimitive(it)) }
                         }
                     }
@@ -141,6 +159,25 @@ object RecipeExtractor {
         }
         visit(element)
         return lines
+    }
+
+    /**
+     * Some recipe plugins put a step's bold first words in "name" and the rest
+     * in "text", such as "Heat oven" and "to 375° F". Text that starts mid-sentence
+     * gets its name back; a name that only repeats or titles the step is dropped.
+     */
+    internal fun stepText(name: String?, text: String?): String? {
+        val body = text?.let(::cleanText).orEmpty()
+        val title = name?.let(::cleanText).orEmpty()
+        if (body.isEmpty()) return title.ifEmpty { null }
+        if (title.isEmpty() || Regex("""(?i)step\s*\d+""").matches(title)) return body
+        if (body.startsWith(title.removeSuffix("...").removeSuffix("…").trim())) return body
+        val first = body.first()
+        return when {
+            first.isLowerCase() -> "$title $body"
+            first in ",.;:" -> title + body
+            else -> body
+        }
     }
 
     private fun splitInstructionText(text: String): List<String> {
@@ -182,7 +219,7 @@ object RecipeExtractor {
         val scope = document.select("[itemtype*=schema.org/Recipe]").firstOrNull() ?: return null
         fun props(name: String): List<Element> = scope.select("[itemprop=$name]")
         val ingredients = (props("recipeIngredient") + props("ingredients"))
-            .map { cleanText(it.text()) }.filter { it.isNotBlank() }.map { RecipeLine(it) }
+            .mapNotNull { RecipeTextCleanup.ingredient(cleanText(it.text())) }
         val steps = props("recipeInstructions").flatMap { element ->
             val items = element.select("li").map { it.text() }
             (items.ifEmpty { listOf(element.text()) }).map(::cleanText)
@@ -201,7 +238,7 @@ object RecipeExtractor {
 
     private fun siteName(document: Document, pageUrl: String): String? {
         document.selectFirst("meta[property=og:site_name]")?.attr("content")?.takeIf { it.isNotBlank() }
-            ?.let { return cleanText(it) }
+            ?.let { return RecipeTextCleanup.siteName(cleanText(it)) }
         return runCatching { URI(pageUrl).host?.removePrefix("www.") }.getOrNull()
     }
 

@@ -15,6 +15,7 @@ import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.importer.ImportQueue
 import io.github.isaiahyoder.recipebox.importer.PageFetcher
 import io.github.isaiahyoder.recipebox.importer.RecipeImporter
+import io.github.isaiahyoder.recipebox.importer.RecipeRefresher
 import io.github.isaiahyoder.recipebox.importer.WebViewPageLoader
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.settings.AppSettings
@@ -87,6 +88,10 @@ class AppContainer(context: Context) {
     val driveBackup: DriveBackup by lazy { DriveBackup(context, httpClient, backupManager, settings, photos) }
 
     val updater: AppUpdater by lazy { AppUpdater(context, httpClient, settings) }
+
+    val recipeRefresher: RecipeRefresher by lazy {
+        RecipeRefresher(context, database.recipeDao(), importer, tagRefresher, settings)
+    }
 
     /** Work that outlives a screen, such as downloading the on-device AI model. */
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

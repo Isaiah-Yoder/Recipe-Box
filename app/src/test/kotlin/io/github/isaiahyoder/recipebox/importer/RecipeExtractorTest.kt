@@ -116,6 +116,60 @@ class RecipeExtractorTest {
         assertNull(RecipeExtractor.extract("<html><body><p>Hello</p></body></html>", "https://example.com"))
     }
 
+    @Test fun joinsStepNamesThatStartTheSentence() {
+        assertEquals("Heat oven to 400° F.", RecipeExtractor.stepText("Heat oven", "to 400° F."))
+        assertEquals("Cut into 8, and shape.", RecipeExtractor.stepText("Cut into 8", ", and shape."))
+        assertEquals("Line a pan.", RecipeExtractor.stepText("Prep pan", "Line a pan."))
+        assertEquals("Line a pan.", RecipeExtractor.stepText("Step 1", "Line a pan."))
+        assertEquals("Line a pan with paper.", RecipeExtractor.stepText("Line a pan...", "Line a pan with paper."))
+        assertEquals("Rest the dough", RecipeExtractor.stepText("Rest the dough", ""))
+    }
+
+    @Test fun prefersAWprmCardWithGroupsAndFullSteps() {
+        val html = page(
+            """{"@type":"Recipe","name":"Chili Recipe","recipeIngredient":["1 lb chicken","2 cups broth ((low sodium))","sliced avocado"],
+               "recipeInstructions":[{"@type":"HowToStep","name":"Add","text":"chicken to the pot."}]}""",
+        ).replace(
+            "<body>",
+            """<body><div class="wprm-recipe-container"><div class="wprm-recipe">
+            <div class="wprm-recipe-ingredient-group"><ul>
+              <li class="wprm-recipe-ingredient"><span class="wprm-recipe-ingredient-amount">1</span>
+                <span class="wprm-recipe-ingredient-unit">lb</span> <span class="wprm-recipe-ingredient-name">chicken</span></li>
+              <li class="wprm-recipe-ingredient"><span class="wprm-recipe-ingredient-amount">2</span>
+                <span class="wprm-recipe-ingredient-unit">cups</span> <span class="wprm-recipe-ingredient-name">broth</span>
+                <span class="wprm-recipe-ingredient-notes">(low sodium)</span></li></ul></div>
+            <div class="wprm-recipe-ingredient-group"><h4 class="wprm-recipe-group-name">Toppings</h4><ul>
+              <li class="wprm-recipe-ingredient"><span class="wprm-recipe-ingredient-name">sliced avocado</span></li></ul></div>
+            <div class="wprm-recipe-instruction-group"><h4 class="wprm-recipe-group-name">Instructions</h4><ul>
+              <li class="wprm-recipe-instruction"><div class="wprm-recipe-instruction-text"><strong>Add</strong> chicken to the pot.</div></li>
+              <li class="wprm-recipe-instruction"><div class="wprm-recipe-instruction-text">Simmer 8 hours.</div></li></ul></div>
+            </div></div>""",
+        )
+        val r = RecipeExtractor.extract(html, "https://example.com/chili")!!
+        assertEquals("Chili", r.title)
+        assertEquals(
+            listOf(RecipeLine("1 lb chicken"), RecipeLine("2 cups broth (low sodium)"), RecipeLine("Toppings", isHeader = true), RecipeLine("sliced avocado")),
+            r.ingredients,
+        )
+        assertEquals(listOf("Add chicken to the pot.", "Simmer 8 hours."), r.steps.map { it.text })
+    }
+
+    @Test fun readsATastyRecipesCard() {
+        val html = page("""{"@type":"Recipe","name":"Cookies","recipeIngredient":["1 egg","1 cup flour","1 cup sugar"],"recipeInstructions":"Mix."}""")
+            .replace(
+                "<body>",
+                """<body><div class="tasty-recipes-ingredients"><div class="tasty-recipes-ingredients-body">
+                <h4>Dough</h4><ul><li><span class="tr-ingredient-checkbox-container"><input type="checkbox"></span>1 egg</li>
+                <li>1 cup flour</li></ul><h4>Topping:</h4><ul><li>1 cup sugar</li></ul></div></div>
+                <div class="tasty-recipes-instructions"><div class="tasty-recipes-instructions-body"><ol>
+                <li><strong>Heat oven</strong> to 350°F.</li><li>Mix.</li></ol></div></div>""",
+            )
+        val r = RecipeExtractor.extract(html, "https://example.com/cookies")!!
+        assertEquals(listOf("Dough", "1 egg", "1 cup flour", "Topping", "1 cup sugar"), r.ingredients.map { it.text })
+        assertEquals(listOf(true, false, false, true, false), r.ingredients.map { it.isHeader })
+        assertEquals(listOf("Heat oven to 350°F.", "Mix."), r.steps.map { it.text })
+    }
+
     @Test fun skipsBrokenJsonAndUsesTheNextBlock() {
         val html = """<html><head>
             <script type="application/ld+json">{ not json </script>
@@ -144,5 +198,27 @@ class PrivatePagesTest {
                 "${recipe.servings} servings, ${recipe.totalMinutes} min, site=${recipe.siteName}, " +
                 "categories=${recipe.categories}, cuisines=${recipe.cuisines}")
         }
+    }
+}
+
+/**
+ * Prints what the extractor reads from pages of her library saved in the
+ * ignored testdata/private/pages/library folder, for checking by eye.
+ */
+class PrivateLibraryPagesTest {
+    @Test fun extractsSavedLibraryPages() {
+        val folder = listOf(File("testdata/private/pages/library"), File("../testdata/private/pages/library"))
+            .firstOrNull { it.isDirectory }
+        val pages = folder?.listFiles { file -> file.extension == "html" && file.length() > 50_000 }.orEmpty()
+        assumeTrue("No private library pages", pages.isNotEmpty())
+        val report = StringBuilder()
+        for (page in pages.sortedBy { it.name }) {
+            val recipe = RecipeExtractor.extract(page.readText(), "https://example.com/${page.nameWithoutExtension}")
+            assertNotNull("No recipe in ${page.name}", recipe)
+            report.appendLine("### ${page.name}: ${recipe!!.title} [${recipe.siteName}] yield=${recipe.yieldText}")
+            recipe.ingredients.forEach { report.appendLine((if (it.isHeader) "  # " else "  - ") + it.text) }
+            recipe.steps.forEach { report.appendLine((if (it.isHeader) "  ## " else "  > ") + it.text.take(120)) }
+        }
+        File(folder, "report.txt").writeText(report.toString())
     }
 }

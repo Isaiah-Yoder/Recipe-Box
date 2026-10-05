@@ -70,6 +70,19 @@ class GroceryBuilderTest {
         assertTrue(all.toString(), "⅝ teaspoon black pepper" in all)
     }
 
+    @Test fun mergesLooseAmountsOfTheSameHerb() {
+        val all = texts(
+            build(
+                GroceryRecipeInput(
+                    "Tacos", 1.0,
+                    listOf("small handful fresh cilantro (chopped)", "chopped fresh cilantro", "dollop of sour cream", "8 oz sour cream"),
+                )
+            )
+        )
+        assertTrue(all.toString(), "cilantro" in all)
+        assertEquals(all.toString(), 2, all.size)
+    }
+
     @Test fun hidesStaplesWhenAsked() {
         val recipe = GroceryRecipeInput("A", 1.0, listOf("1 teaspoon kosher salt", "ground black pepper to taste", "2 onions"))
         assertEquals(setOf("2 onions"), texts(build(recipe, hideStaples = true)))

@@ -2,6 +2,7 @@ package io.github.isaiahyoder.recipebox.cards
 
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.data.RecipeLine
+import io.github.isaiahyoder.recipebox.importer.RecipeTextCleanup
 import io.github.isaiahyoder.recipebox.importer.TextDuration
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -52,14 +53,10 @@ data class CardRecipe(
             text.isEmpty() -> null
             // The recipe screen already labels its sections, so a copied card label adds nothing.
             text.trimEnd(':').trim().lowercase() in sectionNames -> null
-            line.isHeading || (text.endsWith(":") && text.length <= 60) -> RecipeLine(headingCase(text.trimEnd(':').trim()), isHeader = true)
+            line.isHeading || (text.endsWith(":") && text.length <= 60) -> RecipeLine(RecipeTextCleanup.heading(text.trimEnd(':').trim()), isHeader = true)
             else -> RecipeLine(text)
         }
     }
-
-    /** Turns a heading written in capitals on the card, such as "DRY", into "Dry". */
-    private fun headingCase(text: String): String =
-        if (text.any { it.isLetter() } && text == text.uppercase()) text.lowercase().replaceFirstChar { it.uppercase() } else text
 
     companion object {
         private val sectionNames = setOf("ingredients", "directions", "instructions", "method", "steps")

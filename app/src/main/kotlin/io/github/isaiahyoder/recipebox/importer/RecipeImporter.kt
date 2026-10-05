@@ -22,6 +22,9 @@ sealed interface ImportOutcome {
     data class NotFound(val url: String, val reason: String, val retryable: Boolean) : ImportOutcome
 }
 
+/** A page's recipe, or why there isn't one. [pageLoaded] is false when the page never loaded. */
+data class PageLoad(val recipe: ExtractedRecipe?, val reason: String, val pageLoaded: Boolean)
+
 /** Turns a shared link into a saved recipe. */
 class RecipeImporter(
     private val dao: RecipeDao,
@@ -34,31 +37,8 @@ class RecipeImporter(
         val url = Links.findUrl(sharedText)?.let(Links::normalize) ?: return ImportOutcome.NoLink
         dao.findIdBySourceUrl(url)?.let { return ImportOutcome.AlreadySaved(it, dao.getRecipe(it)?.title) }
 
-        onStage(ImportStage.DOWNLOADING)
-        var reason = NO_RECIPE_DATA
-        var extracted: ExtractedRecipe? = null
-        var pageLoaded = false
-        when (val result = fetcher.fetch(url)) {
-            is FetchResult.Page -> {
-                pageLoaded = true
-                extracted = RecipeExtractor.extract(result.html, result.finalUrl)
-            }
-            is FetchResult.Failed -> reason = result.reason
-        }
-        Log.i(TAG, "Download: ${describe(extracted)}; reason=$reason")
-
-        if (extracted?.isComplete != true) {
-            onStage(ImportStage.TRYING_BROWSER)
-            val html = browserLoader.load(url)
-            if (html != null) pageLoaded = true
-            val fromBrowser = html?.let { RecipeExtractor.extract(it, url) }
-            if (fromBrowser != null && (extracted == null || fromBrowser.isComplete)) extracted = fromBrowser
-            if (html != null && extracted == null) reason = NO_RECIPE_DATA
-            Log.i(TAG, "Browser view: html=${html?.length ?: "none"}, ${describe(fromBrowser)}")
-        }
-
-        val recipe = extracted?.takeIf { it.isComplete }
-            ?: return ImportOutcome.NotFound(url, reason, retryable = !pageLoaded)
+        val loaded = load(url, onStage)
+        val recipe = loaded.recipe ?: return ImportOutcome.NotFound(url, loaded.reason, retryable = !loaded.pageLoaded)
 
         onStage(ImportStage.SAVING)
         val now = clock()
@@ -90,6 +70,36 @@ class RecipeImporter(
             photos.downloadCover(imageUrl, id)?.let { dao.setImageFile(id, it) }
         }
         return ImportOutcome.Saved(id, recipe.title)
+    }
+
+    /**
+     * Downloads [url] and reads its recipe, falling back to a hidden browser
+     * view when the plain download is refused or has no recipe data.
+     */
+    suspend fun load(url: String, onStage: (ImportStage) -> Unit = {}): PageLoad {
+        onStage(ImportStage.DOWNLOADING)
+        var reason = NO_RECIPE_DATA
+        var extracted: ExtractedRecipe? = null
+        var pageLoaded = false
+        when (val result = fetcher.fetch(url)) {
+            is FetchResult.Page -> {
+                pageLoaded = true
+                extracted = RecipeExtractor.extract(result.html, result.finalUrl)
+            }
+            is FetchResult.Failed -> reason = result.reason
+        }
+        Log.i(TAG, "Download: ${describe(extracted)}; reason=$reason")
+
+        if (extracted?.isComplete != true) {
+            onStage(ImportStage.TRYING_BROWSER)
+            val html = browserLoader.load(url)
+            if (html != null) pageLoaded = true
+            val fromBrowser = html?.let { RecipeExtractor.extract(it, url) }
+            if (fromBrowser != null && (extracted == null || fromBrowser.isComplete)) extracted = fromBrowser
+            if (html != null && extracted == null) reason = NO_RECIPE_DATA
+            Log.i(TAG, "Browser view: html=${html?.length ?: "none"}, ${describe(fromBrowser)}")
+        }
+        return PageLoad(extracted?.takeIf { it.isComplete }, reason, pageLoaded)
     }
 
     private fun ExtractedRecipe.toTaggable() = TaggableRecipe(

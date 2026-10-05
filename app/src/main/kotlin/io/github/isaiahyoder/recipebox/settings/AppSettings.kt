@@ -5,9 +5,25 @@ import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.util.concurrent.TimeUnit
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+/** Progress of reading saved recipes' pages again. [failed] lists recipes whose page couldn't be read. */
+@Serializable
+data class RefreshStatus(
+    val running: Boolean = false,
+    val pending: List<Long> = emptyList(),
+    val total: Int = 0,
+    val updated: Int = 0,
+    val failed: List<Long> = emptyList(),
+    val skippedEdited: Int = 0,
+    val finishedAt: Long = 0,
+) {
+    val done: Int get() = total - pending.size
+}
 
 data class DriveStatus(
     val enabled: Boolean = false,
@@ -96,6 +112,17 @@ class AppSettings(context: Context, fileName: String = "settings") {
         _geminiKey.value = cleaned
     }
 
+    private val _refreshStatus = MutableStateFlow(
+        prefs.getString(KEY_REFRESH, null)?.let { runCatching { Json.decodeFromString<RefreshStatus>(it) }.getOrNull() } ?: RefreshStatus()
+    )
+    val refreshStatus: StateFlow<RefreshStatus> = _refreshStatus.asStateFlow()
+
+    @Synchronized
+    fun setRefreshStatus(status: RefreshStatus) {
+        prefs.edit { putString(KEY_REFRESH, Json.encodeToString(status)) }
+        _refreshStatus.value = status
+    }
+
     /** The update version whose banner she put off, and when. */
     val updatePutOffVersion: String? get() = prefs.getString(KEY_UPDATE_PUT_OFF_VERSION, null)
     val updatePutOffAt: Long get() = prefs.getLong(KEY_UPDATE_PUT_OFF_AT, 0)
@@ -128,5 +155,6 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_UPDATE_PUT_OFF_VERSION = "update_put_off_version"
         const val KEY_UPDATE_PUT_OFF_AT = "update_put_off_at"
         const val KEY_GEMINI = "gemini_api_key"
+        const val KEY_REFRESH = "recipe_refresh_status"
     }
 }

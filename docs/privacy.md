@@ -24,8 +24,9 @@ Recipe Box stores the following data on your phone:
 
 Recipe Box connects to other services only for the following tasks:
 
-- **Importing a recipe.** The app downloads the web page and photo from the
-  link you import, as a web browser would.
+- **Importing or refreshing a recipe.** The app downloads the web page and
+  photo from the link you import, as a web browser would. **Refresh recipes**
+  in Settings downloads each saved recipe's page again in the same way.
 - **Google Drive backup.** If you turn on backups, the app asks for permission
   to create and manage only the files it creates in your Google Drive (the
   `drive.file` scope). It writes backup files to a "Recipe Box backups"
