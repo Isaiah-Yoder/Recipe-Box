@@ -1,0 +1,89 @@
+# This repository is public. Anything private, machine-specific, or
+# generated stays out of it. When in doubt, add a pattern here first.
+
+# Signing keys and their passwords. Losing the release key blocks updates,
+# and publishing it lets anyone sign a fake update. Keep both off GitHub.
+*.jks
+*.keystore
+*.p12
+*.pem
+*.pepk
+keystore.properties
+signing.properties
+
+# Secrets and API keys. The app reads the AI key from its own settings,
+# so no key file should exist in the project at all.
+secrets.properties
+secrets.*.properties
+local.defaults.properties
+google-services.json
+.env
+.env.*
+*.secret
+*.key
+
+# Machine-specific paths, such as the Android SDK location under the user
+# profile.
+local.properties
+
+# Private test data: real recipe links, saved recipe pages, card photos,
+# notes, and backup files. Recipe pages are copyrighted, and photos and
+# backups can hold personal information.
+testdata/private/
+*.recipebackup
+*.recipebox
+/backups/
+
+# Build output. Release APKs go to GitHub Releases, never into Git.
+*.apk
+*.aab
+*.ap_
+*.apks
+*.dex
+*.class
+output-metadata.json
+build/
+/app/release/
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# Gradle caches
+.gradle/
+
+# IDE files, which can contain absolute paths and user names
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.fleet/
+.navigation/
+
+# Logs, heap dumps, and crash reports, which can contain device data
+*.log
+*.hprof
+/logs/
+
+# AI agent instructions and state: read locally, never committed
+**/CLAUDE.md
+**/CLAUDE.local.md
+**/AGENTS.md
+**/AGENTS.override.md
+**/GEMINI.md
+.claude/
+.codex/
+.cursor/
+.gemini/
+.cursorrules
+.windsurfrules
+
+# OS and editor noise
+Thumbs.db
+desktop.ini
+.DS_Store
+*.tmp
+*.bak
+*.swp
+*~
