@@ -84,6 +84,19 @@ interface RecipeDao {
     @Query("UPDATE recipes SET imageFile = :imageFile WHERE id = :id")
     suspend fun setImageFile(id: Long, imageFile: String?)
 
+    @Query("UPDATE recipes SET imageUrl = :imageUrl, imageFile = :imageFile WHERE id = :id")
+    suspend fun setImage(id: Long, imageUrl: String, imageFile: String)
+
+    @Query("SELECT * FROM recipes WHERE imageFile IS NOT NULL AND imageIsOwn = 0")
+    suspend fun recipesWithCover(): List<RecipeEntity>
+
+    /** Recipes whose downloadable cover photo isn't on the phone, such as after a restore. */
+    @Query("SELECT * FROM recipes WHERE imageFile IS NULL AND imageUrl IS NOT NULL AND imageIsOwn = 0")
+    suspend fun recipesMissingCover(): List<RecipeEntity>
+
+    @Query("SELECT COUNT(*) FROM recipes WHERE imageFile IS NULL AND imageUrl IS NOT NULL AND imageIsOwn = 0")
+    fun observeMissingCoverCount(): Flow<Int>
+
     @Query("DELETE FROM recipes WHERE id = :id")
     suspend fun delete(id: Long)
 

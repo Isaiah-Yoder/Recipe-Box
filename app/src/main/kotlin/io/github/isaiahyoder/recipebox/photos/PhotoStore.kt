@@ -23,11 +23,18 @@ class PhotoStore(
     context: Context,
     private val client: OkHttpClient,
     private val userAgent: String,
+    private val folder: File = File(context.filesDir, "photos"),
 ) {
-    private val folder = File(context.filesDir, "photos").apply { mkdirs() }
+    init {
+        folder.mkdirs()
+    }
+
     private val resolver = context.contentResolver
 
     fun file(name: String): File = File(folder, name)
+
+    /** The photo file when it exists, so a missing file shows the placeholder instead of nothing. */
+    fun existing(name: String?): File? = name?.let(::file)?.takeIf { it.exists() }
 
     suspend fun downloadCover(imageUrl: String, recipeId: Long): String? = withContext(Dispatchers.IO) {
         runCatching {
@@ -69,6 +76,11 @@ class PhotoStore(
 
     fun delete(name: String?) {
         if (name != null) file(name).delete()
+    }
+
+    /** Removes every photo except [keep], such as old covers after a restore. */
+    fun deleteAllExcept(keep: Set<String>) {
+        folder.listFiles()?.filter { it.name !in keep }?.forEach { it.delete() }
     }
 
     private fun saveResized(bytes: ByteArray, target: File, maxEdge: Int = MAX_EDGE): File? {

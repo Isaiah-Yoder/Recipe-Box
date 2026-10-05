@@ -18,9 +18,12 @@ object IngredientNames {
         "melted", "beaten", "cooked", "uncooked", "packed", "sifted", "cubed", "halved", "quartered",
         "optional", "about", "hard", "boiled", "hard-boiled", "lightly", "well", "room", "temperature",
         "cold", "warm", "hot", "torn", "trimmed", "rinsed", "drained", "seeded", "deveined", "julienned",
-        "zested", "juiced", "pitted", "toasted", "and", "or", "of", "into", "pieces", "cut", "plus", "more",
+        "zested", "juiced", "pitted", "toasted", "of", "into", "pieces", "cut", "plus", "more",
         "taste", "to", "for", "serving", "garnish", "needed", "as", "desired", "extra",
     )
+
+    /** Joining words kept inside a name ("milk or broth") but not at its ends. */
+    private val connectors = setOf("and", "or", "with")
 
     /** A few common ingredients with two names, mapped to one. */
     private val synonyms = mapOf(
@@ -34,11 +37,14 @@ object IngredientNames {
         "granulated sugar" to "sugar",
         "all-purpose flour" to "flour",
         "ground black pepper" to "black pepper",
+        // A recipe that says just "pepper" almost always means black pepper.
+        "pepper" to "black pepper",
+        "ground pepper" to "black pepper",
     )
 
     /** Names that most kitchens already have; a list can hide them. */
     private val staples = setOf(
-        "salt", "kosher salt", "sea salt", "black pepper", "pepper", "salt pepper", "water", "ice",
+        "salt", "kosher salt", "sea salt", "black pepper", "salt and pepper", "salt and black pepper", "water", "ice",
         "cooking spray", "table salt",
     )
 
@@ -54,6 +60,8 @@ object IngredientNames {
             .replace(Regex("""[^a-z\-' ]"""), " ")
             .split(Regex("""\s+"""))
             .filter { it.isNotBlank() && it !in preparationWords }
+            .dropWhile { it in connectors }
+            .dropLastWhile { it in connectors }
         if (words.isEmpty()) {
             val fallback = rest.trim().lowercase()
             return Name(fallback, fallback)

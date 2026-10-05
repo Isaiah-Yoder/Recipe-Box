@@ -241,7 +241,7 @@ private fun RecipeRow(recipe: RecipeSummary, onClick: () -> Unit) {
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RecipeThumbnail(recipe.imageFile?.let { container.photos.file(it) })
+        RecipeThumbnail(container.photos.existing(recipe.imageFile))
         Column(Modifier.padding(start = 12.dp).weight(1f)) {
             Text(
                 recipe.title,

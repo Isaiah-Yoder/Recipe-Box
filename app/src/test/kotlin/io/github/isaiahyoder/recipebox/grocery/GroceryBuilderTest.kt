@@ -59,6 +59,17 @@ class GroceryBuilderTest {
         assertEquals(StoreSection.SPICES, lines(groups).single().section)
     }
 
+    @Test fun keepsAlternativesAndMergesPlainPepper() {
+        val all = texts(
+            build(
+                GroceryRecipeInput("A", 1.0, listOf("1-2 Tablespoons milk or broth", "½ teaspoon pepper, plus more to taste")),
+                GroceryRecipeInput("B", 1.0, listOf("⅛ teaspoon ground black pepper")),
+            )
+        )
+        assertTrue(all.toString(), "2 tablespoons milk or broth" in all)
+        assertTrue(all.toString(), "⅝ teaspoon black pepper" in all)
+    }
+
     @Test fun hidesStaplesWhenAsked() {
         val recipe = GroceryRecipeInput("A", 1.0, listOf("1 teaspoon kosher salt", "ground black pepper to taste", "2 onions"))
         assertEquals(setOf("2 onions"), texts(build(recipe, hideStaples = true)))

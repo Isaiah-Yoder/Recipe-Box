@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
@@ -35,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.isaiahyoder.recipebox.BuildConfigValues
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.settings.ThemeMode
 import kotlinx.coroutines.launch
@@ -57,7 +60,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
         },
     ) { padding ->
-        Column(Modifier.padding(padding)) {
+        Column(Modifier.padding(padding).verticalScroll(rememberScrollState())) {
             SectionTitle("Appearance")
             Column(Modifier.selectableGroup()) {
                 ThemeOption("Use phone setting", ThemeMode.SYSTEM, themeMode, settings::setThemeMode)
@@ -66,6 +69,13 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
             SectionTitle("Organization")
             UpdateTagsItem()
+            SectionTitle("Backups")
+            BackupSection()
+            SectionTitle("About")
+            ListItem(
+                headlineContent = { Text("Recipe Box ${BuildConfigValues.versionName(LocalContext.current)}") },
+                supportingContent = { Text("Your recipes stay on this phone and in your own backups.") },
+            )
         }
     }
 }

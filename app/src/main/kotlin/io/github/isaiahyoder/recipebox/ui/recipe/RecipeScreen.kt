@@ -270,10 +270,10 @@ private fun RecipeContent(
             bottom = contentPadding.calculateBottomPadding() + 32.dp,
         ),
     ) {
-        recipe.imageFile?.let { name ->
+        container.photos.existing(recipe.imageFile)?.let { photo ->
             item {
                 AsyncImage(
-                    model = container.photos.file(name),
+                    model = photo,
                     contentDescription = "Photo of ${recipe.title}",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

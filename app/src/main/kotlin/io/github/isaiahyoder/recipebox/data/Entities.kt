@@ -14,6 +14,7 @@ data class RecipeLine(
     val isHeader: Boolean = false,
 )
 
+@Serializable
 @Entity(
     tableName = "recipes",
     indices = [Index("sourceUrl")],
@@ -53,6 +54,7 @@ data class RecipeEntity(
     val updatedAt: Long,
 )
 
+@Serializable
 @Entity(
     tableName = "tags",
     indices = [Index(value = ["name"], unique = true)],
@@ -62,8 +64,10 @@ data class TagEntity(
     val name: String,
 )
 
+@Serializable
 enum class TagSource { AUTO, MANUAL }
 
+@Serializable
 @Entity(
     tableName = "recipe_tags",
     primaryKeys = ["recipeId", "tagId"],
@@ -81,6 +85,7 @@ data class RecipeTagEntity(
     @ColumnInfo(defaultValue = "0") val hidden: Boolean = false,
 )
 
+@Serializable
 @Entity(
     tableName = "categories",
     indices = [Index(value = ["name"], unique = true)],
@@ -91,6 +96,7 @@ data class CategoryEntity(
     val position: Int,
 )
 
+@Serializable
 @Entity(
     tableName = "recipe_categories",
     primaryKeys = ["recipeId", "categoryId"],

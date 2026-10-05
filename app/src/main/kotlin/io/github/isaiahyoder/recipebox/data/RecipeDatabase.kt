@@ -44,6 +44,8 @@ abstract class RecipeDatabase : RoomDatabase() {
 
     abstract fun groceryDao(): GroceryDao
 
+    abstract fun backupDao(): BackupDao
+
     companion object {
         fun create(context: Context): RecipeDatabase =
             Room.databaseBuilder(context, RecipeDatabase::class.java, "recipes.db")
