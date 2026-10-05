@@ -43,6 +43,18 @@ object Fractions {
         return out.toString()
     }
 
+    /** The value [format] displays, so callers can tell whether rounding changed it. */
+    fun rounded(value: Double): Double {
+        if (value <= 0.0) return 0.0
+        if (value >= 10.0) return (value * 2).roundToLong() / 2.0
+        val whole = floor(value)
+        val fraction = kitchenFractions.minBy { abs(it.first - (value - whole)) }.first
+        return (whole + fraction).takeIf { it > 0.0 } ?: 0.125
+    }
+
+    /** True when the amount is more than one as displayed, so "1.04 cups" reads as "1 cup". */
+    fun isPlural(value: Double): Boolean = rounded(value) > 1.0 + 1e-9
+
     fun format(value: Double): String {
         if (value <= 0.0) return "0"
         // Large amounts don't need eighths; halves read better.

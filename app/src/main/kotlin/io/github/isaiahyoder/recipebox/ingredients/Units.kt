@@ -56,8 +56,7 @@ enum class Unit(
     val isMetric: Boolean get() = measure == Measure.METRIC_VOLUME || measure == Measure.METRIC_WEIGHT
 
     /** Singular or plural for the amount as displayed, so 1.06 cups shows as "1 cup". */
-    fun word(quantity: Double): String =
-        if (quantity > 1.0 + 1e-9 && Fractions.format(quantity) != "1") plural else singular
+    fun word(quantity: Double): String = if (Fractions.isPlural(quantity)) plural else singular
 
     companion object {
         /** Aliases matched exactly as written, so "T" is a tablespoon and "t" a teaspoon. */

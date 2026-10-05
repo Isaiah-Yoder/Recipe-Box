@@ -71,7 +71,7 @@ fun ImportScreen(text: String, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit)
                     Text(stageText(current.stage), textAlign = TextAlign.Center)
                 }
                 is ImportUiState.Finished -> when (val outcome = current.outcome) {
-                    is ImportOutcome.NotFound -> NotFound(outcome, onBack)
+                    is ImportOutcome.NotFound -> NotFound(outcome, onRetry = viewModel::retry, onBack = onBack)
                     ImportOutcome.NoLink -> Problem(
                         "The shared text doesn't contain a web link.",
                         detail = null,
@@ -91,14 +91,16 @@ private fun stageText(stage: ImportStage?): String = when (stage) {
 }
 
 @Composable
-private fun NotFound(outcome: ImportOutcome.NotFound, onBack: () -> Unit) {
+private fun NotFound(outcome: ImportOutcome.NotFound, onRetry: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     Problem(
         "Recipe Box couldn't find a recipe on this page.",
         detail = outcome.reason,
         onBack = onBack,
     ) {
-        Button(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, outcome.url.toUri())) }) {
+        // Sites sometimes refuse for a minute and then answer normally.
+        Button(onClick = onRetry) { Text("Try again") }
+        OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, outcome.url.toUri())) }) {
             Text("Open the page")
         }
     }

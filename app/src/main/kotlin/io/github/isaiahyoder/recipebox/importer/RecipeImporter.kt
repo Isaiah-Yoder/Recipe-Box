@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
+import android.util.Log
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
@@ -34,6 +35,7 @@ class RecipeImporter(
             is FetchResult.Page -> extracted = RecipeExtractor.extract(result.html, result.finalUrl)
             is FetchResult.Failed -> reason = result.reason
         }
+        Log.i(TAG, "Download: ${describe(extracted)}; reason=$reason")
 
         if (extracted?.isComplete != true) {
             onStage(ImportStage.TRYING_BROWSER)
@@ -41,6 +43,7 @@ class RecipeImporter(
             val fromBrowser = html?.let { RecipeExtractor.extract(it, url) }
             if (fromBrowser != null && (extracted == null || fromBrowser.isComplete)) extracted = fromBrowser
             if (html == null && extracted == null) reason = "The page didn't load, or it has no recipe data."
+            Log.i(TAG, "Browser view: html=${html?.length ?: "none"}, ${describe(fromBrowser)}")
         }
 
         val recipe = extracted?.takeIf { it.isComplete }
@@ -87,4 +90,12 @@ class RecipeImporter(
         siteCuisines = cuisines,
         siteKeywords = keywords,
     )
+
+    private fun describe(recipe: ExtractedRecipe?): String = recipe?.let {
+        "title=${it.title.isNotBlank()}, ingredients=${it.ingredients.size}, steps=${it.steps.size}"
+    } ?: "no recipe data"
+
+    private companion object {
+        const val TAG = "RecipeImport"
+    }
 }

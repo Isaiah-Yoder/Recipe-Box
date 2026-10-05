@@ -8,6 +8,7 @@ import io.github.isaiahyoder.recipebox.importer.PageFetcher
 import io.github.isaiahyoder.recipebox.importer.RecipeImporter
 import io.github.isaiahyoder.recipebox.importer.WebViewPageLoader
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
+import io.github.isaiahyoder.recipebox.settings.AppSettings
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -24,6 +25,8 @@ class RecipeBoxApp : Application() {
 /** Creates the app's long-lived objects once and shares them. */
 class AppContainer(context: Context) {
     val database: RecipeDatabase by lazy { RecipeDatabase.create(context) }
+
+    val settings: AppSettings by lazy { AppSettings(context) }
 
     /** The phone's own browser identity, so sites see an ordinary visitor. */
     private val userAgent: String by lazy {

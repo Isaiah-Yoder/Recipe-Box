@@ -255,7 +255,8 @@ private fun RecipeContent(
                 scale = scale,
                 sliderIndex = sliderIndex,
                 onSliderChange = { sliderIndex = it },
-                onSliderDone = { onScale(scale) },
+                // Read the slider position when the gesture ends; the composed value can lag one frame.
+                onSliderDone = { onScale(scaleStops[sliderIndex.roundToInt().coerceIn(scaleStops.indices)]) },
                 hasMetric = hasMetric,
                 showUsUnits = toUs,
                 onShowUsUnits = onShowUsUnits,

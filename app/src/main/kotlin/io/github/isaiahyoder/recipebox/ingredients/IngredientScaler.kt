@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.ingredients
 
 import kotlin.math.abs
+import kotlin.math.floor
 
 /** How a displayed line differs from the line as written. */
 data class DisplayIngredient(
@@ -31,7 +32,7 @@ object IngredientScaler {
             ?: return DisplayIngredient(parsed.original, changed = false, unscaled = factor != 1.0, converted = false)
         val convert = toUsUnits && parsed.unit?.isMetric == true
         if (abs(factor - 1.0) < 1e-9 && !convert) {
-            return DisplayIngredient(parsed.original, changed = false, unscaled = false, converted = false)
+            return DisplayIngredient(asWritten(parsed, quantity), changed = false, unscaled = false, converted = false)
         }
 
         val scaled = quantity.times(factor)
@@ -46,16 +47,60 @@ object IngredientScaler {
             unit == Unit.OUNCE || unit == Unit.POUND -> tidyUsWeight(scaled.times(unit.base))
             else -> scaled to sameUnitWord(parsed, scaled.high)
         }
+        val rest = if (unit == null) {
+            Nouns.matchCount(parsed.rest, Fractions.isPlural(quantity.high), Fractions.isPlural(amount.high))
+        } else {
+            parsed.rest
+        }
 
-        val parts = listOfNotNull(formatQuantity(amount), unitWord, parsed.rest.takeIf { it.isNotEmpty() })
+        val parts = listOfNotNull(formatQuantity(amount), unitWord, rest.takeIf { it.isNotEmpty() })
         return DisplayIngredient(parts.joinToString(" "), changed = true, unscaled = false, converted = convert)
+    }
+
+    /**
+     * The line as written, with "1 1/2" or "1.5" shown as "1½". The original
+     * text is kept when kitchen fractions can't show the amount exactly.
+     */
+    private fun asWritten(parsed: ParsedIngredient, quantity: Quantity): String {
+        val exact = listOf(quantity.low, quantity.high).all { abs(Fractions.rounded(it) - it) < 0.01 * it }
+        if (!exact) return parsed.original
+        return listOfNotNull(formatQuantity(quantity), parsed.unitText, parsed.rest.takeIf { it.isNotEmpty() })
+            .joinToString(" ")
     }
 
     private val tidyVolumeUnits = setOf(Unit.TEASPOON, Unit.TABLESPOON, Unit.CUP)
 
+    /**
+     * A measuring spoon or cup and the fractions that sets of them can
+     * measure. Nobody owns a ⅓-tablespoon spoon, so 4 teaspoons stays in
+     * teaspoons rather than becoming 1⅓ tablespoons, and large amounts stay
+     * in cups, so 1⅛ cups doesn't become 18 tablespoons.
+     */
+    private class Measurer(
+        val unit: Unit,
+        val minimum: Double,
+        val maximum: Double,
+        val fractions: List<Double>,
+    )
+
+    private val measurers = listOf(
+        Measurer(Unit.CUP, 0.25, Double.MAX_VALUE, listOf(0.0, 0.25, 1.0 / 3, 0.5, 2.0 / 3, 0.75)),
+        Measurer(Unit.TABLESPOON, 1.0, 8.0, listOf(0.0, 0.5)),
+        Measurer(Unit.TEASPOON, 0.0, 5.0, listOf(0.0, 0.125, 0.25, 0.5, 0.75)),
+    )
+
     /** Picks teaspoons, tablespoons, or cups for an amount given in teaspoons. */
     private fun tidyUsVolume(teaspoons: Quantity): Pair<Quantity, String> {
-        val unit = when {
+        val measurer = measurers.firstOrNull { m ->
+            listOf(teaspoons.low, teaspoons.high).all { tsp ->
+                val amount = tsp / m.unit.base
+                val fraction = amount - floor(amount + 0.02)
+                amount >= m.minimum - 0.02 && amount <= m.maximum + 0.02 &&
+                    m.fractions.any { abs(it - fraction) < 0.02 }
+            }
+        }
+        val unit = measurer?.unit ?: when {
+            // Converted metric amounts rarely land on exact fractions; use the closest sensible unit.
             teaspoons.high < 3.0 - 1e-9 -> Unit.TEASPOON
             teaspoons.high < 12.0 - 1e-9 -> Unit.TABLESPOON
             else -> Unit.CUP

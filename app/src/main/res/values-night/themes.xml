@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.RecipeBox" parent="android:Theme.Material.NoActionBar" />
+</resources>

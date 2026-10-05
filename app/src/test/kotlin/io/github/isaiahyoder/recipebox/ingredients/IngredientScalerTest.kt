@@ -94,10 +94,29 @@ class IngredientScalerTest {
     private fun show(line: String, factor: Double, us: Boolean = false) =
         IngredientScaler.display(line, factor, us)
 
-    @Test fun keepsTheLineAsWrittenAtOneTimes() {
+    @Test fun showsTheLineAsWrittenWithKitchenFractionsAtOneTimes() {
         val d = show("1.5 pounds ground beef", 1.0)
-        assertEquals("1.5 pounds ground beef", d.text)
+        assertEquals("1½ pounds ground beef", d.text)
         assertFalse(d.changed)
+        assertEquals("1½ cups flour", show("1 1/2 cups flour", 1.0).text)
+        assertEquals("1 to 2 Tablespoons milk", show("1-2 Tablespoons milk", 1.0).text)
+        // 0.6 isn't a kitchen fraction, so the line keeps its own wording.
+        assertEquals("0.6 cups stock", show("0.6 cups stock", 1.0).text)
+    }
+
+    @Test fun usesSpoonsPeopleOwn() {
+        assertEquals("4 teaspoons kosher salt", show("2 teaspoons kosher salt", 2.0).text)
+        assertEquals("2 to 4 tablespoons milk", show("1-2 Tablespoons milk", 2.0).text)
+        assertEquals("1⅛ cups sugar", show("¾ cup sugar", 1.5).text)
+        assertEquals("3 tablespoons oil", show("1½ tablespoons oil", 2.0).text)
+    }
+
+    @Test fun makesCountedIngredientsAgree() {
+        assertEquals("2 medium onions, finely chopped", show("1 medium onion, finely chopped", 2.0).text)
+        assertEquals("1 egg, beaten", show("2 eggs, beaten", 0.5).text)
+        assertEquals("2 bay leaves", show("1 bay leaf", 2.0).text)
+        assertEquals("3 tomatoes", show("1 tomato", 3.0).text)
+        assertEquals("2 (15 ounce) cans black beans", show("1 (15 ounce) cans black beans", 2.0).text)
     }
 
     @Test fun doublesAndHalves() {

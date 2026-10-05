@@ -11,12 +11,14 @@ import androidx.navigation.toRoute
 import io.github.isaiahyoder.recipebox.ui.importing.ImportScreen
 import io.github.isaiahyoder.recipebox.ui.library.LibraryScreen
 import io.github.isaiahyoder.recipebox.ui.recipe.RecipeScreen
+import io.github.isaiahyoder.recipebox.ui.settings.SettingsScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 
 @Serializable data object LibraryRoute
 @Serializable data class RecipeRoute(val id: Long)
 @Serializable data class ImportRoute(val text: String)
+@Serializable data object SettingsRoute
 
 @Composable
 fun RecipeBoxNavHost(sharedText: MutableStateFlow<String?>) {
@@ -34,6 +36,7 @@ fun RecipeBoxNavHost(sharedText: MutableStateFlow<String?>) {
             LibraryScreen(
                 onOpenRecipe = { navController.navigate(RecipeRoute(it)) },
                 onImport = { navController.navigate(ImportRoute(it)) },
+                onOpenSettings = { navController.navigate(SettingsRoute) },
             )
         }
         composable<ImportRoute> { entry ->
@@ -46,6 +49,9 @@ fun RecipeBoxNavHost(sharedText: MutableStateFlow<String?>) {
                 },
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable<SettingsRoute> {
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable<RecipeRoute> { entry ->
             RecipeScreen(

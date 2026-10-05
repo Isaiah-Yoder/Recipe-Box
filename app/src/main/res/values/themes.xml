@@ -1,0 +1,4 @@
+<resources>
+    <!-- The window behind the app while it starts. Compose draws everything after that. -->
+    <style name="Theme.RecipeBox" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

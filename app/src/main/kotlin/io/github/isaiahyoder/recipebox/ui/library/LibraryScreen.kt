@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -54,7 +55,7 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(onOpenRecipe: (Long) -> Unit, onImport: (String) -> Unit) {
+fun LibraryScreen(onOpenRecipe: (Long) -> Unit, onImport: (String) -> Unit, onOpenSettings: () -> Unit) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel { LibraryViewModel(container.database.recipeDao()) }
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -62,7 +63,16 @@ fun LibraryScreen(onOpenRecipe: (Long) -> Unit, onImport: (String) -> Unit) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Recipe Box") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Recipe Box") },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },

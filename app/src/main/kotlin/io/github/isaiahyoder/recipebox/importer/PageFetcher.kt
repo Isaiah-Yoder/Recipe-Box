@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -45,6 +46,7 @@ class PageFetcher(
             } catch (e: IOException) {
                 lastReason = e.message ?: "Network error"
             }
+            Log.i("RecipeImport", "Attempt ${attempt + 1}: $lastReason")
         }
         FetchResult.Failed(lastReason)
     }
