@@ -42,7 +42,9 @@ class WebViewPageLoader(private val context: Context) {
                     if (evaluate(webView, recipeDataPresent) == "true") {
                         // Give scripts that add data late a moment to finish.
                         delay(500)
-                        html = Json.decodeFromString<String>(evaluate(webView, "document.documentElement.outerHTML"))
+                        val raw = evaluate(webView, "document.documentElement.outerHTML")
+                        // A page can be megabytes; decoding it on the main thread would freeze the screen.
+                        html = withContext(Dispatchers.Default) { Json.decodeFromString<String>(raw) }
                     }
                 }
                 html
@@ -70,11 +72,14 @@ class WebViewPageLoader(private val context: Context) {
                 var data: String? = null
                 while (data == null) {
                     delay(500)
-                    data = Json.decodeFromString<String?>(evaluate(webView, imageAsJpeg(maxEdge)))
+                    val raw = evaluate(webView, imageAsJpeg(maxEdge))
+                    data = withContext(Dispatchers.Default) { Json.decodeFromString<String?>(raw) }
                 }
                 data
             }
-            dataUrl?.substringAfter(',')?.let { runCatching { Base64.decode(it, Base64.DEFAULT) }.getOrNull() }
+            dataUrl?.substringAfter(',')?.let { data ->
+                withContext(Dispatchers.Default) { runCatching { Base64.decode(data, Base64.DEFAULT) }.getOrNull() }
+            }
         } finally {
             webView.stopLoading()
             webView.destroy()

@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.settings
 
+import io.github.isaiahyoder.recipebox.diagnostics.StallReport
 import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import android.content.Context
 import androidx.core.content.edit
@@ -137,6 +138,28 @@ class AppSettings(context: Context, fileName: String = "settings") {
         _refreshStatus.value = status
     }
 
+    private val _stallReports = MutableStateFlow(
+        prefs.getString(KEY_STALLS, null)
+            ?.let { runCatching { json.decodeFromString<List<StallReport>>(it) }.getOrNull() }
+            ?: emptyList()
+    )
+
+    /** The last few times the screen stopped answering, newest first. */
+    val stallReports: StateFlow<List<StallReport>> = _stallReports.asStateFlow()
+
+    @Synchronized
+    fun recordStall(report: StallReport) {
+        val kept = (listOf(report) + _stallReports.value).take(MAX_STALLS)
+        prefs.edit { putString(KEY_STALLS, json.encodeToString(kept)) }
+        _stallReports.value = kept
+    }
+
+    @Synchronized
+    fun clearStalls() {
+        prefs.edit { remove(KEY_STALLS) }
+        _stallReports.value = emptyList()
+    }
+
     /** Why connecting Google Drive last failed, or null after a success. */
     private val _driveConnectProblem = MutableStateFlow(prefs.getString(KEY_DRIVE_CONNECT_PROBLEM, null))
     val driveConnectProblem: StateFlow<String?> = _driveConnectProblem.asStateFlow()
@@ -208,6 +231,8 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_TAG_RULES_VERSION = "tag_rules_version"
         const val KEY_READING_VERSION = "reading_version"
         const val KEY_FEEDER_OFFER = "feeder_offer_seen"
+        const val KEY_STALLS = "stall_reports"
+        const val MAX_STALLS = 5
         val json = Json { ignoreUnknownKeys = true }
     }
 }

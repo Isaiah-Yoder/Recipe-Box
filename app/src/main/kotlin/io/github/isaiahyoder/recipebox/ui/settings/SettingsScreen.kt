@@ -82,6 +82,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 supportingContent = { Text("Your recipes stay on this phone and in your own backups.") },
             )
             UpdateSettingsItem()
+            StallReportsItem()
         }
     }
 }

@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox
 
+import io.github.isaiahyoder.recipebox.diagnostics.StallWatchdog
 import android.app.Application
 import android.content.Context
 import android.os.Build
@@ -36,6 +37,7 @@ class RecipeBoxApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        StallWatchdog(BuildConfigValues.versionName(this), container.settings::recordStall).start()
         // A cover photo file can go missing; download it again in the background.
         CoroutineScope(Dispatchers.IO).launch {
             if (container.photoRestorer.forgetMissingFiles() > 0) PhotoRestorer.schedule(this@RecipeBoxApp)
