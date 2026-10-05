@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.categories
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,8 +48,11 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoriesScreen(onBack: () -> Unit) {
-    val dao = LocalContext.current.appContainer.database.recipeDao()
+    val container = LocalContext.current.appContainer
+    val dao = container.database.recipeDao()
     val categories by dao.observeCategories().collectAsStateWithLifecycle(initialValue = emptyList())
+    val tagsInUse by dao.observeTagNamesInUse().collectAsStateWithLifecycle(initialValue = emptyList())
+    var editingFeeders by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
     var creating by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -83,7 +87,7 @@ fun CategoriesScreen(onBack: () -> Unit) {
             Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     "Group recipes your own way, such as Weeknight dinners or Holidays. " +
-                        "A recipe can be in several categories.",
+                        "A recipe can be in several categories, and a category can fill itself from tags.",
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -94,6 +98,13 @@ fun CategoriesScreen(onBack: () -> Unit) {
             itemsIndexed(categories, key = { _, it -> it.id }) { index, category ->
                 ListItem(
                     headlineContent = { Text(category.name) },
+                    supportingContent = {
+                        Text(
+                            if (category.feederTags.isEmpty()) "Filled by hand. Tap to fill from tags."
+                            else "Fills from ${category.feederTags.joinToString(" or ")}"
+                        )
+                    },
+                    modifier = Modifier.clickable { editingFeeders = category.id },
                     trailingContent = {
                         androidx.compose.foundation.layout.Row {
                             IconButton(onClick = { move(index, -1) }, enabled = index > 0) {
@@ -114,6 +125,21 @@ fun CategoriesScreen(onBack: () -> Unit) {
                 HorizontalDivider()
             }
         }
+    }
+
+    categories.firstOrNull { it.id == editingFeeders }?.let { category ->
+        FeederDialog(
+            category = category,
+            tagsInUse = tagsInUse,
+            onSave = { tags ->
+                editingFeeders = null
+                scope.launch {
+                    dao.setFeederTags(category.id, tags)
+                    container.tagRefresher.applyCategories()
+                }
+            },
+            onDismiss = { editingFeeders = null },
+        )
     }
 
     if (creating) {

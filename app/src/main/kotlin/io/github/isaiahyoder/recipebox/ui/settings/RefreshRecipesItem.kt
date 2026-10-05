@@ -6,12 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,10 +17,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.isaiahyoder.recipebox.appContainer
@@ -44,14 +39,15 @@ fun RefreshRecipesItem() {
     var confirming by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     val summary = when {
+        status.running && status.wifiOnly && status.done == 0 ->
+            "Applying this update's reading fixes to ${plural(status.total, "recipe")} when the phone is on Wi-Fi."
         status.running -> "Recipe ${status.done + 1} of ${status.total}. You can keep using the app."
         status.finishedAt > 0 -> buildList {
             add("Refreshed ${plural(status.updated, "recipe")} ${formatAgo(status.finishedAt)}.")
             if (status.failed.isNotEmpty()) add("${plural(status.failed.size, "page")} couldn't be read.")
-            if (status.skippedEdited > 0) add("Skipped ${plural(status.skippedEdited, "recipe")} you edited.")
         }.joinToString(" ")
         else -> "Reads each saved recipe's web page again with the latest fixes, such as ingredient groups and " +
-            "complete steps. Your notes, favorites, categories, tags, and photos stay."
+            "complete steps. Parts you edited, notes, favorites, categories, tags, and photos stay."
     }
 
     ListItem(
@@ -80,38 +76,21 @@ fun RefreshRecipesItem() {
     }
 
     confirming?.let { (linked, edited) ->
-        var includeEdited by remember { mutableStateOf(false) }
-        val count = if (includeEdited) linked else linked - edited
         AlertDialog(
             onDismissRequest = { confirming = null },
-            title = { Text("Refresh ${plural(count, "recipe")}?") },
+            title = { Text("Refresh ${plural(linked, "recipe")}?") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        "Each recipe's page is read again, which takes about ${minutes(count)} and needs an internet " +
-                            "connection. You can keep using the app. Your notes, favorites, categories, tags, and " +
-                            "photos stay. Automatic tags are updated for every recipe."
-                    )
-                    if (edited > 0) {
-                        Row(
-                            Modifier.fillMaxWidth().toggleable(includeEdited, role = Role.Checkbox) { includeEdited = it },
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Checkbox(checked = includeEdited, onCheckedChange = null)
-                            Text(
-                                "Also refresh the ${plural(edited, "recipe")} you edited. This replaces your changes " +
-                                    "to their ingredients and steps.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(start = 12.dp),
-                            )
-                        }
-                    }
-                }
+                Text(
+                    "Each recipe's page is read again, which takes about ${minutes(linked)} and needs an internet " +
+                        "connection. You can keep using the app. Your notes, favorites, categories, tags, and " +
+                        "photos stay." +
+                        if (edited > 0) " In the ${plural(edited, "recipe")} you edited, the parts you changed stay too." else ""
+                )
             },
             confirmButton = {
                 TextButton(onClick = {
                     confirming = null
-                    scope.launch { refresher.start(includeEdited) }
+                    scope.launch { refresher.start() }
                 }) { Text("Refresh") }
             },
             dismissButton = { TextButton(onClick = { confirming = null }) { Text("Cancel") } },

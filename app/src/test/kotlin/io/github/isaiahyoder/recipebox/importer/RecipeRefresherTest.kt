@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
+import io.github.isaiahyoder.recipebox.data.EditedField
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.data.RecipeLine
 import org.junit.Assert.assertEquals
@@ -50,7 +51,6 @@ class RecipeRefresherTest {
         assertEquals(listOf("card-1.jpg"), refreshed.cardPhotos)
         assertEquals("cover-7.jpg", refreshed.imageFile)
         assertEquals(100, refreshed.updatedAt)
-        assertFalse(RecipeRefresher.isEdited(refreshed))
     }
 
     @Test fun keepsHerOwnPhotoAddress() {
@@ -60,8 +60,17 @@ class RecipeRefresherTest {
         assertEquals("own-7.jpg", refreshed.imageFile)
     }
 
-    @Test fun editedMeansSavedAfterImport() {
-        assertFalse(RecipeRefresher.isEdited(saved))
-        assertTrue(RecipeRefresher.isEdited(saved.copy(updatedAt = 200)))
+    @Test fun keepsThePartsSheEdited() {
+        val edited = saved.copy(
+            title = "Grandma's Chili",
+            ingredients = listOf(RecipeLine("2 cups homemade broth")),
+            editedFields = listOf(EditedField.TITLE, EditedField.INGREDIENTS),
+        )
+        val refreshed = edited.refreshedWith(page)
+        assertEquals("Grandma's Chili", refreshed.title)
+        assertEquals(listOf(RecipeLine("2 cups homemade broth")), refreshed.ingredients)
+        // Parts she didn't edit still update.
+        assertEquals(page.steps, refreshed.steps)
+        assertEquals(485, refreshed.totalMinutes)
     }
 }

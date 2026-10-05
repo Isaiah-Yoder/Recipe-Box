@@ -32,6 +32,15 @@ object Densities {
         "shredded cheese" to 113.0,
     )
 
+    private val liquids = listOf("milk", "water", "cream", "oil", "broth", "stock", "juice", "vinegar", "wine")
+
+    /** True for ingredients metric recipes measure by volume, such as milk or oil. */
+    fun isLiquid(text: String): Boolean {
+        val lower = text.lowercase()
+        return liquids.any { Regex("""\b${Regex.escape(it)}\b""").containsMatchIn(lower) } &&
+            !lower.contains("powdered milk") && !lower.contains("milk chocolate")
+    }
+
     /** Grams per cup for the ingredient named in [text], or null when it isn't in the table. */
     fun gramsPerCup(text: String): Double? {
         val lower = text.lowercase()

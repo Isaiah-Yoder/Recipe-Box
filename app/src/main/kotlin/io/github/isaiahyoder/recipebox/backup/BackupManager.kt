@@ -55,8 +55,12 @@ data class BackupFile(
         get() = recipes.flatMap { recipe -> listOfNotNull(recipe.imageFile.takeIf { recipe.imageIsOwn }) + recipe.cardPhotos }
 
     companion object {
-        /** Raise when the backup layout changes; restore must keep reading older formats. */
-        const val FORMAT = 1
+        /**
+         * Raise when the backup layout changes; restore must keep reading older formats.
+         * Format 2 (0.5.0) adds edited parts, suggested tags, category feeder tags, and
+         * where each category membership came from. Format 1 backups read with defaults.
+         */
+        const val FORMAT = 2
     }
 }
 

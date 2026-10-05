@@ -3,9 +3,9 @@ package io.github.isaiahyoder.recipebox.importer
 import android.util.Log
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
+import io.github.isaiahyoder.recipebox.data.RecipePageEntity
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
-import io.github.isaiahyoder.recipebox.tags.AutoTagger
-import io.github.isaiahyoder.recipebox.tags.TaggableRecipe
+import io.github.isaiahyoder.recipebox.tags.TagRefresher
 
 enum class ImportStage { DOWNLOADING, TRYING_BROWSER, SAVING }
 
@@ -31,6 +31,7 @@ class RecipeImporter(
     private val fetcher: PageFetcher,
     private val browserLoader: WebViewPageLoader,
     private val photos: PhotoStore,
+    private val tags: TagRefresher,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     suspend fun import(sharedText: String, onStage: (ImportStage) -> Unit): ImportOutcome {
@@ -64,7 +65,8 @@ class RecipeImporter(
                 updatedAt = now,
             )
         )
-        dao.replaceAutoTags(id, AutoTagger.tags(recipe.toTaggable()))
+        recipe.pageSnapshot?.let { dao.savePage(RecipePageEntity(id, it, now)) }
+        dao.getRecipe(id)?.let { tags.refreshRecipe(it) }
         // A missing photo doesn't stop the import; the recipe shows a placeholder.
         recipe.imageUrl?.let { imageUrl ->
             photos.downloadCover(imageUrl, id)?.let { dao.setImageFile(id, it) }
@@ -101,16 +103,6 @@ class RecipeImporter(
         }
         return PageLoad(extracted?.takeIf { it.isComplete }, reason, pageLoaded)
     }
-
-    private fun ExtractedRecipe.toTaggable() = TaggableRecipe(
-        title = title,
-        ingredients = ingredients.filterNot { it.isHeader }.map { it.text },
-        steps = steps.filterNot { it.isHeader }.map { it.text },
-        totalMinutes = totalMinutes,
-        siteCategories = categories,
-        siteCuisines = cuisines,
-        siteKeywords = keywords,
-    )
 
     private fun describe(recipe: ExtractedRecipe?): String = recipe?.let {
         "title=${it.title.isNotBlank()}, ingredients=${it.ingredients.size}, steps=${it.steps.size}"

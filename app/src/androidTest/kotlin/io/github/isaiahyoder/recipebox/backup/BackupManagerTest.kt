@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.backup
 
+import io.github.isaiahyoder.recipebox.tags.TagResult
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -71,7 +72,7 @@ class BackupManagerTest {
             RecipeEntity(title = "Card Cookies", cardPhotos = listOf("card-front.jpg", "card-back.jpg"), createdAt = 5, updatedAt = 6)
         )
         dao.addManualTag(imported, "Family")
-        dao.replaceAutoTags(imported, listOf("Soup", "Old"))
+        dao.replaceAutoTags(imported, TagResult(setOf("Soup", "Old"), emptySet()))
         dao.removeTag(imported, "Old")
         val category = dao.insertCategory(CategoryEntity(name = "Weeknight", position = 0))
         dao.addToCategory(RecipeCategoryEntity(imported, category))

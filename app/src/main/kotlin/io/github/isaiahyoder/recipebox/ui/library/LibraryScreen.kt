@@ -1,6 +1,16 @@
 package io.github.isaiahyoder.recipebox.ui.library
 
 import android.content.ClipboardManager
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.semantics.Role
+import io.github.isaiahyoder.recipebox.ui.categories.FeederDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -63,7 +73,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import io.github.isaiahyoder.recipebox.appContainer
-import io.github.isaiahyoder.recipebox.data.CategoryEntity
 import io.github.isaiahyoder.recipebox.data.RecipeSummary
 import io.github.isaiahyoder.recipebox.importer.Links
 import io.github.isaiahyoder.recipebox.ui.queue.QueueBanner
@@ -74,20 +83,22 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(
+fun HomeScreen(
     onOpenRecipe: (Long) -> Unit,
+    onOpenShelf: (Long) -> Unit,
     onOpenQueue: () -> Unit,
     onOpenMenu: () -> Unit,
     onNewRecipe: () -> Unit,
     onScanCard: () -> Unit,
 ) {
     val container = LocalContext.current.appContainer
-    val viewModel = viewModel { LibraryViewModel(container.database.recipeDao()) }
-    val filter by viewModel.filter.collectAsStateWithLifecycle()
-    val query = filter.query
-    val recipes by viewModel.recipes.collectAsStateWithLifecycle()
-    val categories by viewModel.categories.collectAsStateWithLifecycle()
-    val tags by viewModel.tags.collectAsStateWithLifecycle()
+    val viewModel = viewModel {
+        HomeViewModel(container.database.recipeDao(), container.settings, container.tagRefresher)
+    }
+    val query by viewModel.query.collectAsStateWithLifecycle()
+    val results by viewModel.results.collectAsStateWithLifecycle()
+    val rows by viewModel.rows.collectAsStateWithLifecycle()
+    val offers by viewModel.feederOffers.collectAsStateWithLifecycle()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     // Owned by the screen, not the dialog: closing the dialog must not cancel adding the links.
     val scope = rememberCoroutineScope()
@@ -118,46 +129,25 @@ fun LibraryScreen(
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = viewModel::setQuery,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search recipes, ingredients, or tags") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setQuery("") }) {
-                            Icon(Icons.Filled.Clear, contentDescription = "Clear search")
-                        }
-                    }
-                },
-                singleLine = true,
-            )
-            FilterRow(
-                filter = filter,
-                categories = categories,
-                tags = tags,
-                onToggleFavorites = viewModel::toggleFavorites,
-                onToggleCategory = viewModel::toggleCategory,
-                onSetTag = viewModel::setTag,
-            )
+            SearchField(query, viewModel::setQuery)
             when {
-                recipes == null -> Unit
-                recipes!!.isEmpty() && !filter.isFiltered -> EmptyLibrary()
-                recipes!!.isEmpty() -> Column(Modifier.padding(24.dp)) {
-                    Text("No recipes match your search and filters.")
-                    TextButton(onClick = {
-                        viewModel.setQuery("")
-                        viewModel.clearFilters()
-                    }) { Text("Clear search and filters") }
-                }
+                query.isNotBlank() -> RecipeList(
+                    recipes = results,
+                    empty = "No recipes match \"${query.trim()}\".",
+                    onOpenRecipe = onOpenRecipe,
+                )
+                rows == null -> Unit
+                rows!!.isEmpty() -> EmptyLibrary()
                 else -> LazyColumn(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    items(recipes!!, key = { it.id }) { recipe ->
-                        RecipeRow(recipe, onClick = { onOpenRecipe(recipe.id) })
+                    if (offers.isNotEmpty()) {
+                        item(key = "offer") {
+                            FeederOfferCard(offers, onAccept = viewModel::acceptFeeders, onDismiss = viewModel::dismissFeederOffer)
+                        }
                     }
+                    items(rows!!, key = { it.key }) { row -> ShelfRow(row, onClick = { onOpenShelf(row.key) }) }
                 }
             }
         }
@@ -182,28 +172,259 @@ fun LibraryScreen(
     }
 }
 
-/** Favorites, categories, and one tag; all of them combine with the search text. */
+@Composable
+private fun SearchField(query: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onChange,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        placeholder = { Text("Search recipes, ingredients, or tags") },
+        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onChange("") }) {
+                    Icon(Icons.Filled.Clear, contentDescription = "Clear search")
+                }
+            }
+        },
+        singleLine = true,
+    )
+}
+
+@Composable
+private fun RecipeList(recipes: List<RecipeSummary>?, empty: String, onOpenRecipe: (Long) -> Unit) {
+    when {
+        recipes == null -> Unit
+        recipes.isEmpty() -> Text(empty, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        else -> LazyColumn(
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            items(recipes, key = { it.id }) { recipe -> RecipeRow(recipe, onClick = { onOpenRecipe(recipe.id) }) }
+        }
+    }
+}
+
+/** A category or built-in list on the home screen, with a photo from one of its recipes. */
+@Composable
+private fun ShelfRow(row: HomeRow, onClick: () -> Unit) {
+    val container = LocalContext.current.appContainer
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val photo = row.photo
+        RecipeThumbnail(
+            photo?.let { container.photos.existing(it.imageFile) ?: container.photos.existing(it.cardPhotos.firstOrNull()) },
+            size = 56.dp,
+        )
+        Column(Modifier.padding(start = 12.dp).weight(1f)) {
+            Text(row.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                listOfNotNull(
+                    "${row.count} ${if (row.count == 1) "recipe" else "recipes"}",
+                    row.suggested.takeIf { it > 0 }?.let { "$it suggested" },
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (row.suggested > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Offers, once, to fill the categories she made by hand from tags that fit their names. */
+@Composable
+private fun FeederOfferCard(offers: List<FeederOffer>, onAccept: (List<FeederOffer>) -> Unit, onDismiss: () -> Unit) {
+    val chosen = remember(offers) { mutableStateListOf(*offers.toTypedArray()) }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Fill your categories automatically?", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Recipes with a matching tag can join your categories on their own, now and in the future. " +
+                    "Recipes you already sorted stay where they are.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            for (offer in offers) {
+                val checked = offer in chosen
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(checked, role = Role.Checkbox) { on -> if (on) chosen += offer else chosen -= offer },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = checked, onCheckedChange = null)
+                    val effects = listOfNotNull(
+                        offer.adds.takeIf { it > 0 }?.let { "adds $it" },
+                        offer.suggested.takeIf { it > 0 }?.let { "$it suggested to review" },
+                    )
+                    Text(
+                        "${offer.category.name} from ${offer.tags.joinToString(" or ")}" +
+                            if (effects.isNotEmpty()) " (${effects.joinToString(", ")})" else "",
+                        Modifier.padding(start = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onDismiss) { Text("Not now") }
+                TextButton(onClick = { onAccept(chosen.toList()) }, enabled = chosen.isNotEmpty()) { Text("Fill these") }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecipeListScreen(key: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit) {
+    val container = LocalContext.current.appContainer
+    val viewModel = viewModel(key = "shelf-$key") {
+        RecipeListViewModel(container.database.recipeDao(), container.tagRefresher, key)
+    }
+    val filter by viewModel.filter.collectAsStateWithLifecycle()
+    val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val category by viewModel.category.collectAsStateWithLifecycle()
+    val tagsInUse by viewModel.tagsInUse.collectAsStateWithLifecycle()
+    val suggested by viewModel.suggested.collectAsStateWithLifecycle()
+    var editingFeeders by rememberSaveable { mutableStateOf(false) }
+
+    val title = when (key) {
+        Shelf.ALL -> "All recipes"
+        Shelf.FAVORITES -> "Favorites"
+        Shelf.UNCATEGORIZED_SHELF -> "Not in a category"
+        else -> category?.name ?: ""
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                },
+                actions = {
+                    if (category != null) {
+                        IconButton(onClick = { editingFeeders = true }) {
+                            Icon(Icons.Filled.AutoAwesome, contentDescription = "Fill from tags")
+                        }
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            category?.let { current ->
+                Text(
+                    if (current.feederTags.isEmpty()) "You add recipes to this category yourself."
+                    else "Fills automatically from ${current.feederTags.joinToString(" or ")}.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+            FilterRow(
+                filter = filter,
+                tags = tagsInUse,
+                showFavorites = key != Shelf.FAVORITES,
+                onToggleFavorites = viewModel::toggleFavorites,
+                onSetTag = viewModel::setTag,
+            )
+            val list = recipes
+            if (list == null) return@Column
+            LazyColumn(
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (suggested.isNotEmpty()) {
+                    item(key = "suggested-heading") {
+                        Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Suggested for $title",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = { viewModel.accept(*suggested.toTypedArray()) }) { Text("Add all") }
+                        }
+                    }
+                    items(suggested, key = { "s-${it.recipe.id}" }) { item ->
+                        Column {
+                            RecipeRow(item.recipe, onClick = { onOpenRecipe(item.recipe.id) })
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                TextButton(onClick = { viewModel.dismiss(item) }) { Text("No") }
+                                TextButton(onClick = { viewModel.accept(item) }) { Text("Add") }
+                            }
+                        }
+                    }
+                    item(key = "members-heading") {
+                        Text(
+                            "In $title",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 16.dp),
+                        )
+                    }
+                }
+                if (list.isEmpty()) {
+                    item(key = "empty") {
+                        Column(Modifier.padding(vertical = 16.dp)) {
+                            Text(
+                                if (filter.isFiltered) "No recipes match these filters." else "No recipes here yet.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (filter.isFiltered) TextButton(onClick = viewModel::clearFilters) { Text("Clear filters") }
+                        }
+                    }
+                }
+                items(list, key = { it.id }) { recipe -> RecipeRow(recipe, onClick = { onOpenRecipe(recipe.id) }) }
+            }
+        }
+    }
+
+    val current = category
+    if (editingFeeders && current != null) {
+        FeederDialog(
+            category = current,
+            tagsInUse = tagsInUse,
+            onSave = { tags ->
+                editingFeeders = false
+                viewModel.setFeeders(tags)
+            },
+            onDismiss = { editingFeeders = false },
+        )
+    }
+}
+
+/** Favorites and one tag; both narrow the list. */
 @Composable
 private fun FilterRow(
-    filter: LibraryFilter,
-    categories: List<CategoryEntity>,
+    filter: ListFilter,
     tags: List<String>,
+    showFavorites: Boolean,
     onToggleFavorites: () -> Unit,
-    onToggleCategory: (Long) -> Unit,
     onSetTag: (String) -> Unit,
 ) {
     var tagMenuOpen by remember { mutableStateOf(false) }
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item {
-            FilterChip(
-                selected = filter.favoritesOnly,
-                onClick = onToggleFavorites,
-                label = { Text("Favorites") },
-                leadingIcon = { Icon(Icons.Filled.Favorite, contentDescription = null, Modifier.size(18.dp)) },
-            )
+        if (showFavorites) {
+            item {
+                FilterChip(
+                    selected = filter.favoritesOnly,
+                    onClick = onToggleFavorites,
+                    label = { Text("Favorites") },
+                    leadingIcon = { Icon(Icons.Filled.Favorite, contentDescription = null, Modifier.size(18.dp)) },
+                )
+            }
         }
         item {
             Box {
@@ -232,13 +453,6 @@ private fun FilterRow(
                     }
                 }
             }
-        }
-        items(categories, key = { it.id }) { category ->
-            FilterChip(
-                selected = filter.categoryId == category.id,
-                onClick = { onToggleCategory(category.id) },
-                label = { Text(category.name) },
-            )
         }
     }
 }
@@ -293,18 +507,18 @@ private fun RecipeRow(recipe: RecipeSummary, onClick: () -> Unit) {
 }
 
 @Composable
-private fun RecipeThumbnail(file: File?) {
+private fun RecipeThumbnail(file: File?, size: androidx.compose.ui.unit.Dp = 72.dp) {
     val shape = RoundedCornerShape(10.dp)
     if (file != null) {
         AsyncImage(
             model = file,
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.size(72.dp).clip(shape),
+            modifier = Modifier.size(size).clip(shape),
         )
     } else {
         Box(
-            Modifier.size(72.dp).clip(shape).background(MaterialTheme.colorScheme.surfaceVariant),
+            Modifier.size(size).clip(shape).background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.Restaurant, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

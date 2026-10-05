@@ -17,6 +17,9 @@ Recipe Box stores the following data on your phone:
 - Recipes you import or type, including their source links and cover photos
 - Photos you take or choose, such as photos of recipe cards
 - Categories, tags, notes, grocery lists, and settings
+- The recipe part of each imported web page, so the app can read the recipe
+  again after an update without downloading it. The app keeps these copies
+  out of its backup files.
 - An optional Gemini API key that you enter yourself. The app keeps it out
   of its backup files.
 
@@ -26,7 +29,9 @@ Recipe Box connects to other services only for the following tasks:
 
 - **Importing or refreshing a recipe.** The app downloads the web page and
   photo from the link you import, as a web browser would. **Refresh recipes**
-  in Settings downloads each saved recipe's page again in the same way.
+  in Settings downloads each saved recipe's page again in the same way. After
+  an update that changes how the app reads recipes, the app downloads the
+  pages it hasn't saved a copy of, on Wi-Fi only.
 - **Google Drive backup.** If you turn on backups, the app asks for permission
   to create and manage only the files it creates in your Google Drive (the
   `drive.file` scope). It writes backup files to a "Recipe Box backups"

@@ -37,7 +37,8 @@ import io.github.isaiahyoder.recipebox.ui.categories.CategoriesScreen
 import io.github.isaiahyoder.recipebox.ui.editor.RecipeEditorScreen
 import io.github.isaiahyoder.recipebox.ui.grocery.GroceryListScreen
 import io.github.isaiahyoder.recipebox.ui.grocery.GroceryListsScreen
-import io.github.isaiahyoder.recipebox.ui.library.LibraryScreen
+import io.github.isaiahyoder.recipebox.ui.library.HomeScreen
+import io.github.isaiahyoder.recipebox.ui.library.RecipeListScreen
 import io.github.isaiahyoder.recipebox.ui.queue.QueueScreen
 import io.github.isaiahyoder.recipebox.ui.recipe.RecipeScreen
 import io.github.isaiahyoder.recipebox.ui.settings.SettingsScreen
@@ -49,6 +50,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object QueueRoute
 @Serializable data object SettingsRoute
 @Serializable data object CategoriesRoute
+@Serializable data class RecipeListRoute(val key: Long)
 @Serializable data object GroceryListsRoute
 @Serializable data class GroceryListRoute(val id: Long)
 @Serializable data class RecipeEditRoute(
@@ -80,8 +82,9 @@ fun RecipeBoxNavHost() {
     ) {
         NavHost(navController, startDestination = LibraryRoute) {
             composable<LibraryRoute> {
-                LibraryScreen(
+                HomeScreen(
                     onOpenRecipe = { navController.navigate(RecipeRoute(it)) },
+                    onOpenShelf = { navController.navigate(RecipeListRoute(it)) },
                     onOpenQueue = { navController.navigate(QueueRoute) },
                     onOpenMenu = { scope.launch { drawerState.open() } },
                     onNewRecipe = { navController.navigate(RecipeEditRoute()) },
@@ -100,6 +103,13 @@ fun RecipeBoxNavHost() {
                 QueueScreen(
                     onOpenRecipe = { navController.navigate(RecipeRoute(it)) },
                     onEnterManually = { url, jobId -> navController.navigate(RecipeEditRoute(sourceUrl = url, importJobId = jobId)) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<RecipeListRoute> { entry ->
+                RecipeListScreen(
+                    key = entry.toRoute<RecipeListRoute>().key,
+                    onOpenRecipe = { navController.navigate(RecipeRoute(it)) },
                     onBack = { navController.popBackStack() },
                 )
             }

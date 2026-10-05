@@ -146,7 +146,47 @@ class MigrationTest {
         }
     }
 
+    @Test fun version4CategoriesStayHersAfterTheUpdateToVersion5() {
+        helper.createDatabase(DB_NAME_V4, 4).apply {
+            execSQL(
+                """
+                INSERT INTO recipes (id, title, imageIsOwn, ingredients, steps, siteCategories, siteCuisines,
+                    siteKeywords, notes, favorite, lastScale, showUsUnits, cardPhotos, createdAt, updatedAt)
+                VALUES (4, 'Test Cake', 0, '[{"text":"2 cups flour"}]', '[{"text":"Bake."}]', '[]',
+                    '[]', '[]', 'Use cake flour', 0, 1.0, 1, '[]', 100, 200)
+                """.trimIndent()
+            )
+            execSQL("INSERT INTO categories (id, name, position) VALUES (1, 'Dessert', 0)")
+            execSQL("INSERT INTO recipe_categories (recipeId, categoryId) VALUES (4, 1)")
+            close()
+        }
+
+        helper.runMigrationsAndValidate(DB_NAME_V4, 5, true).close()
+
+        val database = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RecipeDatabase::class.java,
+            DB_NAME_V4,
+        ).build()
+        try {
+            runBlocking {
+                val dao = database.recipeDao()
+                val recipe = dao.getRecipe(4)!!
+                assertEquals("Use cake flour", recipe.notes)
+                assertTrue(recipe.editedFields.isEmpty())
+                val link = dao.getCategoryLinks(4).single()
+                assertEquals(TagSource.MANUAL, link.source)
+                assertEquals(false, link.hidden)
+                assertTrue(dao.getCategories().single().feederTags.isEmpty())
+                assertEquals(null, dao.getPage(4))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     private companion object {
+        const val DB_NAME_V4 = "migration-test-v4.db"
         const val DB_NAME = "migration-test.db"
         const val DB_NAME_V2 = "migration-test-v2.db"
         const val DB_NAME_V3 = "migration-test-v3.db"

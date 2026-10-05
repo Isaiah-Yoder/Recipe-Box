@@ -51,7 +51,7 @@ class TagRefresherTest {
     @Test fun keepsManualTagsHiddenTagsAndCategories() = runBlocking {
         val id = insertSoup()
         // An earlier version's rules produced "Old Rule Tag"; the current rules don't.
-        dao.replaceAutoTags(id, listOf("Soup", "Chicken", "Slow Cooker", "Old Rule Tag"))
+        dao.replaceAutoTags(id, TagResult(setOf("Soup", "Chicken", "Slow Cooker", "Old Rule Tag"), emptySet()))
         dao.addManualTag(id, "Grandma's")
         dao.addManualTag(id, "Soup") // She also chose a tag the rules produce.
         dao.removeTag(id, "Slow Cooker") // She removed an automatic tag.

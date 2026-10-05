@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.data
 
+import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import androidx.room.TypeConverter
 import kotlinx.serialization.json.Json
 
@@ -24,6 +25,12 @@ class Converters {
 
     @TypeConverter
     fun textToTagSource(text: String): TagSource = TagSource.valueOf(text)
+
+    @TypeConverter
+    fun unitSystemToText(units: UnitSystem): String = units.name
+
+    @TypeConverter
+    fun textToUnitSystem(text: String): UnitSystem = runCatching { UnitSystem.valueOf(text) }.getOrDefault(UnitSystem.US)
 
     @TypeConverter
     fun importStatusToText(status: ImportStatus): String = status.name

@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.settings
 
+import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -57,6 +58,18 @@ fun SettingsScreen(onBack: () -> Unit) {
                 ThemeOption("Light", ThemeMode.LIGHT, themeMode, settings::setThemeMode)
                 ThemeOption("Dark", ThemeMode.DARK, themeMode, settings::setThemeMode)
             }
+            SectionTitle("Units")
+            Column(Modifier.selectableGroup()) {
+                val units by settings.unitSystem.collectAsStateWithLifecycle()
+                UnitOption("US (cups, ounces, °F)", UnitSystem.US, units, settings::setUnitSystem)
+                UnitOption("Metric (milliliters, grams, °C)", UnitSystem.METRIC, units, settings::setUnitSystem)
+            }
+            Text(
+                "Recipes and new grocery lists start in these units. You can switch on any recipe or list.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
             SectionTitle("Organization")
             RefreshRecipesItem()
             SectionTitle("Recipe cards")
@@ -81,6 +94,20 @@ private fun SectionTitle(text: String) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
     )
+}
+
+@Composable
+private fun UnitOption(label: String, units: UnitSystem, selected: UnitSystem, onSelect: (UnitSystem) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = units == selected, onClick = { onSelect(units) }, role = Role.RadioButton)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = units == selected, onClick = null)
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 16.dp))
+    }
 }
 
 @Composable

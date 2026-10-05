@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import io.github.isaiahyoder.recipebox.tags.TagResult
 import kotlinx.coroutines.flow.Flow
 
 /** A recipe row for the library list, without the ingredient and step text. */
@@ -20,8 +21,14 @@ data class RecipeSummary(
     val tagNames: String?,
 )
 
+/** A recipe and the name of one of its tags or suggestions. */
+data class RecipeTagName(val recipeId: Long, val tag: String)
+
 /** One recipe's card photo file names. */
 data class CardPhotoNames(val cardPhotos: List<String>)
+
+/** The category id that lists recipes in no category. */
+const val UNCATEGORIZED = -1L
 
 @Dao
 interface RecipeDao {
@@ -30,17 +37,21 @@ interface RecipeDao {
         SELECT r.id, r.title, r.siteName, r.imageFile, r.cardPhotos, r.totalMinutes, r.favorite,
             (SELECT GROUP_CONCAT(t.name, '|') FROM recipe_tags rt
                 JOIN tags t ON t.id = rt.tagId
-                WHERE rt.recipeId = r.id AND rt.hidden = 0) AS tagNames
+                WHERE rt.recipeId = r.id AND rt.hidden = 0 AND rt.source != 'SUGGESTED') AS tagNames
         FROM recipes r
         WHERE (:query = ''
             OR r.title LIKE '%' || :query || '%'
             OR r.ingredients LIKE '%' || :query || '%'
             OR EXISTS (SELECT 1 FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
-                WHERE rt.recipeId = r.id AND rt.hidden = 0 AND t.name LIKE '%' || :query || '%'))
-          AND (:categoryId = 0 OR EXISTS (SELECT 1 FROM recipe_categories rc
-                WHERE rc.recipeId = r.id AND rc.categoryId = :categoryId))
+                WHERE rt.recipeId = r.id AND rt.hidden = 0 AND rt.source != 'SUGGESTED'
+                AND t.name LIKE '%' || :query || '%'))
+          AND (:categoryId = 0
+            OR (:categoryId = $UNCATEGORIZED AND NOT EXISTS (SELECT 1 FROM recipe_categories rc
+                WHERE rc.recipeId = r.id AND rc.hidden = 0))
+            OR EXISTS (SELECT 1 FROM recipe_categories rc
+                WHERE rc.recipeId = r.id AND rc.categoryId = :categoryId AND rc.hidden = 0))
           AND (:tag = '' OR EXISTS (SELECT 1 FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
-                WHERE rt.recipeId = r.id AND rt.hidden = 0 AND t.name = :tag))
+                WHERE rt.recipeId = r.id AND rt.hidden = 0 AND rt.source != 'SUGGESTED' AND t.name = :tag))
           AND (:favoritesOnly = 0 OR r.favorite = 1)
         ORDER BY r.favorite DESC, r.updatedAt DESC
         """
@@ -56,7 +67,7 @@ interface RecipeDao {
     @Query(
         """
         SELECT DISTINCT t.name FROM tags t JOIN recipe_tags rt ON rt.tagId = t.id
-        WHERE rt.hidden = 0 ORDER BY t.name COLLATE NOCASE
+        WHERE rt.hidden = 0 AND rt.source != 'SUGGESTED' ORDER BY t.name COLLATE NOCASE
         """
     )
     fun observeTagNamesInUse(): Flow<List<String>>
@@ -112,10 +123,37 @@ interface RecipeDao {
     @Query(
         """
         SELECT t.name FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
-        WHERE rt.recipeId = :recipeId AND rt.hidden = 0 ORDER BY t.name
+        WHERE rt.recipeId = :recipeId AND rt.hidden = 0 AND rt.source != 'SUGGESTED' ORDER BY t.name
         """
     )
     fun observeTagNames(recipeId: Long): Flow<List<String>>
+
+    /** Guessed tags she hasn't confirmed or dismissed, such as an occasion. */
+    @Query(
+        """
+        SELECT t.name FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
+        WHERE rt.recipeId = :recipeId AND rt.hidden = 0 AND rt.source = 'SUGGESTED' ORDER BY t.name
+        """
+    )
+    fun observeSuggestedTags(recipeId: Long): Flow<List<String>>
+
+    /** Every unconfirmed suggestion, for categories to offer. */
+    @Query(
+        """
+        SELECT rt.recipeId AS recipeId, t.name AS tag FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
+        WHERE rt.hidden = 0 AND rt.source = 'SUGGESTED'
+        """
+    )
+    fun observeSuggestions(): Flow<List<RecipeTagName>>
+
+    /** Every visible, confirmed tag on every recipe. */
+    @Query(
+        """
+        SELECT rt.recipeId AS recipeId, t.name AS tag FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
+        WHERE rt.hidden = 0 AND rt.source != 'SUGGESTED'
+        """
+    )
+    fun observeConfirmedTags(): Flow<List<RecipeTagName>>
 
     @Query("SELECT id FROM tags WHERE name = :name")
     suspend fun findTagId(name: String): Long?
@@ -129,25 +167,31 @@ interface RecipeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertRecipeTag(link: RecipeTagEntity)
 
-    @Query("DELETE FROM recipe_tags WHERE recipeId = :recipeId AND source = 'AUTO' AND hidden = 0")
+    @Query("DELETE FROM recipe_tags WHERE recipeId = :recipeId AND source IN ('AUTO', 'SUGGESTED') AND hidden = 0")
     suspend fun clearVisibleAutoTags(recipeId: Long)
 
     /**
-     * Replaces a recipe's automatic tags. Tags the user hid stay hidden, and
-     * tags the user added by hand are left alone.
+     * Replaces a recipe's automatic tags and suggestions. Tags she removed or
+     * dismissed stay hidden, and tags she added or confirmed are left alone.
      */
     @Transaction
-    suspend fun replaceAutoTags(recipeId: Long, names: Collection<String>) {
+    suspend fun replaceAutoTags(recipeId: Long, result: TagResult) {
         val existing = getRecipeTags(recipeId).associateBy { it.tagId }
         clearVisibleAutoTags(recipeId)
-        for (name in names) {
-            val tagId = findTagId(name) ?: insertTag(TagEntity(name = name))
-            val link = existing[tagId]
-            if (link == null || (link.source == TagSource.AUTO && !link.hidden)) {
-                upsertRecipeTag(RecipeTagEntity(recipeId, tagId, TagSource.AUTO))
+        for ((names, source) in listOf(result.tags to TagSource.AUTO, result.suggestions to TagSource.SUGGESTED)) {
+            for (name in names) {
+                val tagId = findTagId(name) ?: insertTag(TagEntity(name = name))
+                val link = existing[tagId]
+                if (link == null || (link.source != TagSource.MANUAL && !link.hidden)) {
+                    upsertRecipeTag(RecipeTagEntity(recipeId, tagId, source))
+                }
             }
         }
     }
+
+    /** Confirms a suggested tag, which then counts like a tag she added. */
+    @Transaction
+    suspend fun acceptSuggestion(recipeId: Long, name: String) = addManualTag(recipeId, name)
 
     /** Adds a tag she chose. It becomes hers, so recomputing automatic tags never removes it. */
     @Transaction
@@ -215,23 +259,72 @@ interface RecipeDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addToCategory(link: RecipeCategoryEntity)
 
-    @Query("DELETE FROM recipe_categories WHERE recipeId = :recipeId")
-    suspend fun clearRecipeCategories(recipeId: Long)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCategoryLink(link: RecipeCategoryEntity)
 
+    @Query("SELECT * FROM recipe_categories WHERE recipeId = :recipeId")
+    suspend fun getCategoryLinks(recipeId: Long): List<RecipeCategoryEntity>
+
+    @Query("SELECT * FROM recipe_categories WHERE categoryId = :categoryId")
+    suspend fun getCategoryMembers(categoryId: Long): List<RecipeCategoryEntity>
+
+    @Query("DELETE FROM recipe_categories WHERE recipeId = :recipeId AND categoryId = :categoryId")
+    suspend fun deleteCategoryLink(recipeId: Long, categoryId: Long)
+
+    /**
+     * Puts a recipe in exactly the chosen categories, as her choice. Categories
+     * she unchecks keep a hidden link, so feeder tags don't add the recipe back.
+     */
     @Transaction
     suspend fun setRecipeCategories(recipeId: Long, categoryIds: Collection<Long>) {
-        clearRecipeCategories(recipeId)
-        categoryIds.forEach { addToCategory(RecipeCategoryEntity(recipeId, it)) }
+        val links = getCategoryLinks(recipeId).associateBy { it.categoryId }
+        for (id in categoryIds) {
+            val link = links[id]
+            if (link == null || link.hidden) upsertCategoryLink(RecipeCategoryEntity(recipeId, id, TagSource.MANUAL))
+        }
+        for (link in links.values) {
+            if (link.categoryId !in categoryIds && !link.hidden) upsertCategoryLink(link.copy(hidden = true))
+        }
     }
 
-    @Query("SELECT categoryId FROM recipe_categories WHERE recipeId = :recipeId")
+    /** Adds a recipe to a category as her choice, such as from a category's suggestions. */
+    @Transaction
+    suspend fun addToCategoryByHand(recipeId: Long, categoryId: Long) {
+        upsertCategoryLink(RecipeCategoryEntity(recipeId, categoryId, TagSource.MANUAL))
+    }
+
+    @Query("SELECT categoryId FROM recipe_categories WHERE recipeId = :recipeId AND hidden = 0")
     suspend fun getCategoryIds(recipeId: Long): List<Long>
 
     @Query(
         """
         SELECT c.* FROM categories c JOIN recipe_categories rc ON rc.categoryId = c.id
-        WHERE rc.recipeId = :recipeId ORDER BY c.position, c.name COLLATE NOCASE
+        WHERE rc.recipeId = :recipeId AND rc.hidden = 0 ORDER BY c.position, c.name COLLATE NOCASE
         """
     )
     fun observeRecipeCategories(recipeId: Long): Flow<List<CategoryEntity>>
+
+    /** Every visible category membership, for counts on the home screen. */
+    @Query("SELECT * FROM recipe_categories WHERE hidden = 0")
+    fun observeCategoryLinks(): Flow<List<RecipeCategoryEntity>>
+
+    @Query("UPDATE categories SET feederTags = :feederTags WHERE id = :id")
+    suspend fun setFeederTags(id: Long, feederTags: List<String>)
+
+    /** Recipes with any of [lowerNames] as a visible, confirmed tag. */
+    @Query(
+        """
+        SELECT DISTINCT rt.recipeId FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
+        WHERE rt.hidden = 0 AND rt.source != 'SUGGESTED' AND LOWER(t.name) IN (:lowerNames)
+        """
+    )
+    suspend fun recipeIdsWithTags(lowerNames: List<String>): List<Long>
+
+    // Saved pages
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun savePage(page: RecipePageEntity)
+
+    @Query("SELECT * FROM recipe_pages WHERE recipeId = :recipeId")
+    suspend fun getPage(recipeId: Long): RecipePageEntity?
 }

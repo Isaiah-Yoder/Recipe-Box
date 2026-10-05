@@ -1,5 +1,12 @@
 package io.github.isaiahyoder.recipebox.ui.recipe
 
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import io.github.isaiahyoder.recipebox.ingredients.Measure
+import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.Restore
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -50,7 +57,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -99,13 +105,14 @@ private val scaleStops = listOf(0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0)
 fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel(key = "recipe-$recipeId") {
-        RecipeViewModel(container.database.recipeDao(), container.photos, recipeId)
+        RecipeViewModel(container.database.recipeDao(), container.photos, container.tagRefresher, container.recipeRefresher, recipeId)
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val tags by viewModel.tags.collectAsStateWithLifecycle()
     val cookMode by viewModel.cookMode.collectAsStateWithLifecycle()
     var menuOpen by remember { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var confirmWebsiteVersion by rememberSaveable { mutableStateOf(false) }
     var addingToList by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -162,6 +169,16 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                                         onEdit()
                                     },
                                 )
+                                if (recipe.sourceUrl != null && recipe.editedFields.isNotEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text("Use the website's version") },
+                                        leadingIcon = { Icon(Icons.Filled.Restore, null) },
+                                        onClick = {
+                                            menuOpen = false
+                                            confirmWebsiteVersion = true
+                                        },
+                                    )
+                                }
                                 recipe.sourceUrl?.let { url ->
                                     DropdownMenuItem(
                                         text = { Text("Open original page") },
@@ -201,7 +218,6 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                 cookMode = cookMode,
                 contentPadding = padding,
                 onScale = viewModel::setScale,
-                onShowUsUnits = viewModel::setShowUsUnits,
             )
         }
     }
@@ -216,6 +232,28 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                 Toast.makeText(context, "Added to $listName", Toast.LENGTH_SHORT).show()
             },
             onDismiss = { addingToList = false },
+        )
+    }
+
+    if (confirmWebsiteVersion && recipe != null) {
+        AlertDialog(
+            onDismissRequest = { confirmWebsiteVersion = false },
+            title = { Text("Use the website's version?") },
+            text = {
+                Text(
+                    "Your changes to this recipe's title, servings, times, ingredients, and steps are replaced " +
+                        "with what its web page says. Your notes, tags, categories, and photos stay."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmWebsiteVersion = false
+                    viewModel.useWebsiteVersion { worked ->
+                        if (!worked) Toast.makeText(context, "The web page couldn't be read. Try again later.", Toast.LENGTH_LONG).show()
+                    }
+                }) { Text("Use website's version") }
+            },
+            dismissButton = { TextButton(onClick = { confirmWebsiteVersion = false }) { Text("Cancel") } },
         )
     }
 
@@ -244,7 +282,6 @@ private fun RecipeContent(
     cookMode: Boolean,
     contentPadding: PaddingValues,
     onScale: (Double) -> Unit,
-    onShowUsUnits: (Boolean) -> Unit,
 ) {
     val container = LocalContext.current.appContainer
     // The slider moves freely while dragging and saves when released.
@@ -257,11 +294,20 @@ private fun RecipeContent(
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     var addingTag by rememberSaveable { mutableStateOf(false) }
     var editingCategories by rememberSaveable { mutableStateOf(false) }
+    val suggestions by viewModel.suggestions.collectAsStateWithLifecycle()
+    // The tag whose options are open, and the suggestion she's being asked about.
+    var tagMenuFor by rememberSaveable { mutableStateOf<String?>(null) }
+    var askingAbout by rememberSaveable { mutableStateOf<String?>(null) }
     var editingServings by rememberSaveable { mutableStateOf(false) }
-    val hasMetric = remember(recipe.ingredients) {
-        recipe.ingredients.any { !it.isHeader && IngredientParser.parse(it.text).unit?.isMetric == true }
+    // Amounts she can switch between US and metric; counts such as "2 eggs" can't.
+    val hasMeasures = remember(recipe.ingredients) {
+        recipe.ingredients.any { line ->
+            !line.isHeader && IngredientParser.parse(line.text).unit?.measure.let { it != null && it != Measure.COUNT }
+        }
     }
-    val toUs = hasMetric && recipe.showUsUnits
+    // Starts in her setting; switching here lasts only while she's on this recipe.
+    val defaultUnits by container.settings.unitSystem.collectAsStateWithLifecycle()
+    var units by remember(recipe.id, defaultUnits) { mutableStateOf(defaultUnits) }
     val bodyStyle = if (cookMode) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge
 
     LazyColumn(
@@ -307,7 +353,7 @@ private fun RecipeContent(
                     tags.forEach { tag ->
                         InputChip(
                             selected = false,
-                            onClick = {},
+                            onClick = { tagMenuFor = tag },
                             label = { Text(tag) },
                             trailingIcon = {
                                 Icon(
@@ -316,6 +362,13 @@ private fun RecipeContent(
                                     modifier = Modifier.size(18.dp).clickable { viewModel.removeTag(tag) },
                                 )
                             },
+                        )
+                    }
+                    suggestions.forEach { tag ->
+                        SuggestionChip(
+                            onClick = { askingAbout = tag },
+                            label = { Text("$tag?") },
+                            icon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, Modifier.size(18.dp)) },
                         )
                     }
                     AssistChip(
@@ -348,14 +401,14 @@ private fun RecipeContent(
                 onEditServings = { editingServings = true },
                 // Read the slider position when the gesture ends; the composed value can lag one frame.
                 onSliderDone = { if (customScale == null) onScale(scaleStops[sliderIndex.roundToInt().coerceIn(scaleStops.indices)]) },
-                hasMetric = hasMetric,
-                showUsUnits = toUs,
-                onShowUsUnits = onShowUsUnits,
+                hasMeasures = hasMeasures,
+                units = units,
+                onUnits = { units = it },
             )
         }
         if (recipe.ingredients.isNotEmpty()) sectionHeading("Ingredients")
         lines(recipe.ingredients) { line ->
-            val shown = remember(line.text, scale, toUs) { IngredientScaler.display(line.text, scale, toUs) }
+            val shown = remember(line.text, scale, units) { IngredientScaler.display(line.text, scale, units) }
             IngredientRow(shown, bodyStyle)
         }
         if (recipe.steps.isNotEmpty()) sectionHeading("Steps")
@@ -373,7 +426,7 @@ private fun RecipeContent(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.width(32.dp),
                     )
-                    val pieces = remember(line.text, scale, toUs) { StepText.display(line.text, scale, toUs) }
+                    val pieces = remember(line.text, scale, units) { StepText.display(line.text, scale, units) }
                     val highlight = MaterialTheme.colorScheme.primary
                     Text(
                         buildAnnotatedString {
@@ -400,6 +453,60 @@ private fun RecipeContent(
                 )
             }
         }
+    }
+
+    tagMenuFor?.let { tag ->
+        val allCategories by viewModel.allCategories.collectAsStateWithLifecycle()
+        val feeding = allCategories.filter { category -> category.feederTags.any { it.equals(tag, ignoreCase = true) } }
+        AlertDialog(
+            onDismissRequest = { tagMenuFor = null },
+            title = { Text(tag) },
+            text = {
+                Text(
+                    if (feeding.isEmpty()) {
+                        "Make a category from this tag? Every recipe tagged $tag joins it, now and in the future. " +
+                            "You can still add or remove recipes yourself."
+                    } else {
+                        "Recipes tagged $tag join ${feeding.joinToString { it.name }} automatically."
+                    }
+                )
+            },
+            confirmButton = {
+                if (feeding.isEmpty()) {
+                    TextButton(onClick = {
+                        tagMenuFor = null
+                        viewModel.makeCategory(tag)
+                    }) { Text("Make a category") }
+                } else {
+                    TextButton(onClick = { tagMenuFor = null }) { Text("OK") }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    tagMenuFor = null
+                    viewModel.removeTag(tag)
+                }) { Text("Remove tag") }
+            },
+        )
+    }
+    askingAbout?.let { tag ->
+        AlertDialog(
+            onDismissRequest = { askingAbout = null },
+            title = { Text("Is this a $tag recipe?") },
+            text = { Text("Recipe Box guessed $tag from the recipe's name. Your answer is kept, even when recipes refresh.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    askingAbout = null
+                    viewModel.acceptSuggestion(tag)
+                }) { Text("Yes") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    askingAbout = null
+                    viewModel.dismissSuggestion(tag)
+                }) { Text("No") }
+            },
+        )
     }
 
     if (addingTag) {
@@ -450,9 +557,9 @@ private fun ScaleCard(
     onSliderChange: (Float) -> Unit,
     onSliderDone: () -> Unit,
     onEditServings: () -> Unit,
-    hasMetric: Boolean,
-    showUsUnits: Boolean,
-    onShowUsUnits: (Boolean) -> Unit,
+    hasMeasures: Boolean,
+    units: UnitSystem,
+    onUnits: (UnitSystem) -> Unit,
 ) {
     Card(Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -485,12 +592,9 @@ private fun ScaleCard(
                     Text(Fractions.format(it), style = MaterialTheme.typography.labelSmall)
                 }
             }
-            if (hasMetric) {
+            if (hasMeasures) {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Show metric amounts in US units", Modifier.weight(1f))
-                    Switch(checked = showUsUnits, onCheckedChange = onShowUsUnits)
-                }
+                UnitToggle(units, onUnits)
             }
         }
     }
@@ -546,3 +650,18 @@ private fun LineHeader(text: String) {
 
 private fun indexOfScale(scale: Double): Int =
     scaleStops.indices.minBy { abs(scaleStops[it] - scale) }
+
+/** Switches amounts between US and metric units. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UnitToggle(units: UnitSystem, onUnits: (UnitSystem) -> Unit, modifier: Modifier = Modifier) {
+    SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
+        listOf(UnitSystem.US to "US", UnitSystem.METRIC to "Metric").forEachIndexed { index, (option, label) ->
+            SegmentedButton(
+                selected = units == option,
+                onClick = { onUnits(option) },
+                shape = SegmentedButtonDefaults.itemShape(index, 2),
+            ) { Text(label) }
+        }
+    }
+}

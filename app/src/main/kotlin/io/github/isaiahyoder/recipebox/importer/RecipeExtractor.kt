@@ -30,6 +30,8 @@ data class ExtractedRecipe(
     val cuisines: List<String> = emptyList(),
     val keywords: List<String> = emptyList(),
     val rawJsonLd: String? = null,
+    /** The page's structured data and recipe card, small enough to keep and read again later. */
+    val pageSnapshot: String? = null,
 ) {
     /** True when the recipe has everything the requirements call a recipe. */
     val isComplete: Boolean
@@ -56,7 +58,23 @@ object RecipeExtractor {
         } else {
             listOfNotNull(fromJsonLd, fromMicrodata(document, siteName)).maxByOrNull { it.ingredients.size + it.steps.size }
         }
-        return withCard(fromData, RecipeCardHtml.read(document), document)
+        return withCard(fromData, RecipeCardHtml.read(document), document)?.copy(pageSnapshot = snapshot(document))
+    }
+
+    /**
+     * Keeps only what [extract] reads: structured data, the site name and
+     * title, and the recipe card. Reading the snapshot gives the same recipe
+     * as reading the whole page, at a small fraction of its size.
+     */
+    private fun snapshot(document: Document): String {
+        val head = buildString {
+            document.select("script[type*=ld+json]").forEach { append(it.outerHtml()).append('\n') }
+            document.select("meta[property=og:site_name], meta[property=og:title]").forEach { append(it.outerHtml()) }
+            append("<title>").append(org.jsoup.nodes.Entities.escape(document.title())).append("</title>")
+        }
+        val card = document.select(".wprm-recipe-container, .wprm-recipe, .tasty-recipes, [itemtype*=schema.org/Recipe]")
+            .firstOrNull()?.outerHtml().orEmpty()
+        return "<html><head>$head</head><body>$card</body></html>"
     }
 
     /** Uses the card's lists when they hold at least as much as the data. */

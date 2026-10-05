@@ -50,6 +50,22 @@ class GroceryBuilderTest {
         assertTrue(all.toString(), "3 cans (15 ounce) black beans" in all)
     }
 
+    @Test fun readsSizesWrittenBeforeTheContainer() {
+        val all = texts(
+            build(
+                GroceryRecipeInput("Pie", 2.0, listOf("12 ounce can evaporated milk")),
+                GroceryRecipeInput("Chili", 1.0, listOf("2 15-ounce cans black beans", "1 (15 ounce) can black beans")),
+            )
+        )
+        assertTrue(all.toString(), "2 cans (12 ounce) evaporated milk" in all)
+        assertTrue(all.toString(), "3 cans (15 ounce) black beans" in all)
+    }
+
+    @Test fun keepsPanSizesWithTheName() {
+        val all = texts(build(GroceryRecipeInput("Pie", 1.0, listOf("1 9-inch pie crust (or store-bought, unbaked)"))))
+        assertTrue(all.toString(), "1 pie crust (9-inch)" in all)
+    }
+
     @Test fun listsUnmeasuredIngredientsOnce() {
         val groups = build(
             GroceryRecipeInput("A", 1.0, listOf("salt to taste")),
@@ -129,6 +145,10 @@ class GroceryBuilderTest {
         assertEquals(StoreSection.MEAT_SEAFOOD, StoreSection.guess("rotisserie chicken"))
         assertEquals(StoreSection.PRODUCE, StoreSection.guess("red bell pepper"))
         assertEquals(StoreSection.SPICES, StoreSection.guess("black pepper"))
+        assertEquals(StoreSection.SPICES, StoreSection.guess("ground ginger"))
+        assertEquals(StoreSection.SPICES, StoreSection.guess("ground clove"))
+        assertEquals(StoreSection.PRODUCE, StoreSection.guess("ginger"))
+        assertEquals(StoreSection.PRODUCE, StoreSection.guess("garlic clove"))
         assertEquals(StoreSection.FROZEN, StoreSection.guess("corn", "3 cups frozen corn"))
         assertEquals(StoreSection.BAKERY, StoreSection.guess("hamburger bun"))
     }

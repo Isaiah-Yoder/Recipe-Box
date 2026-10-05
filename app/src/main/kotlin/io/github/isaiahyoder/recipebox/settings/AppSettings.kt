@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.settings
 
+import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import android.content.Context
 import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,8 +20,9 @@ data class RefreshStatus(
     val total: Int = 0,
     val updated: Int = 0,
     val failed: List<Long> = emptyList(),
-    val skippedEdited: Int = 0,
     val finishedAt: Long = 0,
+    /** An automatic run after an app update waits for Wi-Fi; one she starts uses any connection. */
+    val wifiOnly: Boolean = false,
 ) {
     val done: Int get() = total - pending.size
 }
@@ -54,6 +56,18 @@ class AppSettings(context: Context, fileName: String = "settings") {
     fun setThemeMode(mode: ThemeMode) {
         prefs.edit { putString(KEY_THEME, mode.name) }
         _themeMode.value = mode
+    }
+
+    private val _unitSystem = MutableStateFlow(
+        prefs.getString(KEY_UNITS, null)?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() } ?: UnitSystem.US
+    )
+
+    /** The units recipes and new grocery lists show by default. A recipe can switch while she views it. */
+    val unitSystem: StateFlow<UnitSystem> = _unitSystem.asStateFlow()
+
+    fun setUnitSystem(units: UnitSystem) {
+        prefs.edit { putString(KEY_UNITS, units.name) }
+        _unitSystem.value = units
     }
 
     private val _driveStatus = MutableStateFlow(readDriveStatus())
@@ -113,13 +127,13 @@ class AppSettings(context: Context, fileName: String = "settings") {
     }
 
     private val _refreshStatus = MutableStateFlow(
-        prefs.getString(KEY_REFRESH, null)?.let { runCatching { Json.decodeFromString<RefreshStatus>(it) }.getOrNull() } ?: RefreshStatus()
+        prefs.getString(KEY_REFRESH, null)?.let { runCatching { json.decodeFromString<RefreshStatus>(it) }.getOrNull() } ?: RefreshStatus()
     )
     val refreshStatus: StateFlow<RefreshStatus> = _refreshStatus.asStateFlow()
 
     @Synchronized
     fun setRefreshStatus(status: RefreshStatus) {
-        prefs.edit { putString(KEY_REFRESH, Json.encodeToString(status)) }
+        prefs.edit { putString(KEY_REFRESH, json.encodeToString(status)) }
         _refreshStatus.value = status
     }
 
@@ -131,6 +145,24 @@ class AppSettings(context: Context, fileName: String = "settings") {
         prefs.edit { if (problem == null) remove(KEY_DRIVE_CONNECT_PROBLEM) else putString(KEY_DRIVE_CONNECT_PROBLEM, problem) }
         _driveConnectProblem.value = problem
     }
+
+    /**
+     * The tag rules and reading rules the saved recipes were last processed
+     * with. When an update raises [io.github.isaiahyoder.recipebox.ContentVersions], the app
+     * applies the new rules once.
+     */
+    var tagRulesVersion: Int
+        get() = prefs.getInt(KEY_TAG_RULES_VERSION, 0)
+        set(value) = prefs.edit { putInt(KEY_TAG_RULES_VERSION, value) }
+
+    var readingVersion: Int
+        get() = prefs.getInt(KEY_READING_VERSION, 0)
+        set(value) = prefs.edit { putInt(KEY_READING_VERSION, value) }
+
+    /** Whether she has seen the offer to fill her categories from tags. */
+    var feederOfferSeen: Boolean
+        get() = prefs.getBoolean(KEY_FEEDER_OFFER, false)
+        set(value) = prefs.edit { putBoolean(KEY_FEEDER_OFFER, value) }
 
     /** What Android said about the last update that didn't install, or null. */
     var updateProblem: String?
@@ -158,6 +190,7 @@ class AppSettings(context: Context, fileName: String = "settings") {
 
     private companion object {
         const val KEY_THEME = "theme_mode"
+        const val KEY_UNITS = "unit_system"
         const val KEY_DRIVE_ENABLED = "drive_enabled"
         const val KEY_DRIVE_ENABLED_AT = "drive_enabled_at"
         const val KEY_DRIVE_SUCCESS = "drive_last_success"
@@ -172,5 +205,9 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_REFRESH = "recipe_refresh_status"
         const val KEY_UPDATE_PROBLEM = "update_problem"
         const val KEY_DRIVE_CONNECT_PROBLEM = "drive_connect_problem"
+        const val KEY_TAG_RULES_VERSION = "tag_rules_version"
+        const val KEY_READING_VERSION = "reading_version"
+        const val KEY_FEEDER_OFFER = "feeder_offer_seen"
+        val json = Json { ignoreUnknownKeys = true }
     }
 }

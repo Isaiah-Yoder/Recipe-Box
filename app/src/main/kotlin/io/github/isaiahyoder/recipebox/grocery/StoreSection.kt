@@ -30,7 +30,8 @@ enum class StoreSection(val label: String) {
                     Regex("""\b(can|cans|canned|jar|jars)\b""").containsMatchIn(original) -> PANTRY
                 has("powder", "seasoning", "extract", "dried", "paprika", "bay leaf", "salt", "black pepper",
                     "cumin", "cinnamon", "nutmeg", "oregano", "thyme", "allspice", "cayenne", "turmeric",
-                    "coriander", "cardamom", "red pepper flake", "chili flake", "vanilla") -> SPICES
+                    "coriander", "cardamom", "red pepper flake", "chili flake", "vanilla", "ground ginger",
+                    "ground clove", "whole clove", "ground mustard", "ground sage") || nameKey == "clove" -> SPICES
                 has("chicken", "beef", "pork", "bacon", "sausage", "turkey", "ham", "steak", "lamb", "salmon",
                     "shrimp", "crab", "fish", "tuna", "cod", "tilapia", "chorizo", "prosciutto", "pancetta",
                     "brisket", "veal", "scallop", "lobster", "anchovy", "ground meat") -> MEAT_SEAFOOD

@@ -63,6 +63,7 @@ fun RecipeEditorScreen(
             container.database.recipeDao(),
             container.photos,
             container.importQueue,
+            container.tagRefresher,
             recipeId,
             sourceUrl,
             importJobId,

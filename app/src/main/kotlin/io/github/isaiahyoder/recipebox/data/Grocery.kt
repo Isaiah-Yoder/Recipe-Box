@@ -1,5 +1,7 @@
 package io.github.isaiahyoder.recipebox.data
 
+import androidx.room.ColumnInfo
+import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -22,6 +24,8 @@ data class GroceryListEntity(
     val hideStaples: Boolean = false,
     val createdAt: Long,
     val updatedAt: Long,
+    /** The units amounts are added up in, chosen per list. Lists from before 0.5.0 use US units. */
+    @ColumnInfo(defaultValue = "US") val units: UnitSystem = UnitSystem.US,
 )
 
 /** A recipe on a list, at its own scale. */
@@ -127,6 +131,9 @@ interface GroceryDao {
 
     @Query("UPDATE grocery_lists SET hideStaples = :hide WHERE id = :id")
     suspend fun setHideStaples(id: Long, hide: Boolean)
+
+    @Query("UPDATE grocery_lists SET units = :units WHERE id = :id")
+    suspend fun setUnits(id: Long, units: UnitSystem)
 
     @Query("UPDATE grocery_lists SET updatedAt = :now WHERE id = :id")
     suspend fun touch(id: Long, now: Long)

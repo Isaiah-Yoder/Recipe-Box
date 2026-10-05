@@ -6,6 +6,7 @@ import io.github.isaiahyoder.recipebox.ingredients.IngredientScaler
 import io.github.isaiahyoder.recipebox.ingredients.Measure
 import io.github.isaiahyoder.recipebox.ingredients.Nouns
 import io.github.isaiahyoder.recipebox.ingredients.Unit
+import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 
 data class GroceryRecipeInput(val title: String, val scale: Double, val lines: List<String>)
 
@@ -42,6 +43,8 @@ data class GrocerySectionGroup(val section: StoreSection, val lines: List<Grocer
 object GroceryBuilder {
     private class Accumulator(val display: String, val original: String) {
         var plain = 0.0
+        /** A size written with a plain count, such as "9-inch" in "1 9-inch pie crust". */
+        var plainSize: String? = null
         var volumeTeaspoons = 0.0
         var weightOunces = 0.0
         val counts = linkedMapOf<Pair<Unit, String?>, Double>()
@@ -55,6 +58,7 @@ object GroceryBuilder {
         states: Map<String, GroceryLineStateInput>,
         sectionOverrides: Map<String, StoreSection>,
         hideStaples: Boolean,
+        units: UnitSystem = UnitSystem.US,
     ): List<GrocerySectionGroup> {
         val byKey = linkedMapOf<String, Accumulator>()
         for (recipe in recipes) {
@@ -69,7 +73,7 @@ object GroceryBuilder {
             if (state?.hidden == true) continue
             lines += GroceryLine(
                 key = key,
-                text = state?.customText ?: describe(acc),
+                text = state?.customText ?: describe(acc, units),
                 sources = acc.sources.toList(),
                 checked = state?.checked ?: false,
                 section = sectionOverrides[nameKey] ?: StoreSection.guess(nameKey, acc.original),
@@ -116,14 +120,44 @@ object GroceryBuilder {
                 size = null
             }
         }
+        var quantity = parsed.quantity?.high
+        var plainSize: String? = null
+        // "1 9-inch pie crust" and "2 15-ounce cans black beans": a size written before the name or container.
+        if (quantity != null && unit == null) {
+            sizePrefix.find(rest)?.let { match ->
+                val after = rest.substring(match.range.last + 1).trimStart()
+                val (container, _, afterContainer) = IngredientParser.matchUnit(after)
+                if (container in containers) {
+                    unit = container
+                    size = sizeText(match)
+                    rest = afterContainer
+                } else {
+                    plainSize = sizeText(match)
+                    rest = after
+                }
+            }
+        }
+        // "12 ounce can evaporated milk": one can that holds 12 ounces.
+        if (quantity != null && unit != null && unit.measure != Measure.COUNT) {
+            val (container, _, after) = IngredientParser.matchUnit(rest)
+            if (container in containers) {
+                size = "${Fractions.format(quantity)} ${parsed.unitText.orEmpty().lowercase().trimEnd('.')}"
+                unit = container
+                quantity = 1.0
+                rest = after
+            }
+        }
         val name = IngredientNames.clean(rest)
         if (name.key.isBlank()) return
         val acc = byKey.getOrPut(name.key) { Accumulator(name.display, line) }
         acc.sources += recipe.title
-        val amount = parsed.quantity?.high?.times(recipe.scale)
+        val amount = quantity?.times(recipe.scale)
         when {
             amount == null -> acc.unmeasured = true
-            unit == null -> acc.plain += amount
+            unit == null -> {
+                acc.plain += amount
+                if (plainSize != null) acc.plainSize = acc.plainSize ?: plainSize
+            }
             unit.measure == Measure.US_VOLUME -> acc.volumeTeaspoons += amount * unit.base
             unit.measure == Measure.METRIC_VOLUME ->
                 acc.volumeTeaspoons += amount * unit.base * IngredientScaler.TEASPOONS_PER_ML
@@ -134,20 +168,43 @@ object GroceryBuilder {
         }
     }
 
-    private fun describe(acc: Accumulator): String {
+    private fun describe(acc: Accumulator, units: UnitSystem): String {
         val parts = mutableListOf<String>()
         if (acc.plain > 0) parts += Fractions.format(acc.plain)
         for ((unitAndSize, amount) in acc.counts) {
             val (unit, size) = unitAndSize
             parts += "${Fractions.format(amount)} ${unit.word(amount)}" + (size?.let { " ($it)" } ?: "")
         }
-        if (acc.volumeTeaspoons > 0) parts += IngredientScaler.usVolumeText(acc.volumeTeaspoons)
-        if (acc.weightOunces > 0) parts += IngredientScaler.usWeightText(acc.weightOunces)
+        if (units == UnitSystem.METRIC) {
+            if (acc.volumeTeaspoons > 0) parts += IngredientScaler.metricVolumeText(acc.volumeTeaspoons * IngredientScaler.KITCHEN_ML_PER_TEASPOON)
+            if (acc.weightOunces > 0) parts += IngredientScaler.metricWeightText(acc.weightOunces / IngredientScaler.OUNCES_PER_GRAM)
+        } else {
+            if (acc.volumeTeaspoons > 0) parts += IngredientScaler.usVolumeText(acc.volumeTeaspoons)
+            if (acc.weightOunces > 0) parts += IngredientScaler.usWeightText(acc.weightOunces)
+        }
         if (parts.isEmpty()) return acc.display
 
         // A plain count names the thing counted: "1 onion", "3 onions".
         val name = if (parts.size == 1 && acc.plain > 0) countedName(acc.display, acc.plain) else acc.display
-        return parts.joinToString(" + ") + " " + name
+        val sizeNote = acc.plainSize?.takeIf { acc.plain > 0 }?.let { " ($it)" }.orEmpty()
+        return parts.joinToString(" + ") + " " + name + sizeNote
+    }
+
+    /** Units that hold an amount: "can" in "12 ounce can evaporated milk". */
+    private val containers = setOf(
+        Unit.CAN, Unit.JAR, Unit.PACKAGE, Unit.PACKET, Unit.ENVELOPE,
+        Unit.CONTAINER, Unit.BOTTLE, Unit.BAG, Unit.BOX,
+    )
+
+    private val sizePrefix = Regex(
+        """^(\d+(?:\.\d+)?)\s*-?\s*(ounces?|oz|inch(?:es)?|pounds?|lbs?|quarts?|qt)\.?(?![a-z])""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** "9-inch" for pan and crust sizes; "15 ounce" for package sizes, matching "(15 ounce)" as written. */
+    private fun sizeText(match: MatchResult): String {
+        val (number, unit) = match.destructured
+        return if (unit.lowercase().startsWith("inch")) "$number-inch" else "$number ${unit.lowercase()}"
     }
 
     private fun countedName(display: String, amount: Double): String {

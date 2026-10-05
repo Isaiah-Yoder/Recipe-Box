@@ -5,14 +5,17 @@ import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 
 /**
- * Recomputes every recipe's automatic tags with the current rules, such as
- * after an update that improves them.
+ * Recomputes automatic tags with the current rules, then fills categories
+ * from their feeder tags.
  *
- * Only visible automatic tags change. Tags she added, automatic tags she
- * removed, categories, favorites, and notes stay exactly as they are. The
- * whole run is one database transaction, so an interruption changes nothing.
+ * Only automatic tags, suggestions, and automatic category memberships
+ * change. Tags she added, confirmed, removed, or dismissed, recipes she put
+ * in or took out of a category, favorites, and notes stay exactly as they
+ * are. Each run is one database transaction, so an interruption changes nothing.
  */
 class TagRefresher(private val database: RecipeDatabase) {
+    private val categories = CategoryRules(database)
+
     /** Returns the number of recipes checked. */
     suspend fun refreshAll(): Int = database.withTransaction {
         val dao = database.recipeDao()
@@ -21,8 +24,18 @@ class TagRefresher(private val database: RecipeDatabase) {
             dao.replaceAutoTags(recipe.id, AutoTagger.tags(recipe.toTaggable()))
         }
         dao.deleteUnusedTags()
+        categories.applyAll()
         recipes.size
     }
+
+    /** Updates one recipe's tags, such as after an import or an edit, and the categories they feed. */
+    suspend fun refreshRecipe(recipe: RecipeEntity) = database.withTransaction {
+        database.recipeDao().replaceAutoTags(recipe.id, AutoTagger.tags(recipe.toTaggable()))
+        categories.applyAll()
+    }
+
+    /** Fills categories again, such as after she changes a tag or a category's feeders. */
+    suspend fun applyCategories() = categories.applyAll()
 }
 
 fun RecipeEntity.toTaggable() = TaggableRecipe(

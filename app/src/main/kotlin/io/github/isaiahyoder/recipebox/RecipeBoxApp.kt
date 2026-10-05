@@ -40,7 +40,23 @@ class RecipeBoxApp : Application() {
             if (container.photoRestorer.forgetMissingFiles() > 0) PhotoRestorer.schedule(this@RecipeBoxApp)
             // Card photos from a scan she didn't save.
             container.photos.deleteUnusedCardPhotos(container.database.recipeDao().allCardPhotos().flatMap { it.cardPhotos }.toSet())
+            applyNewRules(container)
         }
+    }
+}
+
+/** Applies tag and reading rules that changed in an app update to the saved recipes, once. */
+private suspend fun applyNewRules(container: AppContainer) {
+    val settings = container.settings
+    if (settings.readingVersion < ContentVersions.READING) {
+        runCatching { container.recipeRefresher.upgradeReading() }
+        settings.readingVersion = ContentVersions.READING
+        // Reading again recomputes tags too.
+        settings.tagRulesVersion = ContentVersions.TAG_RULES
+    }
+    if (settings.tagRulesVersion < ContentVersions.TAG_RULES) {
+        runCatching { container.tagRefresher.refreshAll() }
+        settings.tagRulesVersion = ContentVersions.TAG_RULES
     }
 }
 
@@ -72,6 +88,7 @@ class AppContainer(context: Context) {
             fetcher = pageFetcher,
             browserLoader = WebViewPageLoader(context),
             photos = photos,
+            tags = tagRefresher,
         )
     }
 

@@ -26,8 +26,9 @@ import androidx.room.TypeConverters
         GroceryManualItemEntity::class,
         GroceryLineStateEntity::class,
         SectionOverrideEntity::class,
+        RecipePageEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
     autoMigrations = [
         // Version 2 adds the import queue table; recipes are unchanged.
@@ -36,6 +37,10 @@ import androidx.room.TypeConverters
         AutoMigration(from = 2, to = 3),
         // Version 4 adds recipe card photos to recipes, defaulting to none.
         AutoMigration(from = 3, to = 4),
+        // Version 5 adds edited parts to recipes, feeder tags to categories, where each
+        // category membership came from, and saved recipe pages. Existing memberships
+        // become hers (MANUAL), so nothing she sorted changes.
+        AutoMigration(from = 4, to = 5),
     ],
 )
 @TypeConverters(Converters::class)

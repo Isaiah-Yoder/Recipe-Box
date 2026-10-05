@@ -24,6 +24,16 @@ object StepText {
         RegexOption.IGNORE_CASE,
     )
 
+    /**
+     * Inch sizes such as "9x13-inch pan", "9 x 13 baking dish", or "1-inch pieces".
+     * A bare pair counts only before pan, dish, or sheet, so "2 x 3" alone isn't changed.
+     */
+    private val inchSize = Regex(
+        """(\d+(?:\.\d+)?)\s*(?:x|×|by)\s*(\d+(?:\.\d+)?)(?:\s*-?\s*(?:inch(?:es)?\b|in\.|"|″)|(?=\s*(?:inch|baking|pan|dish|sheet|cake)))""" +
+            """|(\d+(?:\.\d+)?)\s*-?\s*(?:inch(?:es)?\b|″)""",
+        RegexOption.IGNORE_CASE,
+    )
+
     /** Units that are safe to recognize inside sentences; single letters such as "c" are left out. */
     private val stepUnits = Unit.aliasTable.filter { (alias, _) -> alias.length > 1 || alias == "g" }
         .map { it.first }
@@ -31,11 +41,33 @@ object StepText {
         """(?<![\w.])($NUMBER(?:\s*(?:-|–|to)\s*$NUMBER)?)\s*(${stepUnits.joinToString("|") { Regex.escape(it) }})\.?(?![a-zA-Z])""",
     )
 
-    fun display(text: String, factor: Double, toUsUnits: Boolean): List<StepPiece> {
+    fun display(text: String, factor: Double, toUsUnits: Boolean): List<StepPiece> =
+        display(text, factor, if (toUsUnits) UnitSystem.US else null)
+
+    /** Scales amounts in [text] by [factor] and shows them in [units], or as written when [units] is null. */
+    fun display(text: String, factor: Double, units: UnitSystem?): List<StepPiece> {
         val replacements = mutableListOf<Pair<IntRange, String>>()
         fun free(range: IntRange) = replacements.none { (r, _) -> r.first <= range.last && range.first <= r.last }
 
-        if (toUsUnits) {
+        if (units == UnitSystem.METRIC) {
+            temperature.findAll(text).forEach { match ->
+                val unit = match.groupValues[2].first().uppercaseChar()
+                if (unit == 'F') {
+                    replacements += match.range to "${celsius(match.groupValues[1].toInt())}°C"
+                } else {
+                    replacements += match.range to match.value
+                }
+            }
+            inchSize.findAll(text).forEach { match ->
+                if (!free(match.range)) return@forEach
+                val converted = if (match.groupValues[1].isNotEmpty()) {
+                    "${centimeters(match.groupValues[1].toDouble())} x ${centimeters(match.groupValues[2].toDouble())} cm"
+                } else {
+                    "${centimeters(match.groupValues[3].toDouble())} cm"
+                }
+                replacements += match.range to converted
+            }
+        } else if (units == UnitSystem.US) {
             temperature.findAll(text).forEach { match ->
                 val unit = match.groupValues[2].first().uppercaseChar()
                 if (unit == 'C') {
@@ -60,7 +92,7 @@ object StepText {
             if (!free(match.range)) return@forEach
             val parsed = IngredientParser.parse(match.value)
             if (parsed.unit == null || parsed.quantity == null) return@forEach
-            val shown = IngredientScaler.display(parsed, factor, toUsUnits)
+            val shown = IngredientScaler.display(parsed, factor, units)
             if (shown.changed) replacements += match.range to shown.text.trimEnd()
         }
 
@@ -79,6 +111,11 @@ object StepText {
         if (position < text.length) pieces += StepPiece(text.substring(position), false)
         return pieces
     }
+
+    /** Oven temperatures and other Celsius values round to the nearest 5, as metric recipes write them. */
+    fun celsius(fahrenheit: Int): Int = (((fahrenheit - 32) * 5.0 / 9.0) / 5).roundToInt() * 5
+
+    private fun centimeters(inches: Double): String = (inches * 2.54).roundToInt().toString()
 
     /** Oven temperatures round to the 25-degree settings ovens use; others to the nearest 5. */
     fun fahrenheit(celsius: Int): Int {

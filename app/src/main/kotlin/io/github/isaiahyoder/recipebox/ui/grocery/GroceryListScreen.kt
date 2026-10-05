@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.grocery
 
+import io.github.isaiahyoder.recipebox.ui.recipe.UnitToggle
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -117,6 +118,11 @@ fun GroceryListScreen(listId: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> 
         },
     ) { padding ->
         LazyColumn(contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = 48.dp)) {
+            list?.let { current ->
+                item(key = "units") {
+                    UnitToggle(current.units, vm::setUnits, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                }
+            }
             item {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(

@@ -16,45 +16,79 @@ class AutoTaggerTest {
         keywords: List<String> = emptyList(),
     ) = AutoTagger.tags(TaggableRecipe(title, ingredients, steps, totalMinutes, categories, cuisines, keywords))
 
-    @Test fun mapsSiteCategoriesAndCuisines() {
-        val tags = recipe(categories = listOf("Lunch", "Entree", "Sandwich"), cuisines = listOf("Puerto Rican"))
-        assertEquals(setOf("Lunch", "Main Dish", "Sandwich", "Puerto Rican"), tags)
+    @Test fun mapsSiteCoursesToTheFixedNames() {
+        val result = recipe(categories = listOf("Lunch", "Entree", "Sandwich"), cuisines = listOf("Puerto Rican"))
+        assertEquals(setOf(AutoTagger.MAIN_DISH), result.tags)
     }
 
-    @Test fun keepsOnlyKnownKeywords() {
-        val tags = recipe(keywords = listOf("dessert", "best ever grandma's secret recipe"))
-        assertEquals(setOf("Dessert"), tags)
+    @Test fun neverPassesThroughSiteLabels() {
+        val result = recipe(
+            keywords = listOf("dessert", "best ever grandma's secret recipe"),
+            cuisines = listOf("Butter Cuisine", "Olive Oil Cuisine", "Italian Cuisine"),
+        )
+        assertEquals(setOf(AutoTagger.DESSERT, "Italian"), result.tags)
+        assertTrue(result.tags.all { AutoTagger.groupOf(it) != null })
     }
 
-    @Test fun findsTheMainProtein() {
-        val tags = recipe(ingredients = listOf("3 pounds pork shoulder", "2 tablespoons olive oil"))
-        assertTrue("Pork" in tags)
-        assertFalse(AutoTagger.MEATLESS in tags)
+    @Test fun readsTheCourseFromTheTitle() {
+        assertTrue(AutoTagger.DESSERT in recipe(title = "Lemon Sugar Cookies").tags)
+        assertTrue(AutoTagger.BREAKFAST in recipe(title = "Fluffy Pancakes").tags)
+        assertTrue(AutoTagger.SAUCE in recipe(title = "Turkey Gravy").tags)
+        assertTrue(AutoTagger.MAIN_DISH in recipe(title = "Chicken Pot Pie").tags)
+        assertFalse(AutoTagger.DESSERT in recipe(title = "Chicken Pot Pie").tags)
+        assertTrue(AutoTagger.DOUGH in recipe(title = "Graham Cracker Crust").tags)
     }
 
-    @Test fun ignoresBrothWhenFindingTheProteinButNotForMeatless() {
-        val tags = recipe(ingredients = listOf("4 cups chicken broth", "2 cups rice"))
-        assertFalse("Chicken" in tags)
-        assertFalse(AutoTagger.MEATLESS in tags)
+    @Test fun aMeatDishWithoutACourseIsAMainDish() {
+        val result = recipe(title = "Garlic Pork Chops", ingredients = listOf("4 pork chops", "3 cloves garlic"))
+        assertTrue("Pork" in result.tags)
+        assertTrue(AutoTagger.MAIN_DISH in result.tags)
     }
 
-    @Test fun marksMeatlessRecipes() {
-        val tags = recipe(ingredients = listOf("2 cups flour", "1 cup milk", "2 eggs"))
-        assertTrue(AutoTagger.MEATLESS in tags)
+    @Test fun ignoresBrothWhenFindingTheProtein() {
+        val result = recipe(title = "Rice Pilaf", ingredients = listOf("4 cups chicken broth", "2 cups rice"))
+        assertFalse("Chicken" in result.tags)
+        assertFalse(AutoTagger.VEGETARIAN in result.tags)
+    }
+
+    @Test fun marksVegetarianOnlyOnMainDishes() {
+        val pasta = recipe(categories = listOf("Main Dish"), ingredients = listOf("1 lb pasta", "2 cups marinara"))
+        assertTrue(AutoTagger.VEGETARIAN in pasta.tags)
+        val cookies = recipe(title = "Sugar Cookies", ingredients = listOf("2 cups flour", "1 cup sugar"))
+        assertFalse(AutoTagger.VEGETARIAN in cookies.tags)
+    }
+
+    @Test fun suggestsOccasionsWithoutTaggingThem() {
+        val result = recipe(title = "Pumpkin Pie", ingredients = listOf("15 ounce can pumpkin"))
+        assertTrue(AutoTagger.DESSERT in result.tags)
+        assertFalse(AutoTagger.THANKSGIVING in result.tags)
+        assertEquals(setOf(AutoTagger.THANKSGIVING), result.suggestions)
+        // An ingredient alone doesn't suggest an occasion.
+        assertTrue(recipe(title = "Spice Cookies", ingredients = listOf("1 tsp pumpkin pie spice")).suggestions.isEmpty())
     }
 
     @Test fun findsCookingMethodsAndQuickRecipes() {
-        val tags = recipe(
+        val result = recipe(
             title = "Easy Pulled Pork",
             steps = listOf("Place the pork in a slow cooker.", "Cook on Low for 8 hours."),
             totalMinutes = 25,
         )
-        assertTrue("Slow Cooker" in tags)
-        assertTrue(AutoTagger.QUICK in tags)
+        assertTrue("Slow Cooker" in result.tags)
+        assertTrue(AutoTagger.QUICK in result.tags)
     }
 
     @Test fun doesNotCallGrilledCheeseGrilled() {
-        val tags = recipe(title = "Grilled Cheese", steps = listOf("Heat a skillet over medium heat."))
-        assertFalse("Grilled" in tags)
+        val result = recipe(title = "Grilled Cheese", steps = listOf("Heat a skillet over medium heat."))
+        assertFalse("Grilled" in result.tags)
+    }
+
+    @Test fun suggestsFeedersForHerCategoryNames() {
+        assertEquals(listOf(AutoTagger.MAIN_DISH), CategoryRules.suggestedFeeders("Dinner", emptyList()))
+        assertEquals(listOf(AutoTagger.BREAD), CategoryRules.suggestedFeeders("Breads", emptyList()))
+        assertEquals(listOf(AutoTagger.SAUCE), CategoryRules.suggestedFeeders("Sauces", emptyList()))
+        assertEquals(listOf(AutoTagger.DESSERT), CategoryRules.suggestedFeeders("Dessert", emptyList()))
+        assertEquals(listOf("Slow Cooker"), CategoryRules.suggestedFeeders("Slow Cooker", emptyList()))
+        assertEquals(listOf(AutoTagger.THANKSGIVING), CategoryRules.suggestedFeeders("Thanksgiving", emptyList()))
+        assertTrue(CategoryRules.suggestedFeeders("Grandma's", emptyList()).isEmpty())
     }
 }

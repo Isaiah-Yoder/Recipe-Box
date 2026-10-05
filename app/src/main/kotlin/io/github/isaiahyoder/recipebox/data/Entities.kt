@@ -56,6 +56,12 @@ data class RecipeEntity(
      */
     @ColumnInfo(defaultValue = "[]")
     val cardPhotos: List<String> = emptyList(),
+    /**
+     * Parts she changed in the editor, from [EditedField]. A refresh from the
+     * website leaves these parts alone and updates the rest.
+     */
+    @ColumnInfo(defaultValue = "[]")
+    val editedFields: List<String> = emptyList(),
     val createdAt: Long,
     val updatedAt: Long,
 )
@@ -70,8 +76,23 @@ data class TagEntity(
     val name: String,
 )
 
+/**
+ * Where a tag or category membership came from. AUTO comes from the rules or
+ * a category's feeder tags, MANUAL from her, and SUGGESTED is a guess she
+ * hasn't confirmed, which doesn't count as a tag until she does.
+ */
 @Serializable
-enum class TagSource { AUTO, MANUAL }
+enum class TagSource { AUTO, MANUAL, SUGGESTED }
+
+/** The parts of a recipe the editor tracks, so a refresh keeps her changes. */
+object EditedField {
+    const val TITLE = "title"
+    const val SERVINGS = "servings"
+    const val TIMES = "times"
+    const val INGREDIENTS = "ingredients"
+    const val STEPS = "steps"
+    const val SOURCE = "source"
+}
 
 @Serializable
 @Entity(
@@ -100,6 +121,8 @@ data class CategoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val position: Int,
+    /** Tag names that add recipes to this category automatically, now and in the future. */
+    @ColumnInfo(defaultValue = "[]") val feederTags: List<String> = emptyList(),
 )
 
 @Serializable
@@ -115,4 +138,23 @@ data class CategoryEntity(
 data class RecipeCategoryEntity(
     val recipeId: Long,
     val categoryId: Long,
+    /** MANUAL when she added it, AUTO when a feeder tag did. */
+    @ColumnInfo(defaultValue = "MANUAL") val source: TagSource = TagSource.MANUAL,
+    /** She took the recipe out of the category, so feeder tags don't add it back. */
+    @ColumnInfo(defaultValue = "0") val hidden: Boolean = false,
+)
+
+/**
+ * The parts of a recipe's web page that the reader uses: its structured data
+ * and its recipe card. Kept so later reading fixes can run again on the phone
+ * without downloading every page. It isn't in backups; it can be downloaded again.
+ */
+@Entity(
+    tableName = "recipe_pages",
+    foreignKeys = [ForeignKey(RecipeEntity::class, ["id"], ["recipeId"], onDelete = ForeignKey.CASCADE)],
+)
+data class RecipePageEntity(
+    @PrimaryKey val recipeId: Long,
+    val html: String,
+    val savedAt: Long,
 )

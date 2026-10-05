@@ -13,8 +13,8 @@ import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.data.RecipeText
 import io.github.isaiahyoder.recipebox.importer.ImportQueue
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
-import io.github.isaiahyoder.recipebox.tags.AutoTagger
-import io.github.isaiahyoder.recipebox.tags.toTaggable
+import io.github.isaiahyoder.recipebox.data.EditedField
+import io.github.isaiahyoder.recipebox.tags.TagRefresher
 import kotlinx.coroutines.launch
 
 /**
@@ -27,6 +27,7 @@ class RecipeEditorViewModel(
     private val dao: RecipeDao,
     private val photos: PhotoStore,
     private val queue: ImportQueue,
+    private val tags: TagRefresher,
     private val recipeId: Long,
     initialSourceUrl: String?,
     private val importJobId: Long,
@@ -108,6 +109,30 @@ class RecipeEditorViewModel(
         cardPhotos = recipe.cardPhotos
     }
 
+    /**
+     * The parts she changed, added to any she changed before. A recipe she
+     * typed in is entirely hers, so a refresh never replaces any part of it.
+     */
+    private fun editedFields(base: RecipeEntity, edited: RecipeEntity): List<String> {
+        if (original == null && draftBase == null) {
+            return listOf(EditedField.TITLE, EditedField.SERVINGS, EditedField.TIMES, EditedField.INGREDIENTS, EditedField.STEPS)
+        }
+        // Lines go through the same text conversion she edits, so an untouched list doesn't count as changed.
+        fun roundTrip(lines: List<io.github.isaiahyoder.recipebox.data.RecipeLine>) = RecipeText.fromText(RecipeText.toText(lines))
+        val changed = buildList {
+            if (edited.title != base.title) add(EditedField.TITLE)
+            if (edited.servings != base.servings) add(EditedField.SERVINGS)
+            if (edited.prepMinutes != base.prepMinutes || edited.cookMinutes != base.cookMinutes ||
+                edited.totalMinutes != base.totalMinutes
+            ) {
+                add(EditedField.TIMES)
+            }
+            if (edited.ingredients != roundTrip(base.ingredients)) add(EditedField.INGREDIENTS)
+            if (edited.steps != roundTrip(base.steps)) add(EditedField.STEPS)
+        }
+        return (base.editedFields + changed).distinct()
+    }
+
     fun addCardPhoto(uri: Uri) {
         addingCardPhoto = true
         viewModelScope.launch {
@@ -156,7 +181,7 @@ class RecipeEditorViewModel(
                 sourceUrl = sourceUrl.trim().ifBlank { null },
                 cardPhotos = cardPhotos,
                 updatedAt = now,
-            )
+            ).let { it.copy(editedFields = editedFields(base, it)) }
             val id = if (original == null) dao.insert(edited) else edited.id.also { dao.update(edited) }
 
             val chosen = newPhoto
@@ -178,7 +203,7 @@ class RecipeEditorViewModel(
                 .forEach(photos::delete)
             CardDrafts.remove(cardDraftId)
 
-            dao.getRecipe(id)?.let { dao.replaceAutoTags(id, AutoTagger.tags(it.toTaggable())) }
+            dao.getRecipe(id)?.let { tags.refreshRecipe(it) }
             if (importJobId != 0L) queue.remove(importJobId)
             saving = false
             onSaved(id)

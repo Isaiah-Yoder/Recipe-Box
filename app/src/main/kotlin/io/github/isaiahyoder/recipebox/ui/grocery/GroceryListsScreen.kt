@@ -56,6 +56,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
     val dao = LocalContext.current.appContainer.database.groceryDao()
+    val settings = LocalContext.current.appContainer.settings
     val lists by dao.observeSummaries().collectAsStateWithLifecycle(initialValue = null)
     val scope = rememberCoroutineScope()
     var creating by rememberSaveable { mutableStateOf(false) }
@@ -112,7 +113,7 @@ fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
             creating = false
             scope.launch {
                 val now = System.currentTimeMillis()
-                onOpenList(dao.insertList(GroceryListEntity(name = name, createdAt = now, updatedAt = now)))
+                onOpenList(dao.insertList(GroceryListEntity(name = name, createdAt = now, updatedAt = now, units = settings.unitSystem.value)))
             }
         }, onDismiss = { creating = false })
     }
@@ -130,6 +131,7 @@ fun AddToGroceryListDialog(
     onDone: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val settings = LocalContext.current.appContainer.settings
     val lists by dao.observeSummaries().collectAsStateWithLifecycle(initialValue = emptyList())
     var chosen by rememberSaveable { mutableLongStateOf(0L) }
     var newName by rememberSaveable { mutableStateOf("") }
@@ -179,7 +181,7 @@ fun AddToGroceryListDialog(
                     scope.launch {
                         val now = System.currentTimeMillis()
                         val listId = if (creatingNew) {
-                            dao.insertList(GroceryListEntity(name = newName.trim(), createdAt = now, updatedAt = now))
+                            dao.insertList(GroceryListEntity(name = newName.trim(), createdAt = now, updatedAt = now, units = settings.unitSystem.value))
                         } else {
                             selected
                         }

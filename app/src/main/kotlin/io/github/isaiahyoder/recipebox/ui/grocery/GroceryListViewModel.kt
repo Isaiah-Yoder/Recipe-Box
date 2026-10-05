@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.grocery
 
+import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.isaiahyoder.recipebox.data.GroceryDao
@@ -44,6 +45,7 @@ class GroceryListViewModel(private val dao: GroceryDao, private val listId: Long
             states = states.associate { it.lineKey to GroceryLineStateInput(it.checked, it.hidden, it.customText) },
             sectionOverrides = overrides.mapNotNull { o -> StoreSection.fromName(o.section)?.let { o.nameKey to it } }.toMap(),
             hideStaples = list?.hideStaples ?: false,
+            units = list?.units ?: UnitSystem.US,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -94,6 +96,8 @@ class GroceryListViewModel(private val dao: GroceryDao, private val listId: Long
     fun rename(name: String) = viewModelScope.launch { dao.renameList(listId, name.trim(), System.currentTimeMillis()) }
 
     fun setHideStaples(hide: Boolean) = viewModelScope.launch { dao.setHideStaples(listId, hide) }
+
+    fun setUnits(units: UnitSystem) = viewModelScope.launch { dao.setUnits(listId, units) }
 
     fun uncheckAll() = viewModelScope.launch {
         dao.uncheckAllLines(listId)
