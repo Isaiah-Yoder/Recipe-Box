@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.cards
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -32,6 +33,8 @@ class CardReadException(
     val tryNextModel: Boolean = false,
     /** True when the key itself was refused, so she should check it in Settings. */
     val badKey: Boolean = false,
+    /** True when Gemini was overloaded, which usually clears within seconds. */
+    val busy: Boolean = false,
 ) : Exception(message)
 
 /**
@@ -48,13 +51,23 @@ class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets) {
     suspend fun read(key: String, photos: List<File>): CardRecipe = withContext(Dispatchers.IO) {
         val images = photos.map { Base64.getEncoder().encodeToString(it.readBytes()) }
         var last: CardReadException? = null
-        for (model in MODELS) {
-            try {
-                return@withContext request(model, key, images)
-            } catch (error: CardReadException) {
-                last = error
-                if (!error.tryNextModel) throw error
+        // When every model is only busy, one more round after a short wait usually succeeds.
+        repeat(2) { round ->
+            if (round > 0) {
+                if (last?.busy != true) throw last ?: CardReadException("Gemini couldn't read the card.")
+                delay(BUSY_WAIT_MS)
             }
+            var allBusy = true
+            for (model in MODELS) {
+                try {
+                    return@withContext request(model, key, images)
+                } catch (error: CardReadException) {
+                    if (!error.tryNextModel) throw error
+                    allBusy = allBusy && error.busy
+                    last = error
+                }
+            }
+            if (!allBusy) last = CardReadException(last?.message ?: "Gemini couldn't read the card.")
         }
         throw last ?: CardReadException("Gemini couldn't read the card.")
     }
@@ -130,20 +143,24 @@ class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets) {
             badKey -> CardReadException("Gemini didn't accept the key. Check it in Settings.", badKey = true)
             code == 429 -> CardReadException("Gemini's free limit is used up for now. Try again later.", tryNextModel = true)
             code == 404 -> CardReadException("Gemini's reading model isn't available.", tryNextModel = true)
-            code >= 500 -> CardReadException("Gemini is busy right now. Try again in a few minutes.", tryNextModel = true)
+            code >= 500 -> CardReadException("Gemini is busy right now. Try again in a few minutes.", tryNextModel = true, busy = true)
             else -> CardReadException("Gemini couldn't read the card (error $code).", tryNextModel = true)
         }
     }
 
     companion object {
         private const val BASE = "https://generativelanguage.googleapis.com/v1beta"
+        private const val BUSY_WAIT_MS = 8_000L
 
         /**
-         * Tried in order. Each model has its own free limit, so a second model
-         * can still answer when the first is used up. Pinned names don't change
-         * behavior without an app update, unlike "-latest" aliases.
+         * Tried in order. Each model has its own free limit, so another model
+         * can still answer when one is busy or used up. Pinned names don't
+         * change behavior without an app update, unlike "-latest" aliases.
+         * On test cards in October 2026, all three read handwriting correctly;
+         * 3.8 Flash followed the formatting rules best, Flash-Lite was fastest
+         * at 2 to 7 seconds, and 3.5 Flash was slowest at up to a minute.
          */
-        val MODELS = listOf("gemini-3.8-flash", "gemini-3.5-flash-lite")
+        val MODELS = listOf("gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.5-flash")
     }
 }
 

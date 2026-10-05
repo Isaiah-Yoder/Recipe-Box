@@ -28,7 +28,7 @@ class CardRecipeTest {
             servings = "10-12 pancakes",
             prepTime = "5 mins",
             cookTime = "20 mins",
-            ingredients = listOf(CardLine("Dry:", isHeading = true), CardLine("• 2 cups flour")),
+            ingredients = listOf(CardLine("Ingredients", isHeading = true), CardLine("DRY:", isHeading = true), CardLine("• 2 cups flour")),
             steps = listOf(CardLine("Mix."), CardLine("   ")),
         ).toEntity(listOf("card-1.jpg", "card-2.jpg"), now = 5)
         assertEquals("Pancakes", entity.title)

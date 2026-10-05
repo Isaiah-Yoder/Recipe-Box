@@ -50,12 +50,20 @@ data class CardRecipe(
         val text = line.text.trim().trimStart('•', '-', '*').trim()
         when {
             text.isEmpty() -> null
-            line.isHeading || (text.endsWith(":") && text.length <= 60) -> RecipeLine(text.trimEnd(':').trim(), isHeader = true)
+            // The recipe screen already labels its sections, so a copied card label adds nothing.
+            text.trimEnd(':').trim().lowercase() in sectionNames -> null
+            line.isHeading || (text.endsWith(":") && text.length <= 60) -> RecipeLine(headingCase(text.trimEnd(':').trim()), isHeader = true)
             else -> RecipeLine(text)
         }
     }
 
+    /** Turns a heading written in capitals on the card, such as "DRY", into "Dry". */
+    private fun headingCase(text: String): String =
+        if (text.any { it.isLetter() } && text == text.uppercase()) text.lowercase().replaceFirstChar { it.uppercase() } else text
+
     companion object {
+        private val sectionNames = setOf("ingredients", "directions", "instructions", "method", "steps")
+
         /** Shown where a web recipe shows its site, such as "Allrecipes". */
         const val SITE_NAME = "Recipe card"
     }
