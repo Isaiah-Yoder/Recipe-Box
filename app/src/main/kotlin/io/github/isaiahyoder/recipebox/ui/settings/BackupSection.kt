@@ -33,7 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import io.github.isaiahyoder.recipebox.BuildConfigValues
 import io.github.isaiahyoder.recipebox.appContainer
+import io.github.isaiahyoder.recipebox.ui.copyToClipboard
 import io.github.isaiahyoder.recipebox.backup.BackupFile
 import io.github.isaiahyoder.recipebox.backup.DriveAuth
 import io.github.isaiahyoder.recipebox.backup.DriveBackupResult
@@ -161,6 +163,13 @@ fun BackupSection() {
     FlowRow(Modifier.padding(start = 8.dp, end = 8.dp)) {
         if (!status.enabled || status.lastError?.contains("reconnect", ignoreCase = true) == true) {
             TextButton(onClick = { connect() }, enabled = busy == null) { Text("Connect Google Drive") }
+        }
+        val problems = listOfNotNull(connectProblem, status.lastError?.takeIf { status.enabled })
+        if (problems.isNotEmpty()) {
+            TextButton(onClick = {
+                val version = BuildConfigValues.versionName(context)
+                copyToClipboard(context, "Google Drive problem", (listOf("Recipe Box $version Google Drive") + problems).joinToString("\n"))
+            }) { Text("Copy details") }
         }
         if (status.enabled) {
             TextButton(onClick = { scope.launch { backUpNow() } }, enabled = busy == null) { Text("Back up now") }

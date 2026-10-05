@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.isaiahyoder.recipebox.appContainer
+import io.github.isaiahyoder.recipebox.ui.copyToClipboard
 import io.github.isaiahyoder.recipebox.ui.formatAgo
 import io.github.isaiahyoder.recipebox.update.AppUpdater
 import io.github.isaiahyoder.recipebox.update.AvailableUpdate
@@ -244,8 +245,16 @@ fun UpdateSettingsItem() {
 
     if (current is UpdateState.Failed) {
         val context = LocalContext.current
-        TextButton(onClick = { openReleasePage(context) }, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Text("Download from GitHub")
+        Row(Modifier.padding(horizontal = 8.dp)) {
+            TextButton(onClick = { openReleasePage(context) }) { Text("Download from GitHub") }
+            TextButton(onClick = {
+                val details = listOfNotNull(
+                    "Recipe Box ${updater.installedVersion} update to ${current.update?.versionName ?: "unknown"}",
+                    current.message,
+                    updater.lastProblem,
+                ).joinToString("\n")
+                copyToClipboard(context, "Update problem", details)
+            }) { Text("Copy details") }
         }
     }
 

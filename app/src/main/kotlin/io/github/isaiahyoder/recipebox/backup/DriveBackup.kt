@@ -88,11 +88,13 @@ class DriveBackup(
         val api = error as? ApiException ?: return error.message ?: error.javaClass.simpleName
         val code = api.statusCode
         val name = CommonStatusCodes.getStatusCodeString(code)
-        val hint = when (code) {
-            CommonStatusCodes.DEVELOPER_ERROR ->
+        val hint = when {
+            // Google can't match this app's package name and signing fingerprint to an Android
+            // client in the Google Cloud project, so sign-in can't start.
+            code == CommonStatusCodes.DEVELOPER_ERROR || "UNREGISTERED_ON_API_CONSOLE" in api.message.orEmpty() ->
                 "Google doesn't recognize this app's sign-in setup. The Android client in Google Cloud needs this app's package name and signing fingerprint."
-            CommonStatusCodes.NETWORK_ERROR -> "Check the internet connection."
-            CommonStatusCodes.CANCELED -> "Sign-in was canceled."
+            code == CommonStatusCodes.NETWORK_ERROR -> "Check the internet connection."
+            code == CommonStatusCodes.CANCELED -> "Sign-in was canceled."
             else -> null
         }
         return listOfNotNull(hint, "Google code $code ($name)${api.message?.let { ": $it" } ?: ""}").joinToString(" ")
