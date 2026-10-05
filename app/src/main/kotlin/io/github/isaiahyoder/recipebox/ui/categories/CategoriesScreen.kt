@@ -151,6 +151,7 @@ fun CategoriesScreen(onBack: () -> Unit) {
                 scope.launch { dao.createCategory(name) }
             },
             onDismiss = { creating = false },
+            problem = { name -> takenMessage(categories, name, exceptId = null) },
         )
     }
     categories.firstOrNull { it.id == renaming }?.let { category ->
@@ -162,6 +163,7 @@ fun CategoriesScreen(onBack: () -> Unit) {
                 scope.launch { dao.renameCategory(category.id, name.trim()) }
             },
             onDismiss = { renaming = null },
+            problem = { name -> takenMessage(categories, name, exceptId = category.id) },
         )
     }
     categories.firstOrNull { it.id == deleting }?.let { category: CategoryEntity ->
@@ -180,9 +182,25 @@ fun CategoriesScreen(onBack: () -> Unit) {
     }
 }
 
+/** Category names must be unique, ignoring case. */
+private fun takenMessage(categories: List<CategoryEntity>, name: String, exceptId: Long?): String? =
+    if (categories.any { it.id != exceptId && it.name.equals(name, ignoreCase = true) }) {
+        "You already have a category named \"$name\"."
+    } else {
+        null
+    }
+
 @Composable
-fun NameDialog(title: String, initial: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+fun NameDialog(
+    title: String,
+    initial: String,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+    /** Explains why a name can't be used, such as one already taken, or null when it can. */
+    problem: (String) -> String? = { null },
+) {
     var name by rememberSaveable { mutableStateOf(initial) }
+    val issue = problem(name.trim())
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
@@ -192,10 +210,14 @@ fun NameDialog(title: String, initial: String, onSave: (String) -> Unit, onDismi
                 onValueChange = { name = it },
                 label = { Text("Name") },
                 singleLine = true,
+                isError = issue != null,
+                supportingText = issue?.let { { Text(it) } },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
             )
         },
-        confirmButton = { TextButton(onClick = { onSave(name.trim()) }, enabled = name.isNotBlank()) { Text("Save") } },
+        confirmButton = {
+            TextButton(onClick = { onSave(name.trim()) }, enabled = name.isNotBlank() && issue == null) { Text("Save") }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

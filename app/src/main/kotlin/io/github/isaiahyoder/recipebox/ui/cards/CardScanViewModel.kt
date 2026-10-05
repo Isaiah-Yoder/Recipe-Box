@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.cards
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,7 +73,7 @@ class CardScanViewModel(
         error = null
         reading = CardReaderKind.GEMINI
         viewModelScope.launch {
-            runCatching { reader.read(names.map(photos::file)) { reading = it } }
+            runCatchingCancellable { reader.read(names.map(photos::file)) { reading = it } }
                 .onSuccess { result ->
                     reading = null
                     onRead(CardDrafts.put(CardDraft(result.recipe, names, result.kind, result.problems)))

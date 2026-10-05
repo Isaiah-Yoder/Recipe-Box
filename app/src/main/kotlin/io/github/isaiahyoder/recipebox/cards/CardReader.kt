@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import java.io.File
 
@@ -27,18 +28,18 @@ class CardReader(
         val problems = mutableListOf<String>()
         settings.geminiKey.value?.let { key ->
             onStep(CardReaderKind.GEMINI)
-            runCatching { gemini.read(key, photos) }
+            runCatchingCancellable { gemini.read(key, photos) }
                 .onSuccess { return CardReadResult(it, CardReaderKind.GEMINI, problems) }
                 .onFailure { problems += it.message ?: "Gemini didn't work." }
         }
         if (nano.status.value == OnDeviceAiStatus.READY) {
             onStep(CardReaderKind.ON_DEVICE_AI)
-            runCatching { nano.read(photos) }
+            runCatchingCancellable { nano.read(photos) }
                 .onSuccess { return CardReadResult(it, CardReaderKind.ON_DEVICE_AI, problems) }
                 .onFailure { problems += it.message ?: "On-device AI didn't work." }
         }
         onStep(CardReaderKind.TEXT_RECOGNITION)
-        val recipe = runCatching { text.read(photos) }.getOrElse { error ->
+        val recipe = runCatchingCancellable { text.read(photos) }.getOrElse { error ->
             problems += error.message ?: "Text recognition didn't work."
             throw CardReadException(problems.joinToString(" "))
         }

@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -74,7 +75,7 @@ class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets) {
 
     /** Checks that [key] works without sending any photos. */
     suspend fun checkKey(key: String): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingCancellable {
             val request = Request.Builder().url("$BASE/models?pageSize=1").header("x-goog-api-key", key).build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw failure(response.code, response.body.string())

@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.update
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -84,7 +85,7 @@ class AppUpdater(
         val busy = _state.value
         if (busy is UpdateState.Downloading || busy is UpdateState.Installing) return@withLock busy
         _state.value = UpdateState.Checking
-        val result = runCatching { fetchLatest() }.fold(
+        val result = runCatchingCancellable { fetchLatest() }.fold(
             onSuccess = { update -> update?.let { UpdateState.Available(it) } ?: UpdateState.UpToDate(System.currentTimeMillis()) },
             onFailure = { UpdateState.Failed(null, "Couldn't check for updates. Check your internet connection.") },
         )
@@ -125,7 +126,7 @@ class AppUpdater(
         if (current is UpdateState.Downloading || current is UpdateState.Installing) return
         _state.value = UpdateState.Downloading(update, 0f)
         scope.launch {
-            runCatching {
+            runCatchingCancellable {
                 val file = download(update)
                 verify(file)
                 _state.value = UpdateState.Installing(update)

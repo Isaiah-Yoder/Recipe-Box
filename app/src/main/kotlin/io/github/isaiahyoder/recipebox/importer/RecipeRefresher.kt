@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -108,7 +109,7 @@ class RecipeRefresher(
         val url = recipe.sourceUrl ?: return false
         val unedited = recipe.copy(editedFields = emptyList())
         val saved = dao.getPage(id)?.let { RecipeExtractor.extract(it.html, url) }?.takeIf { it.isComplete }
-        val page = saved ?: runCatching { importer.load(url).recipe }.getOrNull() ?: return false
+        val page = saved ?: runCatchingCancellable { importer.load(url).recipe }.getOrNull() ?: return false
         apply(unedited, page)
         return true
     }
@@ -140,7 +141,7 @@ class RecipeRefresher(
     private suspend fun refreshOne(id: Long): Outcome {
         val recipe = dao.getRecipe(id) ?: return Outcome.GONE
         val url = recipe.sourceUrl ?: return Outcome.GONE
-        val page = runCatching { importer.load(url).recipe }.getOrNull() ?: return Outcome.FAILED
+        val page = runCatchingCancellable { importer.load(url).recipe }.getOrNull() ?: return Outcome.FAILED
         apply(recipe, page)
         return Outcome.UPDATED
     }

@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.settings
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -93,7 +94,7 @@ fun BackupSection() {
 
     fun connect() = scope.launch {
         busy = "Connecting to Google Drive…"
-        runCatching { drive.authorize() }
+        runCatchingCancellable { drive.authorize() }
             .onSuccess { auth ->
                 when (auth) {
                     is DriveAuth.NeedsConsent -> consent.launch(IntentSenderRequest.Builder(auth.intent).build())
@@ -118,7 +119,7 @@ fun BackupSection() {
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             busy = "Saving backup file…"
-            runCatching {
+            runCatchingCancellable {
                 val backup = container.backupManager.snapshot()
                 context.contentResolver.openOutputStream(uri)!!.use {
                     container.backupManager.writeZip(backup, it, includePhotos = true)
@@ -131,7 +132,7 @@ fun BackupSection() {
     val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            runCatching { context.contentResolver.openInputStream(uri)!!.use { container.backupManager.readZip(it) } }
+            runCatchingCancellable { context.contentResolver.openInputStream(uri)!!.use { container.backupManager.readZip(it) } }
                 .onSuccess { pendingFileRestore = it }
                 .onFailure { toast(it.message ?: "Couldn't read that file.") }
         }
@@ -176,7 +177,7 @@ fun BackupSection() {
             TextButton(onClick = {
                 scope.launch {
                     busy = "Finding backups…"
-                    runCatching { drive.listBackups() }
+                    runCatchingCancellable { drive.listBackups() }
                         .onSuccess { driveBackups = it }
                         .onFailure { toast(it.message ?: "Couldn't list backups.") }
                     busy = null
@@ -249,7 +250,7 @@ fun BackupSection() {
                 pendingDriveRestore = null
                 scope.launch {
                     busy = "Restoring from Google Drive…"
-                    runCatching { drive.restore(file) }
+                    runCatchingCancellable { drive.restore(file) }
                         .onSuccess {
                             PhotoRestorer.schedule(context)
                             toast("Restored. Recipe photos are downloading in the background.")
@@ -269,7 +270,7 @@ fun BackupSection() {
                 pendingFileRestore = null
                 scope.launch {
                     busy = "Restoring…"
-                    runCatching { container.backupManager.restore(backup) { photos[it] } }
+                    runCatchingCancellable { container.backupManager.restore(backup) { photos[it] } }
                         .onSuccess {
                             PhotoRestorer.schedule(context)
                             toast("Restored. Recipe photos are downloading in the background.")

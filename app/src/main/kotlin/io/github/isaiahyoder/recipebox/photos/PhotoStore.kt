@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.photos
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -40,13 +41,13 @@ class PhotoStore(
 
     suspend fun downloadCover(imageUrl: String, recipeId: Long): String? {
         val bytes = withContext(Dispatchers.IO) {
-            runCatching {
+            runCatchingCancellable {
                 val request = Request.Builder().url(imageUrl).header("User-Agent", userAgent).build()
                 client.newCall(request).execute().use { response ->
                     if (response.isSuccessful) response.body.bytes() else null
                 }
             }.getOrNull()
-        } ?: browserImage?.let { load -> runCatching { load(imageUrl, MAX_EDGE) }.getOrNull() }
+        } ?: browserImage?.let { load -> runCatchingCancellable { load(imageUrl, MAX_EDGE) }.getOrNull() }
             ?: return null
         return withContext(Dispatchers.IO) {
             runCatching {

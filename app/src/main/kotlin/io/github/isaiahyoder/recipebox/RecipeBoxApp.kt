@@ -1,9 +1,11 @@
 package io.github.isaiahyoder.recipebox
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import io.github.isaiahyoder.recipebox.diagnostics.StallWatchdog
 import android.app.Application
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import android.webkit.WebView
 import io.github.isaiahyoder.recipebox.backup.BackupManager
 import io.github.isaiahyoder.recipebox.cards.CardAssets
@@ -48,20 +50,30 @@ class RecipeBoxApp : Application() {
     }
 }
 
-/** Applies tag and reading rules that changed in an app update to the saved recipes, once. */
+/**
+ * Applies tag and reading rules that changed in an app update to the saved
+ * recipes, once. A version is recorded only after its work succeeds, so work
+ * that failed runs again at the next start.
+ */
 private suspend fun applyNewRules(container: AppContainer) {
     val settings = container.settings
     if (settings.readingVersion < ContentVersions.READING) {
-        runCatching { container.recipeRefresher.upgradeReading() }
-        settings.readingVersion = ContentVersions.READING
-        // Reading again recomputes tags too.
-        settings.tagRulesVersion = ContentVersions.TAG_RULES
+        runCatchingCancellable { container.recipeRefresher.upgradeReading() }
+            .onSuccess {
+                settings.readingVersion = ContentVersions.READING
+                // Reading again recomputes tags too.
+                settings.tagRulesVersion = ContentVersions.TAG_RULES
+            }
+            .onFailure { Log.w(TAG, "Reading saved recipes again failed", it) }
     }
     if (settings.tagRulesVersion < ContentVersions.TAG_RULES) {
-        runCatching { container.tagRefresher.refreshAll() }
-        settings.tagRulesVersion = ContentVersions.TAG_RULES
+        runCatchingCancellable { container.tagRefresher.refreshAll() }
+            .onSuccess { settings.tagRulesVersion = ContentVersions.TAG_RULES }
+            .onFailure { Log.w(TAG, "Applying new tag rules failed", it) }
     }
 }
+
+private const val TAG = "RecipeBox"
 
 /** Creates the app's long-lived objects once and shares them. */
 class AppContainer(context: Context) {

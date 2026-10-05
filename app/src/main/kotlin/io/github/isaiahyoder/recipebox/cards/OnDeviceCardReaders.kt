@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -39,7 +40,7 @@ class NanoCardReader(private val assets: CardAssets, private val scope: Coroutin
     /** Checks the phone and starts the model download when it's needed. */
     fun refresh() {
         scope.launch {
-            val current = runCatching { model?.checkStatus() }.getOrNull()
+            val current = runCatchingCancellable { model?.checkStatus() }.getOrNull()
             _status.value = when (current) {
                 FeatureStatus.AVAILABLE -> OnDeviceAiStatus.READY
                 FeatureStatus.DOWNLOADING -> OnDeviceAiStatus.DOWNLOADING
@@ -54,8 +55,8 @@ class NanoCardReader(private val assets: CardAssets, private val scope: Coroutin
 
     private fun download() {
         scope.launch {
-            val succeeded = runCatching { model?.download()?.collect {} }.isSuccess
-            _status.value = if (succeeded && runCatching { model?.checkStatus() }.getOrNull() == FeatureStatus.AVAILABLE) {
+            val succeeded = runCatchingCancellable { model?.download()?.collect {} }.isSuccess
+            _status.value = if (succeeded && runCatchingCancellable { model?.checkStatus() }.getOrNull() == FeatureStatus.AVAILABLE) {
                 OnDeviceAiStatus.READY
             } else {
                 OnDeviceAiStatus.UNAVAILABLE
@@ -65,7 +66,7 @@ class NanoCardReader(private val assets: CardAssets, private val scope: Coroutin
 
     suspend fun read(photos: List<File>): CardRecipe {
         val model = model ?: throw CardReadException("This phone doesn't have on-device AI.")
-        if (runCatching { model.checkStatus() }.getOrNull() != FeatureStatus.AVAILABLE) {
+        if (runCatchingCancellable { model.checkStatus() }.getOrNull() != FeatureStatus.AVAILABLE) {
             throw CardReadException("On-device AI isn't ready on this phone.")
         }
         // Smaller images keep the request within the on-device model's limit.
@@ -79,7 +80,7 @@ class NanoCardReader(private val assets: CardAssets, private val scope: Coroutin
             temperature = 0.1f
             maxOutputTokens = 2048
         }
-        val text = runCatching { model.generateContent(request).candidates.firstOrNull()?.text }
+        val text = runCatchingCancellable { model.generateContent(request).candidates.firstOrNull()?.text }
             .getOrElse { throw CardReadException("On-device AI couldn't read the card.") }
         val recipe = text?.let(CardJson::parse)
         if (recipe == null || recipe.isEmpty) throw CardReadException("On-device AI couldn't find a recipe in the photos.")

@@ -242,7 +242,20 @@ interface RecipeDao {
     }
 
     @Query("UPDATE categories SET name = :name WHERE id = :id")
-    suspend fun renameCategory(id: Long, name: String)
+    suspend fun setCategoryName(id: Long, name: String)
+
+    /**
+     * Renames a category unless another one already has the name, ignoring
+     * case. Returns false when the name is taken; the name must stay unique.
+     */
+    @Transaction
+    suspend fun renameCategory(id: Long, name: String): Boolean {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return false
+        if (getCategories().any { it.id != id && it.name.equals(trimmed, ignoreCase = true) }) return false
+        setCategoryName(id, trimmed)
+        return true
+    }
 
     /** Deletes a category; its recipes stay in the library. */
     @Query("DELETE FROM categories WHERE id = :id")

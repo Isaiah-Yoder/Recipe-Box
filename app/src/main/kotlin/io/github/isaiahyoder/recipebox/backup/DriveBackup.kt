@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.backup
 
+import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -106,17 +107,17 @@ class DriveBackup(
      */
     suspend fun backUp(force: Boolean): DriveBackupResult = running.withLock {
         val now = clock()
-        val result = runCatching {
+        val result = runCatchingCancellable {
             val token = when (val auth = authorize()) {
                 is DriveAuth.Token -> auth.value
                 is DriveAuth.NeedsConsent ->
-                    return@runCatching DriveBackupResult.Failed("Google Drive needs you to reconnect. Open Settings and tap Connect.")
+                    return@runCatchingCancellable DriveBackupResult.Failed("Google Drive needs you to reconnect. Open Settings and tap Connect.")
             }
             val snapshot = backups.snapshot()
             val hash = backups.contentHash(snapshot)
             val status = settings.driveStatus.value
             if (!force && hash == settings.driveLastHash && now - status.lastSuccess < TimeUnit.DAYS.toMillis(6)) {
-                return@runCatching DriveBackupResult.Unchanged
+                return@runCatchingCancellable DriveBackupResult.Unchanged
             }
 
             val api = DriveApi(client, token)
