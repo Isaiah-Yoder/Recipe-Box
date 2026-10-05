@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
@@ -30,7 +32,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.ImportStatus
+import io.github.isaiahyoder.recipebox.ui.categories.CategoriesScreen
 import io.github.isaiahyoder.recipebox.ui.editor.RecipeEditorScreen
+import io.github.isaiahyoder.recipebox.ui.grocery.GroceryListScreen
+import io.github.isaiahyoder.recipebox.ui.grocery.GroceryListsScreen
 import io.github.isaiahyoder.recipebox.ui.library.LibraryScreen
 import io.github.isaiahyoder.recipebox.ui.queue.QueueScreen
 import io.github.isaiahyoder.recipebox.ui.recipe.RecipeScreen
@@ -42,6 +47,9 @@ import kotlinx.serialization.Serializable
 @Serializable data class RecipeRoute(val id: Long)
 @Serializable data object QueueRoute
 @Serializable data object SettingsRoute
+@Serializable data object CategoriesRoute
+@Serializable data object GroceryListsRoute
+@Serializable data class GroceryListRoute(val id: Long)
 @Serializable data class RecipeEditRoute(val recipeId: Long = 0, val sourceUrl: String? = null, val importJobId: Long = 0)
 
 @Composable
@@ -76,6 +84,22 @@ fun RecipeBoxNavHost() {
                 QueueScreen(
                     onOpenRecipe = { navController.navigate(RecipeRoute(it)) },
                     onEnterManually = { url, jobId -> navController.navigate(RecipeEditRoute(sourceUrl = url, importJobId = jobId)) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<CategoriesRoute> {
+                CategoriesScreen(onBack = { navController.popBackStack() })
+            }
+            composable<GroceryListsRoute> {
+                GroceryListsScreen(
+                    onOpenList = { navController.navigate(GroceryListRoute(it)) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<GroceryListRoute> { entry ->
+                GroceryListScreen(
+                    listId = entry.toRoute<GroceryListRoute>().id,
+                    onOpenRecipe = { navController.navigate(RecipeRoute(it)) },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -137,6 +161,20 @@ private fun AppDrawer(navController: NavHostController, onClose: () -> Unit) {
             icon = { Icon(Icons.Filled.MenuBook, contentDescription = null) },
             selected = false,
             onClick = { go(LibraryRoute) },
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        NavigationDrawerItem(
+            label = { Text("Grocery lists") },
+            icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
+            selected = false,
+            onClick = { go(GroceryListsRoute) },
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        NavigationDrawerItem(
+            label = { Text("Categories") },
+            icon = { Icon(Icons.Filled.Folder, contentDescription = null) },
+            selected = false,
+            onClick = { go(CategoriesRoute) },
             modifier = Modifier.padding(horizontal = 12.dp),
         )
         NavigationDrawerItem(

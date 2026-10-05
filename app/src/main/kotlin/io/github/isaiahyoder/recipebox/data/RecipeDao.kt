@@ -28,15 +28,34 @@ interface RecipeDao {
                 JOIN tags t ON t.id = rt.tagId
                 WHERE rt.recipeId = r.id AND rt.hidden = 0) AS tagNames
         FROM recipes r
-        WHERE :query = ''
+        WHERE (:query = ''
             OR r.title LIKE '%' || :query || '%'
             OR r.ingredients LIKE '%' || :query || '%'
             OR EXISTS (SELECT 1 FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
-                WHERE rt.recipeId = r.id AND rt.hidden = 0 AND t.name LIKE '%' || :query || '%')
+                WHERE rt.recipeId = r.id AND rt.hidden = 0 AND t.name LIKE '%' || :query || '%'))
+          AND (:categoryId = 0 OR EXISTS (SELECT 1 FROM recipe_categories rc
+                WHERE rc.recipeId = r.id AND rc.categoryId = :categoryId))
+          AND (:tag = '' OR EXISTS (SELECT 1 FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
+                WHERE rt.recipeId = r.id AND rt.hidden = 0 AND t.name = :tag))
+          AND (:favoritesOnly = 0 OR r.favorite = 1)
         ORDER BY r.favorite DESC, r.updatedAt DESC
         """
     )
-    fun observeSummaries(query: String): Flow<List<RecipeSummary>>
+    fun observeSummaries(
+        query: String,
+        categoryId: Long = 0,
+        tag: String = "",
+        favoritesOnly: Boolean = false,
+    ): Flow<List<RecipeSummary>>
+
+    /** Tag names on at least one recipe, for filters and suggestions. */
+    @Query(
+        """
+        SELECT DISTINCT t.name FROM tags t JOIN recipe_tags rt ON rt.tagId = t.id
+        WHERE rt.hidden = 0 ORDER BY t.name COLLATE NOCASE
+        """
+    )
+    fun observeTagNamesInUse(): Flow<List<String>>
 
     @Query("SELECT * FROM recipes WHERE id = :id")
     fun observeRecipe(id: Long): Flow<RecipeEntity?>
@@ -138,12 +157,61 @@ interface RecipeDao {
 
     // Categories
 
+    @Query("SELECT * FROM categories ORDER BY position, name COLLATE NOCASE")
+    fun observeCategories(): Flow<List<CategoryEntity>>
+
+    @Query("SELECT * FROM categories ORDER BY position, name COLLATE NOCASE")
+    suspend fun getCategories(): List<CategoryEntity>
+
+    @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM categories")
+    suspend fun nextCategoryPosition(): Int
+
     @Insert
     suspend fun insertCategory(category: CategoryEntity): Long
+
+    /** Creates a category at the end of the list, or returns the existing one with that name. */
+    @Transaction
+    suspend fun createCategory(name: String): Long {
+        val trimmed = name.trim()
+        getCategories().firstOrNull { it.name.equals(trimmed, ignoreCase = true) }?.let { return it.id }
+        return insertCategory(CategoryEntity(name = trimmed, position = nextCategoryPosition()))
+    }
+
+    @Query("UPDATE categories SET name = :name WHERE id = :id")
+    suspend fun renameCategory(id: Long, name: String)
+
+    /** Deletes a category; its recipes stay in the library. */
+    @Query("DELETE FROM categories WHERE id = :id")
+    suspend fun deleteCategory(id: Long)
+
+    @Query("UPDATE categories SET position = :position WHERE id = :id")
+    suspend fun setCategoryPosition(id: Long, position: Int)
+
+    @Transaction
+    suspend fun reorderCategories(idsInOrder: List<Long>) {
+        idsInOrder.forEachIndexed { index, id -> setCategoryPosition(id, index) }
+    }
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addToCategory(link: RecipeCategoryEntity)
 
+    @Query("DELETE FROM recipe_categories WHERE recipeId = :recipeId")
+    suspend fun clearRecipeCategories(recipeId: Long)
+
+    @Transaction
+    suspend fun setRecipeCategories(recipeId: Long, categoryIds: Collection<Long>) {
+        clearRecipeCategories(recipeId)
+        categoryIds.forEach { addToCategory(RecipeCategoryEntity(recipeId, it)) }
+    }
+
     @Query("SELECT categoryId FROM recipe_categories WHERE recipeId = :recipeId")
     suspend fun getCategoryIds(recipeId: Long): List<Long>
+
+    @Query(
+        """
+        SELECT c.* FROM categories c JOIN recipe_categories rc ON rc.categoryId = c.id
+        WHERE rc.recipeId = :recipeId ORDER BY c.position, c.name COLLATE NOCASE
+        """
+    )
+    fun observeRecipeCategories(recipeId: Long): Flow<List<CategoryEntity>>
 }

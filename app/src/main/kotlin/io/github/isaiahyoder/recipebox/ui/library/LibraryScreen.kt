@@ -13,10 +13,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Restaurant
@@ -25,6 +28,10 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -54,6 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import io.github.isaiahyoder.recipebox.appContainer
+import io.github.isaiahyoder.recipebox.data.CategoryEntity
 import io.github.isaiahyoder.recipebox.data.RecipeSummary
 import io.github.isaiahyoder.recipebox.importer.Links
 import io.github.isaiahyoder.recipebox.ui.queue.QueueBanner
@@ -71,8 +79,11 @@ fun LibraryScreen(
 ) {
     val container = LocalContext.current.appContainer
     val viewModel = viewModel { LibraryViewModel(container.database.recipeDao()) }
-    val query by viewModel.query.collectAsStateWithLifecycle()
+    val filter by viewModel.filter.collectAsStateWithLifecycle()
+    val query = filter.query
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val tags by viewModel.tags.collectAsStateWithLifecycle()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     // Owned by the screen, not the dialog: closing the dialog must not cancel adding the links.
     val scope = rememberCoroutineScope()
@@ -113,13 +124,24 @@ fun LibraryScreen(
                 },
                 singleLine = true,
             )
+            FilterRow(
+                filter = filter,
+                categories = categories,
+                tags = tags,
+                onToggleFavorites = viewModel::toggleFavorites,
+                onToggleCategory = viewModel::toggleCategory,
+                onSetTag = viewModel::setTag,
+            )
             when {
                 recipes == null -> Unit
-                recipes!!.isEmpty() && query.isBlank() -> EmptyLibrary()
-                recipes!!.isEmpty() -> Text(
-                    "No recipes match \"$query\".",
-                    modifier = Modifier.padding(24.dp),
-                )
+                recipes!!.isEmpty() && !filter.isFiltered -> EmptyLibrary()
+                recipes!!.isEmpty() -> Column(Modifier.padding(24.dp)) {
+                    Text("No recipes match your search and filters.")
+                    TextButton(onClick = {
+                        viewModel.setQuery("")
+                        viewModel.clearFilters()
+                    }) { Text("Clear search and filters") }
+                }
                 else -> LazyColumn(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -144,6 +166,67 @@ fun LibraryScreen(
                 onNewRecipe()
             },
         )
+    }
+}
+
+/** Favorites, categories, and one tag; all of them combine with the search text. */
+@Composable
+private fun FilterRow(
+    filter: LibraryFilter,
+    categories: List<CategoryEntity>,
+    tags: List<String>,
+    onToggleFavorites: () -> Unit,
+    onToggleCategory: (Long) -> Unit,
+    onSetTag: (String) -> Unit,
+) {
+    var tagMenuOpen by remember { mutableStateOf(false) }
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            FilterChip(
+                selected = filter.favoritesOnly,
+                onClick = onToggleFavorites,
+                label = { Text("Favorites") },
+                leadingIcon = { Icon(Icons.Filled.Favorite, contentDescription = null, Modifier.size(18.dp)) },
+            )
+        }
+        item {
+            Box {
+                if (filter.tag.isNotEmpty()) {
+                    InputChip(
+                        selected = true,
+                        onClick = { onSetTag("") },
+                        label = { Text(filter.tag) },
+                        trailingIcon = { Icon(Icons.Filled.Close, contentDescription = "Clear tag filter", Modifier.size(18.dp)) },
+                    )
+                } else {
+                    FilterChip(
+                        selected = false,
+                        onClick = { tagMenuOpen = true },
+                        label = { Text("Tag") },
+                        trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null, Modifier.size(18.dp)) },
+                        enabled = tags.isNotEmpty(),
+                    )
+                }
+                DropdownMenu(expanded = tagMenuOpen, onDismissRequest = { tagMenuOpen = false }) {
+                    tags.forEach { tag ->
+                        DropdownMenuItem(text = { Text(tag) }, onClick = {
+                            tagMenuOpen = false
+                            onSetTag(tag)
+                        })
+                    }
+                }
+            }
+        }
+        items(categories, key = { it.id }) { category ->
+            FilterChip(
+                selected = filter.categoryId == category.id,
+                onClick = { onToggleCategory(category.id) },
+                label = { Text(category.name) },
+            )
+        }
     }
 }
 

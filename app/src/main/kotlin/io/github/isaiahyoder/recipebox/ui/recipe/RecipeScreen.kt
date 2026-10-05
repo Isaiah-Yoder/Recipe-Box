@@ -1,6 +1,13 @@
 package io.github.isaiahyoder.recipebox.ui.recipe
 
 import android.content.Intent
+import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Lightbulb
@@ -77,6 +85,7 @@ import io.github.isaiahyoder.recipebox.ingredients.Fractions
 import io.github.isaiahyoder.recipebox.ingredients.IngredientParser
 import io.github.isaiahyoder.recipebox.ingredients.IngredientScaler
 import io.github.isaiahyoder.recipebox.ingredients.StepText
+import io.github.isaiahyoder.recipebox.ui.grocery.AddToGroceryListDialog
 import io.github.isaiahyoder.recipebox.ui.formatMinutes
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -96,6 +105,7 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
     val cookMode by viewModel.cookMode.collectAsStateWithLifecycle()
     var menuOpen by remember { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var addingToList by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
     // Cook mode keeps the screen on only while this screen is showing.
@@ -135,6 +145,14 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                                 Icon(Icons.Filled.MoreVert, contentDescription = "More options")
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Add to grocery list") },
+                                    leadingIcon = { Icon(Icons.Filled.ShoppingCart, null) },
+                                    onClick = {
+                                        menuOpen = false
+                                        addingToList = true
+                                    },
+                                )
                                 DropdownMenuItem(
                                     text = { Text("Edit recipe") },
                                     leadingIcon = { Icon(Icons.Filled.Edit, null) },
@@ -178,12 +196,26 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
             is RecipeUiState.Loaded -> RecipeContent(
                 recipe = recipe!!,
                 tags = tags,
+                viewModel = viewModel,
                 cookMode = cookMode,
                 contentPadding = padding,
                 onScale = viewModel::setScale,
                 onShowUsUnits = viewModel::setShowUsUnits,
             )
         }
+    }
+
+    if (addingToList && recipe != null) {
+        AddToGroceryListDialog(
+            dao = container.database.groceryDao(),
+            recipeId = recipe.id,
+            scale = recipe.lastScale,
+            onDone = { listName ->
+                addingToList = false
+                Toast.makeText(context, "Added to $listName", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { addingToList = false },
+        )
     }
 
     if (confirmDelete && recipe != null) {
@@ -207,6 +239,7 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
 private fun RecipeContent(
     recipe: RecipeEntity,
     tags: List<String>,
+    viewModel: RecipeViewModel,
     cookMode: Boolean,
     contentPadding: PaddingValues,
     onScale: (Double) -> Unit,
@@ -215,7 +248,15 @@ private fun RecipeContent(
     val container = LocalContext.current.appContainer
     // The slider moves freely while dragging and saves when released.
     var sliderIndex by remember(recipe.id) { mutableFloatStateOf(indexOfScale(recipe.lastScale).toFloat()) }
-    val scale = scaleStops[sliderIndex.roundToInt().coerceIn(scaleStops.indices)]
+    // A typed serving count gives a scale between slider stops, such as 8 of 6 servings.
+    var customScale by remember(recipe.id) {
+        mutableStateOf(recipe.lastScale.takeIf { saved -> scaleStops.none { abs(it - saved) < 1e-6 } })
+    }
+    val scale = customScale ?: scaleStops[sliderIndex.roundToInt().coerceIn(scaleStops.indices)]
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    var addingTag by rememberSaveable { mutableStateOf(false) }
+    var editingCategories by rememberSaveable { mutableStateOf(false) }
+    var editingServings by rememberSaveable { mutableStateOf(false) }
     val hasMetric = remember(recipe.ingredients) {
         recipe.ingredients.any { !it.isHeader && IngredientParser.parse(it.text).unit?.isMetric == true }
     }
@@ -255,10 +296,36 @@ private fun RecipeContent(
                     formatMinutes(recipe.totalMinutes)?.let { "Total $it" },
                 )
                 if (times.isNotEmpty()) Text(times.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
-                if (tags.isNotEmpty()) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        tags.forEach { AssistChip(onClick = {}, label = { Text(it) }) }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    tags.forEach { tag ->
+                        InputChip(
+                            selected = false,
+                            onClick = {},
+                            label = { Text(tag) },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = "Remove tag $tag",
+                                    modifier = Modifier.size(18.dp).clickable { viewModel.removeTag(tag) },
+                                )
+                            },
+                        )
                     }
+                    AssistChip(
+                        onClick = { addingTag = true },
+                        label = { Text("Add tag") },
+                        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, Modifier.size(18.dp)) },
+                    )
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    categories.forEach { category ->
+                        SuggestionChip(onClick = { editingCategories = true }, label = { Text(category.name) })
+                    }
+                    AssistChip(
+                        onClick = { editingCategories = true },
+                        label = { Text(if (categories.isEmpty()) "Add to category" else "Categories") },
+                        leadingIcon = { Icon(Icons.Filled.Folder, contentDescription = null, Modifier.size(18.dp)) },
+                    )
                 }
             }
         }
@@ -267,9 +334,13 @@ private fun RecipeContent(
                 recipe = recipe,
                 scale = scale,
                 sliderIndex = sliderIndex,
-                onSliderChange = { sliderIndex = it },
+                onSliderChange = {
+                    sliderIndex = it
+                    customScale = null
+                },
+                onEditServings = { editingServings = true },
                 // Read the slider position when the gesture ends; the composed value can lag one frame.
-                onSliderDone = { onScale(scaleStops[sliderIndex.roundToInt().coerceIn(scaleStops.indices)]) },
+                onSliderDone = { if (customScale == null) onScale(scaleStops[sliderIndex.roundToInt().coerceIn(scaleStops.indices)]) },
                 hasMetric = hasMetric,
                 showUsUnits = toUs,
                 onShowUsUnits = onShowUsUnits,
@@ -323,6 +394,45 @@ private fun RecipeContent(
             }
         }
     }
+
+    if (addingTag) {
+        val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+        AddTagDialog(
+            suggestions = allTags.filter { it !in tags },
+            onAdd = { name ->
+                addingTag = false
+                viewModel.addTag(name)
+            },
+            onDismiss = { addingTag = false },
+        )
+    }
+    if (editingCategories) {
+        val allCategories by viewModel.allCategories.collectAsStateWithLifecycle()
+        CategoryPickerDialog(
+            allCategories = allCategories,
+            selected = categories.map { it.id }.toSet(),
+            onCreate = viewModel::createCategory,
+            onSave = { ids ->
+                editingCategories = false
+                viewModel.saveCategories(ids)
+            },
+            onDismiss = { editingCategories = false },
+        )
+    }
+    val servings = recipe.servings
+    if (editingServings && servings != null) {
+        ServingsDialog(
+            current = servings * scale,
+            onSet = { count ->
+                editingServings = false
+                val exact = count / servings
+                customScale = exact.takeIf { s -> scaleStops.none { abs(it - s) < 1e-6 } }
+                sliderIndex = indexOfScale(exact).toFloat()
+                onScale(exact)
+            },
+            onDismiss = { editingServings = false },
+        )
+    }
 }
 
 @Composable
@@ -332,6 +442,7 @@ private fun ScaleCard(
     sliderIndex: Float,
     onSliderChange: (Float) -> Unit,
     onSliderDone: () -> Unit,
+    onEditServings: () -> Unit,
     hasMetric: Boolean,
     showUsUnits: Boolean,
     onShowUsUnits: (Boolean) -> Unit,
@@ -342,10 +453,19 @@ private fun ScaleCard(
                 val count = it * scale
                 "Makes ${Fractions.format(count)} ${if (Fractions.isPlural(count)) "servings" else "serving"}"
             }
-            Text(
-                listOfNotNull("${Fractions.format(scale)}× recipe", makes).joinToString(" · "),
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = if (recipe.servings != null) Modifier.clickable(onClick = onEditServings) else Modifier,
+            ) {
+                Text(
+                    listOfNotNull("${Fractions.format(scale)}× recipe", makes).joinToString(" · "),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                if (recipe.servings != null) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Type a number of servings", Modifier.size(20.dp))
+                }
+            }
             Slider(
                 value = sliderIndex,
                 onValueChange = { onSliderChange(it) },

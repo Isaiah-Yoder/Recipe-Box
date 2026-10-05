@@ -2,6 +2,7 @@ package io.github.isaiahyoder.recipebox.ui.recipe
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.isaiahyoder.recipebox.data.CategoryEntity
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
@@ -30,6 +31,27 @@ class RecipeViewModel(
 
     val tags: StateFlow<List<String>> = dao.observeTagNames(recipeId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val categories: StateFlow<List<CategoryEntity>> = dao.observeRecipeCategories(recipeId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val allCategories: StateFlow<List<CategoryEntity>> = dao.observeCategories()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val allTags: StateFlow<List<String>> = dao.observeTagNamesInUse()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** A tag she adds is hers: updating automatic tags never removes it. */
+    fun addTag(name: String) = viewModelScope.launch {
+        if (name.isNotBlank()) dao.addManualTag(recipeId, name.trim())
+    }
+
+    /** Removed tags stay removed, even automatic ones the rules would add again. */
+    fun removeTag(name: String) = viewModelScope.launch { dao.removeTag(recipeId, name) }
+
+    fun saveCategories(ids: Set<Long>) = viewModelScope.launch { dao.setRecipeCategories(recipeId, ids) }
+
+    suspend fun createCategory(name: String): Long = dao.createCategory(name)
 
     private val _cookMode = MutableStateFlow(false)
     /** Keeps the screen on while she cooks. It isn't saved; it ends when she leaves the recipe. */
