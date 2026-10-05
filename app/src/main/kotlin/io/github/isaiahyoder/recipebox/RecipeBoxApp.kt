@@ -45,10 +45,13 @@ class RecipeBoxApp : Application() {
             if (container.photoRestorer.forgetMissingFiles() > 0) PhotoRestorer.schedule(this@RecipeBoxApp)
             // Card photos from a scan she didn't save.
             container.photos.deleteUnusedCardPhotos(container.database.recipeDao().allCardPhotos().flatMap { it.cardPhotos }.toSet())
-            applyNewRules(container)
+            // WorkManager's schedule isn't restored with the app's data on a new phone,
+            // so daily Drive backups are scheduled again whenever they're on.
+            if (container.settings.driveStatus.value.enabled) container.driveBackup.schedule()
             // Recipes saved before search text existed get it once.
             runCatchingCancellable { container.database.recipeDao().indexRecipes() }
                 .onFailure { Log.w(TAG, "Filling search text failed", it) }
+            applyNewRules(container)
         }
     }
 }

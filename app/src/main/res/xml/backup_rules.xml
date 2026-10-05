@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The same rule for Android 11 and earlier: back up everything except photos. -->
+<!-- The same rule for Android 11 and earlier: back up everything except photos and the
+     Gemini key, which stays on the phone. -->
 <full-backup-content>
     <exclude domain="file" path="photos/" />
+    <exclude domain="sharedpref" path="settings-secrets.xml" />
 </full-backup-content>

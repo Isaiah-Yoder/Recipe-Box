@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Android's automatic backup (Android 12 and later) is limited to 25 MB, so it
      keeps recipes, lists, and settings and leaves out photos. Cover photos
-     download again after a restore; the app's own backups keep her photos. -->
+     download again after a restore; the app's own backups keep her photos. Her
+     Gemini key stays on the phone, so it's left out of the cloud backup too. -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="photos/" />
+        <exclude domain="sharedpref" path="settings-secrets.xml" />
     </cloud-backup>
 </data-extraction-rules>

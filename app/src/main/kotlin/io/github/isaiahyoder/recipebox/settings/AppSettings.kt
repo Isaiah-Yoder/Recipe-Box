@@ -48,6 +48,13 @@ data class DriveStatus(
 class AppSettings(context: Context, fileName: String = "settings") {
     private val prefs = context.getSharedPreferences(fileName, Context.MODE_PRIVATE)
 
+    /**
+     * Values that must not leave the phone, such as her Gemini key. Android's
+     * automatic backup leaves this file out (res/xml/backup_rules.xml and
+     * data_extraction_rules.xml).
+     */
+    private val secrets = context.getSharedPreferences("$fileName-$SECRETS_SUFFIX", Context.MODE_PRIVATE)
+
     private val _themeMode = MutableStateFlow(
         prefs.getString(KEY_THEME, null)?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM
     )
@@ -113,17 +120,28 @@ class AppSettings(context: Context, fileName: String = "settings") {
         get() = prefs.getString(KEY_DRIVE_HASH, null)
         set(value) = prefs.edit { putString(KEY_DRIVE_HASH, value) }
 
-    private val _geminiKey = MutableStateFlow(prefs.getString(KEY_GEMINI, null)?.takeIf { it.isNotBlank() })
+    private val _geminiKey = MutableStateFlow(readGeminiKey())
+
+    /** Reads the key, moving one saved before 0.5.2 out of the backed-up settings. */
+    private fun readGeminiKey(): String? {
+        prefs.getString(KEY_GEMINI, null)?.let { old ->
+            if (old.isNotBlank() && secrets.getString(KEY_GEMINI, null) == null) {
+                secrets.edit(commit = true) { putString(KEY_GEMINI, old.trim()) }
+            }
+            prefs.edit { remove(KEY_GEMINI) }
+        }
+        return secrets.getString(KEY_GEMINI, null)?.takeIf { it.isNotBlank() }
+    }
 
     /**
-     * Her own Gemini API key for reading recipe cards, or null. It's kept in
-     * the app's private settings and never written into the app's backup files.
+     * Her own Gemini API key for reading recipe cards, or null. It stays on
+     * this phone: it's never in the app's backup files or Android's backup.
      */
     val geminiKey: StateFlow<String?> = _geminiKey.asStateFlow()
 
     fun setGeminiKey(key: String?) {
         val cleaned = key?.trim()?.takeIf { it.isNotEmpty() }
-        prefs.edit { if (cleaned == null) remove(KEY_GEMINI) else putString(KEY_GEMINI, cleaned) }
+        secrets.edit { if (cleaned == null) remove(KEY_GEMINI) else putString(KEY_GEMINI, cleaned) }
         _geminiKey.value = cleaned
     }
 
@@ -232,6 +250,7 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_READING_VERSION = "reading_version"
         const val KEY_FEEDER_OFFER = "feeder_offer_seen"
         const val KEY_STALLS = "stall_reports"
+        const val SECRETS_SUFFIX = "secrets"
         const val MAX_STALLS = 5
         val json = Json { ignoreUnknownKeys = true }
     }
