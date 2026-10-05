@@ -30,6 +30,11 @@ Recipe Box connects to other services only for the following tasks:
   `drive.file` scope). It writes backup files to a "Recipe Box backups"
   folder. It can't see or open your other Drive files. The backups are stored
   in your Google account, and the developer can't access them.
+- **Checking for updates.** When you open the app, it asks GitHub at most
+  once an hour whether a newer Recipe Box release exists, and it downloads the
+  update from GitHub when you tap **Update**. The request contains no recipe or
+  account data. GitHub sees your phone's IP address, as it would for any
+  download.
 - **Optional cloud AI.** If you enter your own Gemini API key, the app sends
   the recipe text or photo that needs help to Google's Gemini API. Google's
   terms for that key apply, including how Google uses free-tier content.

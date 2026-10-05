@@ -14,6 +14,7 @@ import io.github.isaiahyoder.recipebox.importer.WebViewPageLoader
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import io.github.isaiahyoder.recipebox.tags.TagRefresher
+import io.github.isaiahyoder.recipebox.update.AppUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -76,6 +77,8 @@ class AppContainer(context: Context) {
     }
 
     val driveBackup: DriveBackup by lazy { DriveBackup(context, httpClient, backupManager, settings, photos) }
+
+    val updater: AppUpdater by lazy { AppUpdater(context, httpClient, settings) }
 
     private companion object {
         const val FALLBACK_USER_AGENT =

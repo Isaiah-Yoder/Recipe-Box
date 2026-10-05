@@ -3,6 +3,7 @@ package io.github.isaiahyoder.recipebox.ui.library
 import android.content.ClipboardManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +66,7 @@ import io.github.isaiahyoder.recipebox.data.CategoryEntity
 import io.github.isaiahyoder.recipebox.data.RecipeSummary
 import io.github.isaiahyoder.recipebox.importer.Links
 import io.github.isaiahyoder.recipebox.ui.queue.QueueBanner
+import io.github.isaiahyoder.recipebox.ui.update.UpdateBanner
 import kotlinx.coroutines.launch
 import io.github.isaiahyoder.recipebox.ui.formatMinutes
 import java.io.File
@@ -99,7 +101,12 @@ fun LibraryScreen(
                 },
             )
         },
-        bottomBar = { QueueBanner(onOpenQueue) },
+        bottomBar = {
+            Column(Modifier.navigationBarsPadding()) {
+                UpdateBanner()
+                QueueBanner(onOpenQueue)
+            }
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },

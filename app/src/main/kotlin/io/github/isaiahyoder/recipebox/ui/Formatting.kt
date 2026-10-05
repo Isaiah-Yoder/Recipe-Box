@@ -1,5 +1,7 @@
 package io.github.isaiahyoder.recipebox.ui
 
+import android.text.format.DateUtils
+
 /** Formats minutes as "45 min", "1 hr", or "6 hr 20 min". */
 fun formatMinutes(minutes: Int?): String? {
     if (minutes == null || minutes <= 0) return null
@@ -11,3 +13,8 @@ fun formatMinutes(minutes: Int?): String? {
         else -> "$hours hr $rest min"
     }
 }
+
+/** Formats a past moment as "just now", "5 minutes ago", or "yesterday". */
+fun formatAgo(millis: Long, now: Long = System.currentTimeMillis()): String =
+    if (now - millis < DateUtils.MINUTE_IN_MILLIS) "just now"
+    else DateUtils.getRelativeTimeSpanString(millis, now, DateUtils.MINUTE_IN_MILLIS).toString().lowercase()

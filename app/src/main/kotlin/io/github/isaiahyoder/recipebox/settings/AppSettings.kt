@@ -82,6 +82,17 @@ class AppSettings(context: Context, fileName: String = "settings") {
         get() = prefs.getString(KEY_DRIVE_HASH, null)
         set(value) = prefs.edit { putString(KEY_DRIVE_HASH, value) }
 
+    /** The update version whose banner she put off, and when. */
+    val updatePutOffVersion: String? get() = prefs.getString(KEY_UPDATE_PUT_OFF_VERSION, null)
+    val updatePutOffAt: Long get() = prefs.getLong(KEY_UPDATE_PUT_OFF_AT, 0)
+
+    fun putOffUpdate(version: String, now: Long) {
+        prefs.edit {
+            putString(KEY_UPDATE_PUT_OFF_VERSION, version)
+            putLong(KEY_UPDATE_PUT_OFF_AT, now)
+        }
+    }
+
     private fun readDriveStatus() = DriveStatus(
         enabled = prefs.getBoolean(KEY_DRIVE_ENABLED, false),
         lastSuccess = prefs.getLong(KEY_DRIVE_SUCCESS, 0),
@@ -100,5 +111,7 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_DRIVE_FOLDER = "drive_folder_id"
         const val KEY_DRIVE_PHOTO_FOLDER = "drive_photo_folder_id"
         const val KEY_DRIVE_HASH = "drive_last_hash"
+        const val KEY_UPDATE_PUT_OFF_VERSION = "update_put_off_version"
+        const val KEY_UPDATE_PUT_OFF_AT = "update_put_off_at"
     }
 }

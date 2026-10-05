@@ -33,4 +33,9 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        appContainer.updater.checkIfDue()
+    }
 }
