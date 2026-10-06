@@ -33,6 +33,8 @@ data class DriveStatus(
     /** When the last backup succeeded or was checked as unchanged; 0 when never. */
     val lastSuccess: Long = 0,
     val lastError: String? = null,
+    /** True when the last error was that she must connect Google Drive again. */
+    val needsReconnect: Boolean = false,
     val lastAttempt: Long = 0,
     val enabledAt: Long = 0,
 ) {
@@ -86,6 +88,7 @@ class AppSettings(context: Context, fileName: String = "settings") {
             putBoolean(KEY_DRIVE_ENABLED, enabled)
             if (enabled) putLong(KEY_DRIVE_ENABLED_AT, now)
             remove(KEY_DRIVE_ERROR)
+            remove(KEY_DRIVE_NEEDS_RECONNECT)
         }
         _driveStatus.value = readDriveStatus()
     }
@@ -95,14 +98,16 @@ class AppSettings(context: Context, fileName: String = "settings") {
             putLong(KEY_DRIVE_SUCCESS, now)
             putLong(KEY_DRIVE_ATTEMPT, now)
             remove(KEY_DRIVE_ERROR)
+            remove(KEY_DRIVE_NEEDS_RECONNECT)
         }
         _driveStatus.value = readDriveStatus()
     }
 
-    fun recordDriveFailure(now: Long, message: String) {
+    fun recordDriveFailure(now: Long, message: String, needsReconnect: Boolean = false) {
         prefs.edit {
             putLong(KEY_DRIVE_ATTEMPT, now)
             putString(KEY_DRIVE_ERROR, message)
+            putBoolean(KEY_DRIVE_NEEDS_RECONNECT, needsReconnect)
         }
         _driveStatus.value = readDriveStatus()
     }
@@ -233,6 +238,12 @@ class AppSettings(context: Context, fileName: String = "settings") {
         enabled = prefs.getBoolean(KEY_DRIVE_ENABLED, false),
         lastSuccess = prefs.getLong(KEY_DRIVE_SUCCESS, 0),
         lastError = prefs.getString(KEY_DRIVE_ERROR, null),
+        // Versions before 0.6.0 stored only the English message, which asked her to reconnect.
+        needsReconnect = if (prefs.contains(KEY_DRIVE_NEEDS_RECONNECT)) {
+            prefs.getBoolean(KEY_DRIVE_NEEDS_RECONNECT, false)
+        } else {
+            prefs.getString(KEY_DRIVE_ERROR, null)?.contains("reconnect", ignoreCase = true) == true
+        },
         lastAttempt = prefs.getLong(KEY_DRIVE_ATTEMPT, 0),
         enabledAt = prefs.getLong(KEY_DRIVE_ENABLED_AT, 0),
     )
@@ -245,6 +256,7 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_DRIVE_SUCCESS = "drive_last_success"
         const val KEY_DRIVE_ATTEMPT = "drive_last_attempt"
         const val KEY_DRIVE_ERROR = "drive_last_error"
+        const val KEY_DRIVE_NEEDS_RECONNECT = "drive_needs_reconnect"
         const val KEY_DRIVE_FOLDER = "drive_folder_id"
         const val KEY_DRIVE_PHOTO_FOLDER = "drive_photo_folder_id"
         const val KEY_DRIVE_HASH = "drive_last_hash"

@@ -44,7 +44,8 @@ sealed interface DriveAuth {
 sealed interface DriveBackupResult {
     data object Uploaded : DriveBackupResult
     data object Unchanged : DriveBackupResult
-    data class Failed(val message: String) : DriveBackupResult
+    /** [needsReconnect] is true when she must connect Google Drive again. */
+    data class Failed(val message: String, val needsReconnect: Boolean = false) : DriveBackupResult
 }
 
 /**
@@ -118,7 +119,7 @@ class DriveBackup(
             val token = when (val auth = authorize()) {
                 is DriveAuth.Token -> auth.value
                 is DriveAuth.NeedsConsent ->
-                    return@runCatchingCancellable DriveBackupResult.Failed(strings.get(R.string.backup_drive_reconnect))
+                    return@runCatchingCancellable DriveBackupResult.Failed(strings.get(R.string.backup_drive_reconnect), needsReconnect = true)
             }
             val snapshot = backups.snapshot()
             val hash = backups.contentHash(snapshot)
@@ -153,7 +154,7 @@ class DriveBackup(
         }.getOrElse { DriveBackupResult.Failed(it.message ?: strings.get(R.string.backup_drive_unfinished)) }
 
         when (result) {
-            is DriveBackupResult.Failed -> settings.recordDriveFailure(now, result.message)
+            is DriveBackupResult.Failed -> settings.recordDriveFailure(now, result.message, result.needsReconnect)
             else -> settings.recordDriveSuccess(now)
         }
         result

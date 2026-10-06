@@ -107,8 +107,7 @@ fun BackupSection() {
         },
     )
     FlowRow(Modifier.padding(start = 8.dp, end = 8.dp)) {
-        // This matches only the English backup_drive_reconnect message; a translation of it won't show the button.
-        if (!status.enabled || status.lastError?.contains("reconnect", ignoreCase = true) == true) {
+        if (!status.enabled || status.needsReconnect) {
             TextButton(
                 onClick = { vm.connect { intent -> consent.launch(IntentSenderRequest.Builder(intent).build()) } },
                 enabled = busy == null,
