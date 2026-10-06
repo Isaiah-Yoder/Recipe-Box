@@ -1,6 +1,6 @@
 package io.github.isaiahyoder.recipebox.cards
 
-import io.github.isaiahyoder.recipebox.data.RecipeLine
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import io.github.isaiahyoder.recipebox.importer.TextDuration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

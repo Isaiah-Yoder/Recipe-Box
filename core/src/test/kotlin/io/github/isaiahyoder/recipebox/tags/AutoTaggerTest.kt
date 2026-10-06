@@ -92,13 +92,13 @@ class AutoTaggerTest {
     }
 
     @Test fun suggestsFeedersForHerCategoryNames() {
-        assertEquals(listOf(AutoTagger.MAIN_DISH), CategoryRules.suggestedFeeders("Dinner", emptyList()))
-        assertEquals(listOf(AutoTagger.BREAD), CategoryRules.suggestedFeeders("Breads", emptyList()))
-        assertEquals(listOf(AutoTagger.SAUCE), CategoryRules.suggestedFeeders("Sauces", emptyList()))
-        assertEquals(listOf(AutoTagger.DESSERT), CategoryRules.suggestedFeeders("Dessert", emptyList()))
-        assertEquals(listOf("Slow Cooker"), CategoryRules.suggestedFeeders("Slow Cooker", emptyList()))
-        assertEquals(listOf(AutoTagger.THANKSGIVING), CategoryRules.suggestedFeeders("Thanksgiving", emptyList()))
-        assertTrue(CategoryRules.suggestedFeeders("Grandma's", emptyList()).isEmpty())
+        assertEquals(listOf(AutoTagger.MAIN_DISH), FeederSuggestions.forCategory("Dinner", emptyList()))
+        assertEquals(listOf(AutoTagger.BREAD), FeederSuggestions.forCategory("Breads", emptyList()))
+        assertEquals(listOf(AutoTagger.SAUCE), FeederSuggestions.forCategory("Sauces", emptyList()))
+        assertEquals(listOf(AutoTagger.DESSERT), FeederSuggestions.forCategory("Dessert", emptyList()))
+        assertEquals(listOf("Slow Cooker"), FeederSuggestions.forCategory("Slow Cooker", emptyList()))
+        assertEquals(listOf(AutoTagger.THANKSGIVING), FeederSuggestions.forCategory("Thanksgiving", emptyList()))
+        assertTrue(FeederSuggestions.forCategory("Grandma's", emptyList()).isEmpty())
     }
 
     @Test fun tagsKindsOfDessertAndBreakfast() {

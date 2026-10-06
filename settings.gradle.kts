@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Recipe Box"
 include(":app")
+include(":core")

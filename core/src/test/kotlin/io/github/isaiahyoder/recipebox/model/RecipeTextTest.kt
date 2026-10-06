@@ -1,4 +1,4 @@
-package io.github.isaiahyoder.recipebox.data
+package io.github.isaiahyoder.recipebox.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

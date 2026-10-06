@@ -1,6 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
-import io.github.isaiahyoder.recipebox.data.RecipeLine
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

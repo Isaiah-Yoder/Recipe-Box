@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.data
 
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import androidx.room.ColumnInfo
 import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import androidx.room.Dao

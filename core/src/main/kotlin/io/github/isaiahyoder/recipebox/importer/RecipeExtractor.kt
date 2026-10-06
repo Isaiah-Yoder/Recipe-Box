@@ -1,6 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
-import io.github.isaiahyoder.recipebox.data.RecipeLine
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement

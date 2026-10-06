@@ -14,6 +14,16 @@ only when `local.properties` points to a signing file outside the repository
 with `recipebox.signing=PATH`. Never commit signing keys, passwords, or API
 keys to this repository.
 
+## Project layout
+
+The project has the following modules:
+
+- `core`: the logic that doesn't need Android, such as reading recipe pages
+  and cards, parsing and scaling ingredients, tagging, and building grocery
+  lists. It's a plain Kotlin module, so its tests run on the computer with
+  `./gradlew :core:test`.
+- `app`: the Android app, with its database, screens, backups, and updates.
+
 ## Release
 
 The app updates itself from this repository's GitHub releases. When it opens,

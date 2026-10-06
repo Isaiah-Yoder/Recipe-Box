@@ -11,7 +11,7 @@ import io.github.isaiahyoder.recipebox.data.TagDao
 import io.github.isaiahyoder.recipebox.data.UNCATEGORIZED
 import io.github.isaiahyoder.recipebox.repository.LibraryRepository
 import io.github.isaiahyoder.recipebox.settings.AppSettings
-import io.github.isaiahyoder.recipebox.tags.CategoryRules
+import io.github.isaiahyoder.recipebox.tags.FeederSuggestions
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -114,7 +114,7 @@ class HomeViewModel(
         val suggestedTags = suggestions.map { it.tag }.toSet()
         categories.filter { it.feederTags.isEmpty() }.mapNotNull { category ->
             // A tag counts when a recipe has it or it's waiting as a suggestion, such as Thanksgiving.
-            val fitting = CategoryRules.suggestedFeeders(category.name, tagsInUse)
+            val fitting = FeederSuggestions.forCategory(category.name, tagsInUse)
                 .filter { it in tagsInUse || it in suggestedTags }
             if (fitting.isEmpty()) return@mapNotNull null
             val inCategory = members[category.id].orEmpty()

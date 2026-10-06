@@ -7,7 +7,7 @@ import io.github.isaiahyoder.recipebox.data.GroceryListRecipeEntity
 import io.github.isaiahyoder.recipebox.data.GroceryManualItemEntity
 import io.github.isaiahyoder.recipebox.data.RecipeCategoryEntity
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
-import io.github.isaiahyoder.recipebox.data.RecipeLine
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import io.github.isaiahyoder.recipebox.data.RecipeTagEntity
 import io.github.isaiahyoder.recipebox.data.SectionOverrideEntity
 import io.github.isaiahyoder.recipebox.data.TagEntity

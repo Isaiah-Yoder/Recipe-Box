@@ -1,18 +1,12 @@
 package io.github.isaiahyoder.recipebox.data
 
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
-
-/** One ingredient or step line. A header line names a group, such as "For the sauce". */
-@Serializable
-data class RecipeLine(
-    val text: String,
-    val isHeader: Boolean = false,
-)
 
 @Entity(
     tableName = "recipes",

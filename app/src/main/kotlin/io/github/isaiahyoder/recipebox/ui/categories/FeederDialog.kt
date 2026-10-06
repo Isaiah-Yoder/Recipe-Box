@@ -22,7 +22,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
 import io.github.isaiahyoder.recipebox.tags.AutoTagger
-import io.github.isaiahyoder.recipebox.tags.CategoryRules
+import io.github.isaiahyoder.recipebox.tags.FeederSuggestions
 import io.github.isaiahyoder.recipebox.tags.TagGroup
 
 /**
@@ -37,7 +37,7 @@ fun FeederDialog(
     onDismiss: () -> Unit,
 ) {
     val chosen = remember(category.id) { mutableStateListOf(*category.feederTags.toTypedArray()) }
-    val fitting = CategoryRules.suggestedFeeders(category.name, tagsInUse)
+    val fitting = FeederSuggestions.forCategory(category.name, tagsInUse)
     val known = (AutoTagger.VOCABULARY.keys + tagsInUse + category.feederTags).distinct()
     val sections = buildList {
         if (fitting.isNotEmpty()) add("Fits \"${category.name}\"" to fitting)

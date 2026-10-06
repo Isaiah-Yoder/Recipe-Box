@@ -1,6 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
-import io.github.isaiahyoder.recipebox.data.RecipeLine
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import io.github.isaiahyoder.recipebox.ingredients.IngredientParser
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element

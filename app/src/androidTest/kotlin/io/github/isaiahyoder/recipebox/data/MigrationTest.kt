@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.data
 
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
 import androidx.test.core.app.ApplicationProvider

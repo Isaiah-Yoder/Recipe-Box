@@ -1,4 +1,4 @@
-package io.github.isaiahyoder.recipebox.data
+package io.github.isaiahyoder.recipebox.model
 
 /**
  * Converts ingredient and step lines to and from the plain text she edits.

@@ -13,7 +13,7 @@ import io.github.isaiahyoder.recipebox.data.GroceryManualItemEntity
 import io.github.isaiahyoder.recipebox.data.RecipeCategoryEntity
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
-import io.github.isaiahyoder.recipebox.data.RecipeLine
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import io.github.isaiahyoder.recipebox.data.SectionOverrideEntity
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.settings.AppSettings

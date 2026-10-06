@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.editor
 
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -7,10 +8,11 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.isaiahyoder.recipebox.cards.CardDrafts
+import io.github.isaiahyoder.recipebox.cards.toEntity
 import io.github.isaiahyoder.recipebox.cards.CardReaderKind
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
-import io.github.isaiahyoder.recipebox.data.RecipeText
+import io.github.isaiahyoder.recipebox.model.RecipeText
 import io.github.isaiahyoder.recipebox.importer.ImportQueue
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.data.EditedField
@@ -119,7 +121,7 @@ class RecipeEditorViewModel(
             return listOf(EditedField.TITLE, EditedField.SERVINGS, EditedField.TIMES, EditedField.INGREDIENTS, EditedField.STEPS)
         }
         // Lines go through the same text conversion she edits, so an untouched list doesn't count as changed.
-        fun roundTrip(lines: List<io.github.isaiahyoder.recipebox.data.RecipeLine>) = RecipeText.fromText(RecipeText.toText(lines))
+        fun roundTrip(lines: List<RecipeLine>) = RecipeText.fromText(RecipeText.toText(lines))
         val changed = buildList {
             if (edited.title != base.title) add(EditedField.TITLE)
             if (edited.servings != base.servings) add(EditedField.SERVINGS)

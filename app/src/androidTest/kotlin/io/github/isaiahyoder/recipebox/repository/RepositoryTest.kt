@@ -6,7 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
-import io.github.isaiahyoder.recipebox.data.RecipeLine
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.tags.TagRefresher
 import kotlinx.coroutines.flow.first
