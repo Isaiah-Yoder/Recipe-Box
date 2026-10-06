@@ -26,8 +26,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.ImportJobEntity
 import io.github.isaiahyoder.recipebox.data.ImportStatus
@@ -111,7 +114,7 @@ fun QueueBanner(onOpenQueue: () -> Unit) {
                     }
                     Column(Modifier.weight(1f)) {
                         Text(bannerTitle(summary), style = MaterialTheme.typography.titleSmall)
-                        Text("Tap to see the queue", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.import_banner_tap), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -119,16 +122,21 @@ fun QueueBanner(onOpenQueue: () -> Unit) {
     }
 }
 
+@Composable
 private fun bannerTitle(summary: QueueSummary): String {
-    val adding = when (summary.active) {
-        0 -> null
-        1 -> "Adding 1 recipe"
-        else -> "Adding ${summary.active} recipes"
+    val adding = if (summary.active == 0) {
+        null
+    } else {
+        pluralStringResource(R.plurals.import_banner_adding, summary.active, summary.active)
     }
-    val failed = when (summary.failed) {
-        0 -> null
-        1 -> "1 couldn't be added"
-        else -> "${summary.failed} couldn't be added"
+    val failed = if (summary.failed == 0) {
+        null
+    } else {
+        pluralStringResource(R.plurals.import_banner_failed, summary.failed, summary.failed)
     }
-    return listOfNotNull(adding, failed).joinToString(" · ")
+    return if (adding != null && failed != null) {
+        stringResource(R.string.import_banner_both, adding, failed)
+    } else {
+        adding ?: failed.orEmpty()
+    }
 }

@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.importer
 
 import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -28,7 +29,7 @@ class PageFetcher(
     private val retryDelaysMs: List<Long> = listOf(3_000, 10_000),
 ) {
     suspend fun fetch(url: String): FetchResult = withContext(Dispatchers.IO) {
-        var lastReason = "No response"
+        var lastReason = strings.get(R.string.import_fetch_no_response)
         for (attempt in 0..retryDelaysMs.size) {
             if (attempt > 0) delay(retryDelaysMs[attempt - 1])
             try {
@@ -42,11 +43,11 @@ class PageFetcher(
                     if (response.isSuccessful) {
                         return@withContext FetchResult.Page(response.body.string(), response.request.url.toString())
                     }
-                    lastReason = "The site answered with HTTP ${response.code}"
+                    lastReason = strings.get(R.string.import_fetch_http, response.code)
                     if (response.code !in retryableCodes) return@withContext FetchResult.Failed(lastReason)
                 }
             } catch (e: IOException) {
-                lastReason = e.message ?: "Network error"
+                lastReason = e.message ?: strings.get(R.string.import_fetch_network)
             }
             Log.i("RecipeImport", "Attempt ${attempt + 1}: $lastReason")
         }

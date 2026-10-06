@@ -39,11 +39,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.ui.cards.CardPhotoRow
 
@@ -80,15 +82,22 @@ fun RecipeEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (vm.isCardDraft) "Check recipe card" else if (recipeId == 0L) "New recipe" else "Edit recipe") },
+                title = {
+                    val titleRes = when {
+                        vm.isCardDraft -> R.string.editor_title_card
+                        recipeId == 0L -> R.string.editor_title_new
+                        else -> R.string.editor_title_edit
+                    }
+                    Text(stringResource(titleRes))
+                },
                 navigationIcon = {
-                    IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Cancel") }
+                    IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.editor_cancel)) }
                 },
                 actions = {
                     if (vm.saving) {
                         CircularProgressIndicator(Modifier.padding(end = 16.dp).padding(4.dp))
                     } else {
-                        TextButton(onClick = { vm.save(onSaved) }, enabled = vm.canSave) { Text("Save") }
+                        TextButton(onClick = { vm.save(onSaved) }, enabled = vm.canSave) { Text(stringResource(R.string.editor_save)) }
                     }
                 },
             )
@@ -112,8 +121,8 @@ fun RecipeEditorScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Read with ${reader.label}", style = MaterialTheme.typography.titleSmall)
-                        Text("Compare each line with the card photos, fix anything misread, then tap Save.")
+                        Text(stringResource(R.string.editor_read_with, stringResource(reader.labelRes)), style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.editor_read_check))
                         vm.readProblems.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                     }
                 }
@@ -121,7 +130,7 @@ fun RecipeEditorScreen(
 
             if (vm.cardPhotos.isNotEmpty() || vm.isCardDraft) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Card photos", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.editor_card_photos), style = MaterialTheme.typography.titleSmall)
                     // The row runs edge to edge, so it undoes the column's side padding.
                     CardPhotoRow(
                         vm.cardPhotos,
@@ -138,7 +147,7 @@ fun RecipeEditorScreen(
                         enabled = !vm.addingCardPhoto,
                     ) {
                         Icon(Icons.Filled.Image, contentDescription = null)
-                        Text("Add card photo", Modifier.padding(start = 8.dp))
+                        Text(stringResource(R.string.editor_add_card_photo), Modifier.padding(start = 8.dp))
                     }
                 }
             }
@@ -146,9 +155,9 @@ fun RecipeEditorScreen(
             OutlinedTextField(
                 value = vm.title,
                 onValueChange = { vm.title = it },
-                label = { Text("Title") },
+                label = { Text(stringResource(R.string.editor_title_label)) },
                 isError = vm.title.isBlank(),
-                supportingText = { if (vm.title.isBlank()) Text("A recipe needs a title.") },
+                supportingText = { if (vm.title.isBlank()) Text(stringResource(R.string.editor_title_required)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                 modifier = Modifier.fillMaxWidth(),
@@ -157,25 +166,25 @@ fun RecipeEditorScreen(
             PhotoField(
                 photo = vm.newPhoto ?: vm.photoFile?.takeIf { !vm.removePhoto }?.let { container.photos.file(it) },
                 // Beside card photos, "photo" alone would be unclear.
-                noun = if (vm.cardPhotos.isNotEmpty()) "cover photo" else "photo",
+                isCover = vm.cardPhotos.isNotEmpty(),
                 onChoose = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onRemove = vm::clearPhoto,
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField("Servings", vm.servings, { vm.servings = it }, Modifier.weight(1f))
-                NumberField("Prep min", vm.prepMinutes, { vm.prepMinutes = it }, Modifier.weight(1f))
+                NumberField(stringResource(R.string.editor_servings), vm.servings, { vm.servings = it }, Modifier.weight(1f))
+                NumberField(stringResource(R.string.editor_prep_minutes), vm.prepMinutes, { vm.prepMinutes = it }, Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField("Cook min", vm.cookMinutes, { vm.cookMinutes = it }, Modifier.weight(1f))
-                NumberField("Total min", vm.totalMinutes, { vm.totalMinutes = it }, Modifier.weight(1f))
+                NumberField(stringResource(R.string.editor_cook_minutes), vm.cookMinutes, { vm.cookMinutes = it }, Modifier.weight(1f))
+                NumberField(stringResource(R.string.editor_total_minutes), vm.totalMinutes, { vm.totalMinutes = it }, Modifier.weight(1f))
             }
 
             OutlinedTextField(
                 value = vm.ingredients,
                 onValueChange = { vm.ingredients = it },
-                label = { Text("Ingredients") },
-                supportingText = { Text("One ingredient per line. End a line with a colon to start a group, such as \"For the sauce:\".") },
+                label = { Text(stringResource(R.string.editor_ingredients)) },
+                supportingText = { Text(stringResource(R.string.editor_ingredients_help)) },
                 minLines = 6,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
@@ -183,8 +192,8 @@ fun RecipeEditorScreen(
             OutlinedTextField(
                 value = vm.steps,
                 onValueChange = { vm.steps = it },
-                label = { Text("Steps") },
-                supportingText = { Text("One step per line.") },
+                label = { Text(stringResource(R.string.editor_steps)) },
+                supportingText = { Text(stringResource(R.string.editor_steps_help)) },
                 minLines = 6,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
@@ -192,8 +201,8 @@ fun RecipeEditorScreen(
             OutlinedTextField(
                 value = vm.notes,
                 onValueChange = { vm.notes = it },
-                label = { Text("Notes") },
-                supportingText = { Text("Your own notes, such as changes you make. They're never overwritten.") },
+                label = { Text(stringResource(R.string.editor_notes)) },
+                supportingText = { Text(stringResource(R.string.editor_notes_help)) },
                 minLines = 3,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
@@ -201,7 +210,7 @@ fun RecipeEditorScreen(
             OutlinedTextField(
                 value = vm.sourceUrl,
                 onValueChange = { vm.sourceUrl = it },
-                label = { Text("Original page link") },
+                label = { Text(stringResource(R.string.editor_source_url)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier.fillMaxWidth(),
@@ -223,12 +232,15 @@ private fun NumberField(label: String, value: String, onChange: (String) -> Unit
 }
 
 @Composable
-private fun PhotoField(photo: Any?, noun: String, onChoose: () -> Unit, onRemove: () -> Unit) {
+private fun PhotoField(photo: Any?, isCover: Boolean, onChoose: () -> Unit, onRemove: () -> Unit) {
+    val addRes = if (isCover) R.string.editor_cover_photo_add else R.string.editor_photo_add
+    val changeRes = if (isCover) R.string.editor_cover_photo_change else R.string.editor_photo_change
+    val removeRes = if (isCover) R.string.editor_cover_photo_remove else R.string.editor_photo_remove
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (photo != null) {
             AsyncImage(
                 model = photo,
-                contentDescription = "Recipe photo",
+                contentDescription = stringResource(R.string.editor_photo_description),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f).clip(RoundedCornerShape(12.dp)),
             )
@@ -236,11 +248,11 @@ private fun PhotoField(photo: Any?, noun: String, onChoose: () -> Unit, onRemove
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onChoose) {
                 Icon(Icons.Filled.Image, contentDescription = null)
-                Text(if (photo == null) "Add $noun" else "Change $noun", Modifier.padding(start = 8.dp))
+                Text(stringResource(if (photo == null) addRes else changeRes), Modifier.padding(start = 8.dp))
             }
             if (photo != null) {
                 TextButton(onClick = onRemove) {
-                    Text("Remove $noun", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(removeRes), color = MaterialTheme.colorScheme.error)
                 }
             }
         }

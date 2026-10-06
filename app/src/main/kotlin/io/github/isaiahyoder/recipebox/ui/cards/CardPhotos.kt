@@ -41,10 +41,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 
 /**
@@ -70,7 +72,7 @@ fun CardPhotoRow(
             Box(Modifier.width(160.dp).height(110.dp).clip(RoundedCornerShape(12.dp))) {
                 AsyncImage(
                     model = store.file(name),
-                    contentDescription = "Card photo ${index + 1}",
+                    contentDescription = stringResource(R.string.cards_photo_number, index + 1),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().clickable { viewing = name },
                 )
@@ -91,7 +93,7 @@ fun CardPhotoRow(
                         onClick = { remove(name) },
                         modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = "Remove card photo ${index + 1}")
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cards_photo_remove, index + 1))
                     }
                 }
                 if (onMoveEarlier != null && index > 0) {
@@ -99,7 +101,7 @@ fun CardPhotoRow(
                         onClick = { onMoveEarlier(name) },
                         modifier = Modifier.align(Alignment.BottomStart).padding(4.dp),
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Move card photo ${index + 1} earlier")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cards_photo_move_earlier, index + 1))
                     }
                 }
             }
@@ -123,7 +125,7 @@ fun CardPhotoViewer(photo: Any, onDismiss: () -> Unit) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             AsyncImage(
                 model = photo,
-                contentDescription = "Card photo",
+                contentDescription = stringResource(R.string.cards_photo),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
@@ -141,7 +143,7 @@ fun CardPhotoViewer(photo: Any, onDismiss: () -> Unit) {
                 colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
                 modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(8.dp),
             ) {
-                Icon(Icons.Filled.Close, contentDescription = "Close")
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cards_close))
             }
         }
     }

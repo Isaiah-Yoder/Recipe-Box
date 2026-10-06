@@ -9,6 +9,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.ImportJobDao
 import io.github.isaiahyoder.recipebox.data.ImportJobEntity
@@ -88,7 +89,7 @@ class ImportQueue(
             is ImportOutcome.AlreadySaved ->
                 jobDao.finish(job.id, ImportStatus.DUPLICATE, job.attempts, 0, null, outcome.recipeId, outcome.title, now)
             ImportOutcome.NoLink ->
-                jobDao.finish(job.id, ImportStatus.FAILED, job.attempts, 0, "This isn't a web link.", null, null, now)
+                jobDao.finish(job.id, ImportStatus.FAILED, job.attempts, 0, context.getString(R.string.import_no_link), null, null, now)
             is ImportOutcome.NotFound -> {
                 val attempts = job.attempts + 1
                 val delayMs = RETRY_DELAYS_MS.getOrNull(attempts - 1)

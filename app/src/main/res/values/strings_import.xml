@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Recipe editor -->
+    <string name="editor_title_card">Check recipe card</string>
+    <string name="editor_title_new">New recipe</string>
+    <string name="editor_title_edit">Edit recipe</string>
+    <string name="editor_cancel">Cancel</string>
+    <string name="editor_save">Save</string>
+    <!-- %1$s is the card reader, such as "Gemini" or "on-device AI". -->
+    <string name="editor_read_with">Read with %1$s</string>
+    <string name="editor_read_check">Compare each line with the card photos, fix anything misread, then tap Save.</string>
+    <string name="editor_card_photos">Card photos</string>
+    <string name="editor_add_card_photo">Add card photo</string>
+    <string name="editor_title_label">Title</string>
+    <string name="editor_title_required">A recipe needs a title.</string>
+    <string name="editor_servings">Servings</string>
+    <string name="editor_prep_minutes">Prep min</string>
+    <string name="editor_cook_minutes">Cook min</string>
+    <string name="editor_total_minutes">Total min</string>
+    <string name="editor_ingredients">Ingredients</string>
+    <string name="editor_ingredients_help">One ingredient per line. End a line with a colon to start a group, such as \"For the sauce:\".</string>
+    <string name="editor_steps">Steps</string>
+    <string name="editor_steps_help">One step per line.</string>
+    <string name="editor_notes">Notes</string>
+    <string name="editor_notes_help">Your own notes, such as changes you make. They\'re never overwritten.</string>
+    <string name="editor_source_url">Original page link</string>
+    <string name="editor_photo_description">Recipe photo</string>
+    <string name="editor_photo_add">Add photo</string>
+    <string name="editor_photo_change">Change photo</string>
+    <string name="editor_photo_remove">Remove photo</string>
+    <!-- Beside card photos, the recipe's own photo is its cover photo. -->
+    <string name="editor_cover_photo_add">Add cover photo</string>
+    <string name="editor_cover_photo_change">Change cover photo</string>
+    <string name="editor_cover_photo_remove">Remove cover photo</string>
+
+    <!-- Card scanning -->
+    <string name="cards_scan_title">Scan a recipe card</string>
+    <string name="cards_back">Back</string>
+    <string name="cards_scan_intro">Add a photo of each side of one recipe card, front first. The photos are saved with the recipe.</string>
+    <string name="cards_no_photos">No photos yet</string>
+    <string name="cards_take_photo">Take photo</string>
+    <string name="cards_choose_photos">Choose photos</string>
+    <!-- %1$s is the card reader, such as "Gemini" or "on-device AI". -->
+    <string name="cards_reading_with">Reading with %1$s…</string>
+    <string name="cards_saving_photos">Saving photos…</string>
+    <string name="cards_read">Read card</string>
+    <string name="cards_type_instead">Type it in myself</string>
+    <string name="cards_hint_on_device">Cards are read with this phone\'s built-in AI.</string>
+    <string name="cards_hint_text">Cards are read with basic text recognition, which often misreads handwriting.</string>
+    <string name="cards_hint_gemini">Cards are read with Gemini, using your key from Settings.</string>
+    <string name="cards_hint_on_device_no_key">Cards are read with this phone\'s built-in AI. A Gemini key in Settings reads handwriting better.</string>
+    <string name="cards_hint_no_key">Without a Gemini key, cards are read with basic text recognition, which often misreads handwriting. You can add a key in Settings.</string>
+    <string name="cards_photo_unreadable">A photo couldn\'t be opened. Try taking it again.</string>
+    <string name="cards_read_failed">The card couldn\'t be read.</string>
+
+    <!-- Card photos -->
+    <string name="cards_photo">Card photo</string>
+    <string name="cards_photo_number">Card photo %1$d</string>
+    <string name="cards_photo_remove">Remove card photo %1$d</string>
+    <string name="cards_photo_move_earlier">Move card photo %1$d earlier</string>
+    <string name="cards_close">Close</string>
+
+    <!-- Card readers, used in "Read with %1$s" and "Reading with %1$s…" -->
+    <string name="cards_reader_gemini">Gemini</string>
+    <string name="cards_reader_on_device">on-device AI</string>
+    <string name="cards_reader_text">basic text recognition</string>
+    <!-- %1$s is the card reader with its first letter capitalized. -->
+    <string name="cards_reader_failed">%1$s didn\'t work.</string>
+
+    <!-- Card reader errors -->
+    <string name="cards_gemini_no_key">There\'s no Gemini key.</string>
+    <string name="cards_gemini_failed">Gemini couldn\'t read the card.</string>
+    <string name="cards_gemini_offline">Couldn\'t reach Gemini. Check your internet connection.</string>
+    <string name="cards_gemini_no_recipe">Gemini couldn\'t find a recipe in the photos.</string>
+    <string name="cards_gemini_bad_key">Gemini didn\'t accept the key. Check it in Settings.</string>
+    <string name="cards_gemini_limit">Gemini\'s free limit is used up for now. Try again later.</string>
+    <string name="cards_gemini_no_model">Gemini\'s reading model isn\'t available.</string>
+    <string name="cards_gemini_busy">Gemini is busy right now. Try again in a few minutes.</string>
+    <!-- %1$d is the HTTP status code. -->
+    <string name="cards_gemini_error_code">Gemini couldn\'t read the card (error %1$d).</string>
+    <string name="cards_on_device_missing">This phone doesn\'t have on-device AI.</string>
+    <string name="cards_on_device_not_ready">On-device AI isn\'t ready on this phone.</string>
+    <string name="cards_on_device_failed">On-device AI couldn\'t read the card.</string>
+    <string name="cards_on_device_no_recipe">On-device AI couldn\'t find a recipe in the photos.</string>
+    <string name="cards_text_no_writing">No writing was found in the photos.</string>
+    <string name="cards_text_failed">Text recognition couldn\'t read the photos.</string>
+
+    <!-- Import queue screen -->
+    <string name="import_queue_title">Import queue</string>
+    <string name="import_back">Back</string>
+    <string name="import_retry_all">Retry all</string>
+    <string name="import_clear_finished">Clear finished</string>
+    <string name="import_queue_empty">The queue is empty.\n\nShare recipe pages to Recipe Box, or tap Add recipe and paste links.</string>
+    <string name="import_retry">Retry</string>
+    <string name="import_open_page">Open page</string>
+    <string name="import_type_in">Type it in</string>
+    <string name="import_remove">Remove</string>
+    <string name="import_status_waiting">Waiting</string>
+    <!-- %1$s is a time, such as "3:45 PM". %2$s is why the last try failed, or empty. -->
+    <string name="import_status_retrying">Trying again at %1$s. %2$s</string>
+    <string name="import_status_adding">Adding…</string>
+    <string name="import_status_added">Added</string>
+    <string name="import_status_duplicate">Already in your recipes</string>
+    <!-- %1$s is why the page couldn't be added, or empty. -->
+    <string name="import_status_failed">Couldn\'t add this page. %1$s</string>
+
+    <!-- Import queue banner -->
+    <plurals name="import_banner_adding">
+        <item quantity="one">Adding %d recipe</item>
+        <item quantity="other">Adding %d recipes</item>
+    </plurals>
+    <plurals name="import_banner_failed">
+        <item quantity="one">%d couldn\'t be added</item>
+        <item quantity="other">%d couldn\'t be added</item>
+    </plurals>
+    <!-- Joins the banner's adding and failed counts. -->
+    <string name="import_banner_both">%1$s · %2$s</string>
+    <string name="import_banner_tap">Tap to see the queue</string>
+
+    <!-- Import failure reasons, stored in the queue and shown later -->
+    <string name="import_no_link">This isn\'t a web link.</string>
+    <string name="import_no_recipe">The page loaded, but it doesn\'t have a recipe Recipe Box can read.</string>
+    <string name="import_fetch_no_response">No response</string>
+    <!-- %1$d is the HTTP status code. -->
+    <string name="import_fetch_http">The site answered with HTTP %1$d</string>
+    <string name="import_fetch_network">Network error</string>
+</resources>

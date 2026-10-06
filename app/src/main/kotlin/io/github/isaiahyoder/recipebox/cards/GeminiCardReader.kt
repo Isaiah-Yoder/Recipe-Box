@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.cards
 
 import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -56,7 +57,7 @@ class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets, priva
         // When every model is only busy, one more round after a short wait usually succeeds.
         repeat(2) { round ->
             if (round > 0) {
-                if (last?.busy != true) throw last ?: CardReadException("Gemini couldn't read the card.")
+                if (last?.busy != true) throw last ?: CardReadException(strings.get(R.string.cards_gemini_failed))
                 delay(BUSY_WAIT_MS)
             }
             var allBusy = true
@@ -69,9 +70,9 @@ class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets, priva
                     last = error
                 }
             }
-            if (!allBusy) last = CardReadException(last?.message ?: "Gemini couldn't read the card.")
+            if (!allBusy) last = CardReadException(last?.message ?: strings.get(R.string.cards_gemini_failed))
         }
-        throw last ?: CardReadException("Gemini couldn't read the card.")
+        throw last ?: CardReadException(strings.get(R.string.cards_gemini_failed))
     }
 
     /** Checks that [key] works without sending any photos. */
@@ -82,7 +83,7 @@ class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets, priva
                 if (!response.isSuccessful) throw failure(response.code, response.body.string())
             }
         }.recoverCatching { error ->
-            throw if (error is IOException) CardReadException("Couldn't reach Gemini. Check your internet connection.") else error
+            throw if (error is IOException) CardReadException(strings.get(R.string.cards_gemini_offline)) else error
         }
     }
 
@@ -120,11 +121,11 @@ class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets, priva
                 answerText(json.parseToJsonElement(answer))
             }
         } catch (error: IOException) {
-            throw CardReadException("Couldn't reach Gemini. Check your internet connection.")
+            throw CardReadException(strings.get(R.string.cards_gemini_offline))
         }
         val recipe = text?.let(CardJson::parse)
         if (recipe == null || recipe.isEmpty) {
-            throw CardReadException("Gemini couldn't find a recipe in the photos.", tryNextModel = true)
+            throw CardReadException(strings.get(R.string.cards_gemini_no_recipe), tryNextModel = true)
         }
         return recipe
     }
@@ -142,11 +143,11 @@ class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets, priva
     private fun failure(code: Int, body: String): CardReadException {
         val badKey = code == 401 || code == 403 || "API_KEY_INVALID" in body || "API key not valid" in body
         return when {
-            badKey -> CardReadException("Gemini didn't accept the key. Check it in Settings.", badKey = true)
-            code == 429 -> CardReadException("Gemini's free limit is used up for now. Try again later.", tryNextModel = true)
-            code == 404 -> CardReadException("Gemini's reading model isn't available.", tryNextModel = true)
-            code >= 500 -> CardReadException("Gemini is busy right now. Try again in a few minutes.", tryNextModel = true, busy = true)
-            else -> CardReadException("Gemini couldn't read the card (error $code).", tryNextModel = true)
+            badKey -> CardReadException(strings.get(R.string.cards_gemini_bad_key), badKey = true)
+            code == 429 -> CardReadException(strings.get(R.string.cards_gemini_limit), tryNextModel = true)
+            code == 404 -> CardReadException(strings.get(R.string.cards_gemini_no_model), tryNextModel = true)
+            code >= 500 -> CardReadException(strings.get(R.string.cards_gemini_busy), tryNextModel = true, busy = true)
+            else -> CardReadException(strings.get(R.string.cards_gemini_error_code, code), tryNextModel = true)
         }
     }
 

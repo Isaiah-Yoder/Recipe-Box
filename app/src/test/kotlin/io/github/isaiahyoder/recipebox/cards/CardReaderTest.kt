@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.TestStrings
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -20,11 +21,11 @@ class CardReaderTest {
         override suspend fun read(photos: List<File>): CardRecipe {
             calls++
             failure?.let { throw CardReadException(it) }
-            return CardRecipe(title = kind.label)
+            return CardRecipe(title = kind.id)
         }
     }
 
-    private val cloud = CardReaderKind("cloud", "cloud AI")
+    private val cloud = CardReaderKind("cloud", R.string.cards_reader_gemini)
 
     @Test fun usesTheFirstReaderThatCanRun() = runBlocking {
         val first = FakeReader(cloud, available = false)

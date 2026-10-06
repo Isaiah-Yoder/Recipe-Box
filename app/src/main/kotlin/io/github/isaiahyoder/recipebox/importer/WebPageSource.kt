@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.importer
 
 import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import android.util.Log
 import io.github.isaiahyoder.recipebox.model.RecipeDraft
 
@@ -18,7 +19,8 @@ class WebPageSource(
 
     override suspend fun read(url: String, onStage: (ImportStage) -> Unit): SourceResult {
         onStage(ImportStage.DOWNLOADING)
-        var reason = NO_RECIPE_DATA
+        val noRecipeData = strings.get(R.string.import_no_recipe)
+        var reason = noRecipeData
         var extracted: RecipeDraft? = null
         var pageLoaded = false
         when (val result = fetcher.fetch(url)) {
@@ -36,7 +38,7 @@ class WebPageSource(
             if (html != null) pageLoaded = true
             val fromBrowser = html?.let { RecipeExtractor.extract(it, url) }
             if (fromBrowser != null && (extracted == null || fromBrowser.isComplete)) extracted = fromBrowser
-            if (html != null && extracted == null) reason = NO_RECIPE_DATA
+            if (html != null && extracted == null) reason = noRecipeData
             Log.i(TAG, "Browser view: html=${html?.length ?: "none"}, ${describe(fromBrowser)}")
         }
         val recipe = extracted?.takeIf { it.isComplete }
@@ -50,6 +52,5 @@ class WebPageSource(
 
     private companion object {
         const val TAG = "RecipeImport"
-        const val NO_RECIPE_DATA = "The page loaded, but it doesn't have a recipe Recipe Box can read."
     }
 }

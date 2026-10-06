@@ -36,11 +36,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.ImportJobEntity
 import io.github.isaiahyoder.recipebox.data.ImportStatus
@@ -58,19 +60,19 @@ fun QueueScreen(onOpenRecipe: (Long) -> Unit, onEnterManually: (String, Long) ->
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Import queue") },
+                title = { Text(stringResource(R.string.import_queue_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.import_back))
                     }
                 },
                 actions = {
                     val current = jobs.orEmpty()
                     if (current.any { it.status == ImportStatus.FAILED }) {
-                        TextButton(onClick = { vm.retryAllFailed() }) { Text("Retry all") }
+                        TextButton(onClick = { vm.retryAllFailed() }) { Text(stringResource(R.string.import_retry_all)) }
                     }
                     if (current.any { it.status == ImportStatus.DONE || it.status == ImportStatus.DUPLICATE }) {
-                        TextButton(onClick = { vm.clearFinished() }) { Text("Clear finished") }
+                        TextButton(onClick = { vm.clearFinished() }) { Text(stringResource(R.string.import_clear_finished)) }
                     }
                 },
             )
@@ -80,7 +82,7 @@ fun QueueScreen(onOpenRecipe: (Long) -> Unit, onEnterManually: (String, Long) ->
         if (current.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "The queue is empty.\n\nShare recipe pages to Recipe Box, or tap Add recipe and paste links.",
+                    stringResource(R.string.import_queue_empty),
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -141,16 +143,16 @@ private fun JobRow(
         }
         if (job.status == ImportStatus.FAILED) {
             FlowRow(Modifier.padding(start = 36.dp)) {
-                TextButton(onClick = onRetry) { Text("Retry") }
+                TextButton(onClick = onRetry) { Text(stringResource(R.string.import_retry)) }
                 TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, job.url.toUri())) }) {
-                    Text("Open page")
+                    Text(stringResource(R.string.import_open_page))
                 }
-                TextButton(onClick = onEnterManually) { Text("Type it in") }
-                TextButton(onClick = onRemove) { Text("Remove") }
+                TextButton(onClick = onEnterManually) { Text(stringResource(R.string.import_type_in)) }
+                TextButton(onClick = onRemove) { Text(stringResource(R.string.import_remove)) }
             }
         } else if (job.status == ImportStatus.PENDING && job.attempts > 0) {
             Row(Modifier.padding(start = 36.dp)) {
-                TextButton(onClick = onRemove) { Text("Remove") }
+                TextButton(onClick = onRemove) { Text(stringResource(R.string.import_remove)) }
             }
         }
     }
@@ -168,17 +170,18 @@ private fun StatusIcon(job: ImportJobEntity) {
     }
 }
 
+@Composable
 private fun statusText(job: ImportJobEntity): String = when (job.status) {
     ImportStatus.PENDING -> if (job.attempts == 0) {
-        "Waiting"
+        stringResource(R.string.import_status_waiting)
     } else {
         val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(job.nextAttemptAt))
-        "Trying again at $time. ${job.lastError.orEmpty()}".trim()
+        stringResource(R.string.import_status_retrying, time, job.lastError.orEmpty()).trim()
     }
-    ImportStatus.RUNNING -> "Adding…"
-    ImportStatus.DONE -> "Added"
-    ImportStatus.DUPLICATE -> "Already in your recipes"
-    ImportStatus.FAILED -> "Couldn't add this page. ${job.lastError.orEmpty()}".trim()
+    ImportStatus.RUNNING -> stringResource(R.string.import_status_adding)
+    ImportStatus.DONE -> stringResource(R.string.import_status_added)
+    ImportStatus.DUPLICATE -> stringResource(R.string.import_status_duplicate)
+    ImportStatus.FAILED -> stringResource(R.string.import_status_failed, job.lastError.orEmpty()).trim()
 }
 
 /** "allrecipes.com/recipe/123/soup" reads better than the full address. */

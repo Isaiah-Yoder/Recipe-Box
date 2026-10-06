@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.cards
 
 import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.content.Context
 import android.graphics.Bitmap
@@ -74,9 +75,9 @@ class NanoCardReader(
     }
 
     override suspend fun read(photos: List<File>): CardRecipe {
-        val model = model ?: throw CardReadException("This phone doesn't have on-device AI.")
+        val model = model ?: throw CardReadException(strings.get(R.string.cards_on_device_missing))
         if (runCatchingCancellable { model.checkStatus() }.getOrNull() != FeatureStatus.AVAILABLE) {
-            throw CardReadException("On-device AI isn't ready on this phone.")
+            throw CardReadException(strings.get(R.string.cards_on_device_not_ready))
         }
         // Smaller images keep the request within the on-device model's limit.
         val bitmaps = withContext(Dispatchers.IO) { photos.mapNotNull { decode(it, NANO_EDGE) } }
@@ -90,9 +91,9 @@ class NanoCardReader(
             maxOutputTokens = 2048
         }
         val text = runCatchingCancellable { model.generateContent(request).candidates.firstOrNull()?.text }
-            .getOrElse { throw CardReadException("On-device AI couldn't read the card.") }
+            .getOrElse { throw CardReadException(strings.get(R.string.cards_on_device_failed)) }
         val recipe = text?.let(CardJson::parse)
-        if (recipe == null || recipe.isEmpty) throw CardReadException("On-device AI couldn't find a recipe in the photos.")
+        if (recipe == null || recipe.isEmpty) throw CardReadException(strings.get(R.string.cards_on_device_no_recipe))
         return recipe
     }
 
@@ -126,12 +127,12 @@ class TextCardReader(private val context: Context) : RecipeCardReader {
                 text.textBlocks.flatMap { block -> block.lines.map { it.text } }
             }
             val recipe = CardTextParser.parse(pages)
-            if (recipe.isEmpty) throw CardReadException("No writing was found in the photos.")
+            if (recipe.isEmpty) throw CardReadException(context.getString(R.string.cards_text_no_writing))
             return recipe
         } catch (error: CardReadException) {
             throw error
         } catch (error: Exception) {
-            throw CardReadException("Text recognition couldn't read the photos.")
+            throw CardReadException(context.getString(R.string.cards_text_failed))
         } finally {
             recognizer.close()
         }

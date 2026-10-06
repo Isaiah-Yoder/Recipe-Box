@@ -1,5 +1,7 @@
 package io.github.isaiahyoder.recipebox.ui.cards
 
+import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.net.Uri
 import androidx.compose.runtime.getValue
@@ -25,6 +27,7 @@ import kotlinx.coroutines.launch
 class CardScanViewModel(
     private val photos: PhotoStore,
     private val reader: CardReader,
+    private val strings: AppStrings,
     private val state: SavedStateHandle,
 ) : ViewModel() {
     val photoNames: StateFlow<List<String>> = state.getStateFlow(KEY_PHOTOS, emptyList())
@@ -45,7 +48,7 @@ class CardScanViewModel(
         error = null
         viewModelScope.launch {
             val saved = uris.mapNotNull { photos.saveCardPhoto(it) }
-            if (saved.size < uris.size) error = "A photo couldn't be opened. Try taking it again."
+            if (saved.size < uris.size) error = strings.get(R.string.cards_photo_unreadable)
             state[KEY_PHOTOS] = photoNames.value + saved
             adding = false
         }
@@ -80,7 +83,7 @@ class CardScanViewModel(
                 }
                 .onFailure {
                     reading = null
-                    error = it.message ?: "The card couldn't be read."
+                    error = it.message ?: strings.get(R.string.cards_read_failed)
                 }
         }
     }

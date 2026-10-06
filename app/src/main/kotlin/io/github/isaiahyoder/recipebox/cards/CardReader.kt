@@ -1,21 +1,24 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import androidx.annotation.StringRes
 import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.model.RecipeDraft
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import java.io.File
 
 /**
- * Which reader read a card, shown to her as "Read with Gemini". Readers are
- * an open set, so a build can add one, such as a Gemini reader that runs
- * through the developer's own cloud project.
+ * Which reader read a card, shown to her as "Read with Gemini". [labelRes]
+ * names the reader inside that sentence. Readers are an open set, so a build
+ * can add one, such as a Gemini reader that runs through the developer's own
+ * cloud project.
  */
-data class CardReaderKind(val id: String, val label: String) {
+data class CardReaderKind(val id: String, @StringRes val labelRes: Int) {
     companion object {
-        val GEMINI = CardReaderKind("gemini", "Gemini")
-        val ON_DEVICE_AI = CardReaderKind("on-device", "on-device AI")
-        val TEXT_RECOGNITION = CardReaderKind("text", "basic text recognition")
+        val GEMINI = CardReaderKind("gemini", R.string.cards_reader_gemini)
+        val ON_DEVICE_AI = CardReaderKind("on-device", R.string.cards_reader_on_device)
+        val TEXT_RECOGNITION = CardReaderKind("text", R.string.cards_reader_text)
     }
 }
 
@@ -43,7 +46,7 @@ class GeminiKeyCardReader(
     override fun isAvailable() = settings.geminiKey.value != null
 
     override suspend fun read(photos: List<File>): CardRecipe =
-        gemini.read(settings.geminiKey.value ?: throw CardReadException("There's no Gemini key."), photos)
+        gemini.read(settings.geminiKey.value ?: throw CardReadException(strings.get(R.string.cards_gemini_no_key)), photos)
 }
 
 /**
@@ -68,7 +71,10 @@ class CardReader(private val readers: List<RecipeCardReader>, private val string
             onStep(reader.kind)
             runCatchingCancellable { reader.read(photos) }
                 .onSuccess { return CardReadResult(it, reader.kind, problems) }
-                .onFailure { problems += it.message ?: "${reader.kind.label.replaceFirstChar(Char::titlecase)} didn't work." }
+                .onFailure {
+                    problems += it.message
+                        ?: strings.get(R.string.cards_reader_failed, strings.get(reader.kind.labelRes).replaceFirstChar(Char::titlecase))
+                }
         }
         throw CardReadException(problems.joinToString(" "))
     }
