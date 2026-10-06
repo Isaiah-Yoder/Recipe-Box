@@ -20,6 +20,10 @@ Recipe Box stores the following data on your phone:
 - The recipe part of each imported web page, so the app can read the recipe
   again after an update without downloading it. The app keeps these copies
   out of its backup files.
+- A record of each recipe, category, and grocery list you delete, by a
+  random ID and the time, with no names or content. It's kept so that a
+  future version can combine backups without bringing deleted items back,
+  and it's included in backup files.
 - An optional Gemini API key that you enter yourself. It stays on your
   phone: the app keeps it out of its own backup files and out of Android's
   automatic backup.

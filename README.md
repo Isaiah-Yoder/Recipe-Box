@@ -35,6 +35,16 @@ source set, `app/src/github` or `app/src/play`, and each flavor's
   no updater and no permission to install apps. It reads recipe cards on the
   phone.
 
+Every text the app shows comes from string resources, so the app can be
+translated. Each area has its own file in `app/src/main/res/values/`, such as
+`strings_library.xml`; the updater's text is in the `github` flavor's
+resources. Code without a `Context` gets text through `AppStrings`.
+
+Recipe sources, such as web pages and recipe cards, each produce a
+`RecipeDraft`, and `RecipeRepository` saves every new recipe the same way.
+Recipes, categories, and grocery lists have permanent IDs, change times, and
+deletion records, so libraries can be merged later.
+
 ## Release
 
 The app updates itself from this repository's GitHub releases. When it opens,
