@@ -1,6 +1,4 @@
-package io.github.isaiahyoder.recipebox.grocery
-
-import io.github.isaiahyoder.recipebox.ingredients.Nouns
+package io.github.isaiahyoder.recipebox.ingredients
 
 /**
  * Turns the name part of an ingredient line into something to shop for and

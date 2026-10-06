@@ -28,6 +28,7 @@ import androidx.room.TypeConverters
         SectionOverrideEntity::class,
         RecipePageEntity::class,
         DeletionEntity::class,
+        RecipeIngredientEntity::class,
     ],
     version = 7,
     exportSchema = true,
@@ -63,6 +64,8 @@ abstract class RecipeDatabase : RoomDatabase() {
     abstract fun groceryDao(): GroceryDao
 
     abstract fun backupDao(): BackupDao
+
+    abstract fun ingredientDao(): IngredientDao
 
     companion object {
         fun create(context: Context): RecipeDatabase =

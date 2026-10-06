@@ -13,4 +13,10 @@ object ContentVersions {
      * again on the phone; the rest are downloaded again on Wi-Fi.
      */
     const val READING = 3
+
+    /**
+     * How ingredient lines are read into the ingredient index: names, amounts,
+     * and units. Raising it rebuilds the index on the phone, which is quick.
+     */
+    const val INGREDIENT_INDEX = 1
 }

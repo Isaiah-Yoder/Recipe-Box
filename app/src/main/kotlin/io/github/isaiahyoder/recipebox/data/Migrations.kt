@@ -12,7 +12,8 @@ private const val UUID_SQL = "lower(hex(randomblob(4))) || '-' || lower(hex(rand
  * Version 7 gives recipes, categories, and grocery lists a permanent uid and
  * a change time, and adds the table of deletions; see Identity.kt. Existing
  * recipes and lists count as changed when they were last updated, and
- * categories and store sections as changed now.
+ * categories and store sections as changed now. It also adds the ingredient
+ * index, which the app fills for existing recipes at startup.
  *
  * It's written by hand because an automatic migration can't give each row its
  * own uid before the unique index on uid is created.
@@ -31,6 +32,13 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
             "CREATE TABLE IF NOT EXISTS `deletions` (`uid` TEXT NOT NULL, `kind` TEXT NOT NULL, " +
                 "`deletedAt` INTEGER NOT NULL, PRIMARY KEY(`uid`))"
         )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `recipe_ingredients` (`recipeId` INTEGER NOT NULL, `position` INTEGER NOT NULL, " +
+                "`groupName` TEXT, `nameKey` TEXT NOT NULL, `name` TEXT NOT NULL, `amountLow` REAL, `amountHigh` REAL, " +
+                "`unit` TEXT, `measure` TEXT, `baseAmount` REAL, `size` TEXT, PRIMARY KEY(`recipeId`, `position`), " +
+                "FOREIGN KEY(`recipeId`) REFERENCES `recipes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recipe_ingredients_nameKey` ON `recipe_ingredients` (`nameKey`)")
     }
 }
 

@@ -182,6 +182,8 @@ class BackupManager(
             dao.insertGroceryLineStates(backup.groceryLineStates.map { it.toEntity() })
             dao.insertSectionOverrides(backup.sectionOverrides.map { it.toEntity(backup.exportedAt) })
             dao.insertDeletions(backup.deletions.map { it.toEntity() })
+            // The ingredient index isn't in backups; it's rebuilt from the recipes.
+            database.recipeDao().indexRecipes()
         }
 
         // Old photo files no restored recipe uses are removed; cover photos download again.

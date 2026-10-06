@@ -1,7 +1,9 @@
 package io.github.isaiahyoder.recipebox.grocery
 
 import io.github.isaiahyoder.recipebox.ingredients.Fractions
+import io.github.isaiahyoder.recipebox.ingredients.IngredientNames
 import io.github.isaiahyoder.recipebox.ingredients.IngredientParser
+import io.github.isaiahyoder.recipebox.ingredients.IngredientReader
 import io.github.isaiahyoder.recipebox.ingredients.IngredientScaler
 import io.github.isaiahyoder.recipebox.ingredients.Measure
 import io.github.isaiahyoder.recipebox.ingredients.Nouns
@@ -105,53 +107,15 @@ object GroceryBuilder {
     }
 
     private fun add(line: String, recipe: GroceryRecipeInput, byKey: MutableMap<String, Accumulator>) {
-        val parsed = IngredientParser.parse(line)
-        var rest = parsed.rest
-        var unit = parsed.unit
-        var size: String? = null
-        // "1 (15 ounce) can black beans": the size is in parentheses before the unit.
-        if (parsed.quantity != null && unit == null && rest.startsWith("(") && ")" in rest) {
-            size = rest.substring(1, rest.indexOf(')')).trim()
-            val (sizedUnit, _, after) = IngredientParser.matchUnit(rest.substring(rest.indexOf(')') + 1).trimStart())
-            if (sizedUnit != null) {
-                unit = sizedUnit
-                rest = after
-            } else {
-                size = null
-            }
-        }
-        var quantity = parsed.quantity?.high
-        var plainSize: String? = null
-        // "1 9-inch pie crust" and "2 15-ounce cans black beans": a size written before the name or container.
-        if (quantity != null && unit == null) {
-            sizePrefix.find(rest)?.let { match ->
-                val after = rest.substring(match.range.last + 1).trimStart()
-                val (container, _, afterContainer) = IngredientParser.matchUnit(after)
-                if (container in containers) {
-                    unit = container
-                    size = sizeText(match)
-                    rest = afterContainer
-                } else {
-                    plainSize = sizeText(match)
-                    rest = after
-                }
-            }
-        }
-        // "12 ounce can evaporated milk": one can that holds 12 ounces.
-        if (quantity != null && unit != null && unit.measure != Measure.COUNT) {
-            val (container, _, after) = IngredientParser.matchUnit(rest)
-            if (container in containers) {
-                size = "${Fractions.format(quantity)} ${parsed.unitText.orEmpty().lowercase().trimEnd('.')}"
-                unit = container
-                quantity = 1.0
-                rest = after
-            }
-        }
-        val name = IngredientNames.clean(rest)
+        val reading = IngredientReader.read(line)
+        val name = reading.name
+        val unit = reading.unit
+        val size = reading.size
+        val plainSize = reading.plainSize
         if (name.key.isBlank()) return
         val acc = byKey.getOrPut(name.key) { Accumulator(name.display, line) }
         acc.sources += recipe.title
-        val amount = quantity?.times(recipe.scale)
+        val amount = reading.quantity?.high?.times(recipe.scale)
         when {
             amount == null -> acc.unmeasured = true
             unit == null -> {
@@ -188,23 +152,6 @@ object GroceryBuilder {
         val name = if (parts.size == 1 && acc.plain > 0) countedName(acc.display, acc.plain) else acc.display
         val sizeNote = acc.plainSize?.takeIf { acc.plain > 0 }?.let { " ($it)" }.orEmpty()
         return parts.joinToString(" + ") + " " + name + sizeNote
-    }
-
-    /** Units that hold an amount: "can" in "12 ounce can evaporated milk". */
-    private val containers = setOf(
-        Unit.CAN, Unit.JAR, Unit.PACKAGE, Unit.PACKET, Unit.ENVELOPE,
-        Unit.CONTAINER, Unit.BOTTLE, Unit.BAG, Unit.BOX,
-    )
-
-    private val sizePrefix = Regex(
-        """^(\d+(?:\.\d+)?)\s*-?\s*(ounces?|oz|inch(?:es)?|pounds?|lbs?|quarts?|qt)\.?(?![a-z])""",
-        RegexOption.IGNORE_CASE,
-    )
-
-    /** "9-inch" for pan and crust sizes; "15 ounce" for package sizes, matching "(15 ounce)" as written. */
-    private fun sizeText(match: MatchResult): String {
-        val (number, unit) = match.destructured
-        return if (unit.lowercase().startsWith("inch")) "$number-inch" else "$number ${unit.lowercase()}"
     }
 
     private fun countedName(display: String, amount: Double): String {

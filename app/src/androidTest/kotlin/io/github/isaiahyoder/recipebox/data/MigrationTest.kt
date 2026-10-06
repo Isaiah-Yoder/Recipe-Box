@@ -263,6 +263,13 @@ class MigrationTest {
                 assertTrue(uuid.matches(database.groceryDao().getLists().single().uid))
                 assertEquals(20L, database.groceryDao().getLists().single().changedAt)
 
+                // The ingredient index fills at startup.
+                val ingredients = database.ingredientDao()
+                assertTrue(ingredients.recipeIdsUsing(listOf("flour")).isEmpty())
+                assertEquals(2, dao.indexRecipes())
+                assertEquals(listOf(1L, 2L), ingredients.recipeIdsUsing(listOf("flour")))
+                assertEquals(0, dao.indexRecipes())
+
                 // Her changes count; the uid stays through an update.
                 dao.setFavorite(1, true)
                 assertTrue(dao.getRecipe(1)!!.changedAt > 201L)
@@ -274,6 +281,9 @@ class MigrationTest {
                 val deletion = database.backupDao().deletions().single()
                 assertEquals(second.uid, deletion.uid)
                 assertEquals(DeletedKind.RECIPE, deletion.kind)
+                assertEquals(listOf(1L), ingredients.recipeIdsUsing(listOf("flour")))
+                dao.update(dao.getRecipe(1)!!.copy(ingredients = listOf(RecipeLine("2 eggs"))))
+                assertEquals(listOf("egg"), ingredients.getIngredients(1).map { it.nameKey })
             }
         } finally {
             database.close()

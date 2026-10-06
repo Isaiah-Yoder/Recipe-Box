@@ -51,10 +51,11 @@ class RecipeBoxApp : Application() {
             // WorkManager's schedule isn't restored with the app's data on a new phone,
             // so daily Drive backups are scheduled again whenever they're on.
             if (container.settings.driveStatus.value.enabled) container.driveBackup.schedule()
-            // Recipes saved before search text existed get it once.
-            runCatchingCancellable { container.database.recipeDao().indexRecipes() }
-                .onFailure { Log.w(TAG, "Filling search text failed", it) }
             applyNewRules(container)
+            // Recipes saved before search text or the ingredient index existed, or restored
+            // from a backup, get them once.
+            runCatchingCancellable { container.database.recipeDao().indexRecipes() }
+                .onFailure { Log.w(TAG, "Filling search text and the ingredient index failed", it) }
         }
     }
 }
@@ -74,6 +75,12 @@ private suspend fun applyNewRules(container: AppContainer) {
                 settings.tagRulesVersion = ContentVersions.TAG_RULES
             }
             .onFailure { Log.w(TAG, "Reading saved recipes again failed", it) }
+    }
+    if (settings.ingredientIndexVersion < ContentVersions.INGREDIENT_INDEX) {
+        // Emptied here and filled again by indexRecipes, right after.
+        runCatchingCancellable { container.database.recipeDao().clearIngredientIndex() }
+            .onSuccess { settings.ingredientIndexVersion = ContentVersions.INGREDIENT_INDEX }
+            .onFailure { Log.w(TAG, "Clearing the ingredient index failed", it) }
     }
     if (settings.tagRulesVersion < ContentVersions.TAG_RULES) {
         runCatchingCancellable { container.tagRefresher.refreshAll() }

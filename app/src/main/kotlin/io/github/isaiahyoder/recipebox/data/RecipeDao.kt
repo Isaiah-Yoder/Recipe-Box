@@ -6,6 +6,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import io.github.isaiahyoder.recipebox.ingredients.IngredientIndex
+import io.github.isaiahyoder.recipebox.model.RecipeLine
 import kotlinx.coroutines.flow.Flow
 
 /** A recipe row for the library list, without the ingredient and step text. */
@@ -94,13 +96,37 @@ interface RecipeDao {
     @Query("SELECT uid FROM recipes WHERE id = :id")
     suspend fun getUid(id: Long): String?
 
-    suspend fun insert(recipe: RecipeEntity): Long =
-        insertRow(recipe.indexed().copy(uid = recipe.uid.ifBlank { newUid() }, changedAt = System.currentTimeMillis()))
-
-    /** Saves a changed recipe. Its permanent uid stays, even if [recipe] was built without it. */
+    /** Saves a new recipe with its search text and ingredient index, and returns its id. */
     @Transaction
-    suspend fun update(recipe: RecipeEntity) =
+    suspend fun insert(recipe: RecipeEntity): Long {
+        val id = insertRow(recipe.indexed().copy(uid = recipe.uid.ifBlank { newUid() }, changedAt = System.currentTimeMillis()))
+        writeIngredientIndex(id, recipe.ingredients)
+        return id
+    }
+
+    /**
+     * Saves a changed recipe with its search text and ingredient index. Its
+     * permanent uid stays, even if [recipe] was built without it.
+     */
+    @Transaction
+    suspend fun update(recipe: RecipeEntity) {
         updateRow(recipe.indexed().copy(uid = getUid(recipe.id) ?: recipe.uid, changedAt = System.currentTimeMillis()))
+        writeIngredientIndex(recipe.id, recipe.ingredients)
+    }
+
+    // Derived data: the search text and the ingredient index. Both are rebuilt
+    // from the ingredient lines, so neither counts as a change or is backed up.
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertIngredientRows(rows: List<RecipeIngredientEntity>)
+
+    @Query("DELETE FROM recipe_ingredients WHERE recipeId = :recipeId")
+    suspend fun deleteIngredientRows(recipeId: Long)
+
+    suspend fun writeIngredientIndex(recipeId: Long, ingredients: List<RecipeLine>) {
+        deleteIngredientRows(recipeId)
+        insertIngredientRows(IngredientIndex.read(ingredients).map { RecipeIngredientEntity.from(recipeId, it) })
+    }
 
     /** Recipes whose search text is missing, such as those saved before version 6. */
     @Query("SELECT * FROM recipes WHERE ingredientText = '' AND ingredients != '[]'")
@@ -109,12 +135,30 @@ interface RecipeDao {
     @Query("UPDATE recipes SET ingredientText = :text WHERE id = :id")
     suspend fun setIngredientText(id: Long, text: String)
 
-    /** Fills the search text for recipes that don't have it yet. Returns how many. */
+    /** Recipes with ingredients but no index rows, such as after the update to version 7 or a restore. */
+    @Query(
+        """
+        SELECT id, ingredients FROM recipes r WHERE ingredients != '[]'
+            AND NOT EXISTS (SELECT 1 FROM recipe_ingredients i WHERE i.recipeId = r.id)
+        """
+    )
+    suspend fun recipesWithoutIngredientIndex(): List<RecipeIngredientLines>
+
+    /** Empties the ingredient index, so [indexRecipes] reads every recipe again with newer rules. */
+    @Query("DELETE FROM recipe_ingredients")
+    suspend fun clearIngredientIndex()
+
+    /**
+     * Fills the search text and ingredient index for recipes that don't have
+     * them yet. Returns how many recipes it filled.
+     */
     @Transaction
     suspend fun indexRecipes(): Int {
-        val missing = getUnindexedRecipes()
-        missing.forEach { setIngredientText(it.id, it.indexed().ingredientText) }
-        return missing.size
+        val missingText = getUnindexedRecipes()
+        missingText.forEach { setIngredientText(it.id, it.indexed().ingredientText) }
+        val missingIndex = recipesWithoutIngredientIndex()
+        missingIndex.forEach { writeIngredientIndex(it.id, it.ingredients) }
+        return (missingText.map { it.id } + missingIndex.map { it.id }).distinct().size
     }
 
     @Query("UPDATE recipes SET lastScale = :scale, changedAt = $NOW_MS WHERE id = :id")

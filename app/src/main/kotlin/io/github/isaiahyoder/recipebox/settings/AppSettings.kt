@@ -204,6 +204,10 @@ class AppSettings(context: Context, fileName: String = "settings") {
         get() = prefs.getInt(KEY_READING_VERSION, 0)
         set(value) = prefs.edit { putInt(KEY_READING_VERSION, value) }
 
+    var ingredientIndexVersion: Int
+        get() = prefs.getInt(KEY_INGREDIENT_INDEX_VERSION, 0)
+        set(value) = prefs.edit { putInt(KEY_INGREDIENT_INDEX_VERSION, value) }
+
     /** Whether she has seen the offer to fill her categories from tags. */
     var feederOfferSeen: Boolean
         get() = prefs.getBoolean(KEY_FEEDER_OFFER, false)
@@ -252,6 +256,7 @@ class AppSettings(context: Context, fileName: String = "settings") {
         const val KEY_DRIVE_CONNECT_PROBLEM = "drive_connect_problem"
         const val KEY_TAG_RULES_VERSION = "tag_rules_version"
         const val KEY_READING_VERSION = "reading_version"
+        const val KEY_INGREDIENT_INDEX_VERSION = "ingredient_index_version"
         const val KEY_FEEDER_OFFER = "feeder_offer_seen"
         const val KEY_STALLS = "stall_reports"
         const val SECRETS_SUFFIX = "secrets"
