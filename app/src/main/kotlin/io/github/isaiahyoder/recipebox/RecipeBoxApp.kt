@@ -86,7 +86,18 @@ private suspend fun applyNewRules(container: AppContainer) {
 
 private const val TAG = "RecipeBox"
 
-/** Creates the app's long-lived objects once and shares them. */
+/**
+ * Creates the app's long-lived objects once and shares them.
+ *
+ * Each object is built lazily under a lock, and both the startup work in the
+ * background and screens on the main thread build them. An initializer must
+ * therefore never wait for the main thread: no WebView, no runBlocking, and
+ * no withContext(Dispatchers.Main). Doing so froze a cold start from Share
+ * until 0.5.1. Do such work later, in a method, not while building the object.
+ *
+ * Screens reach data through ViewModels and the repositories and services
+ * here, never through the database or its DAOs directly.
+ */
 class AppContainer(context: Context) {
     val database: RecipeDatabase by lazy { RecipeDatabase.create(context) }
 
