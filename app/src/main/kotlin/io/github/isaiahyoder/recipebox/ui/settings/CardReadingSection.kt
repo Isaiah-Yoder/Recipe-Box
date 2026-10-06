@@ -31,12 +31,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.isaiahyoder.recipebox.BuildFlavor
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.cards.CardReadException
 import io.github.isaiahyoder.recipebox.cards.OnDeviceAiStatus
 import kotlinx.coroutines.launch
 
-/** The Gemini key and on-device AI status, which decide how recipe cards are read. */
+/** The Gemini key, where the build offers one, and on-device AI status, which decide how recipe cards are read. */
 @Composable
 fun CardReadingSection() {
     val container = LocalContext.current.appContainer
@@ -46,22 +47,24 @@ fun CardReadingSection() {
     var removing by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) { container.onDeviceCards.refresh() }
 
-    ListItem(
-        headlineContent = { Text("Gemini key") },
-        supportingContent = {
-            Text(
-                if (key != null) {
-                    "Added. Recipe cards are read with Gemini, which reads handwriting best."
-                } else {
-                    "Not added. A free key from Google AI Studio reads handwritten cards much more accurately."
-                }
-            )
-        },
-    )
-    Row(Modifier.padding(horizontal = 8.dp)) {
-        TextButton(onClick = { editing = true }) { Text(if (key != null) "Change key" else "Add key") }
-        if (key != null) {
-            TextButton(onClick = { removing = true }) { Text("Remove key", color = MaterialTheme.colorScheme.error) }
+    if (BuildFlavor.OWN_GEMINI_KEY) {
+        ListItem(
+            headlineContent = { Text("Gemini key") },
+            supportingContent = {
+                Text(
+                    if (key != null) {
+                        "Added. Recipe cards are read with Gemini, which reads handwriting best."
+                    } else {
+                        "Not added. A free key from Google AI Studio reads handwritten cards much more accurately."
+                    }
+                )
+            },
+        )
+        Row(Modifier.padding(horizontal = 8.dp)) {
+            TextButton(onClick = { editing = true }) { Text(if (key != null) "Change key" else "Add key") }
+            if (key != null) {
+                TextButton(onClick = { removing = true }) { Text("Remove key", color = MaterialTheme.colorScheme.error) }
+            }
         }
     }
     ListItem(
@@ -70,9 +73,12 @@ fun CardReadingSection() {
             Text(
                 when (onDevice) {
                     OnDeviceAiStatus.CHECKING -> "Checking this phone…"
-                    OnDeviceAiStatus.READY -> "Ready. Reads cards on this phone when Gemini isn't available."
+                    OnDeviceAiStatus.READY ->
+                        if (BuildFlavor.OWN_GEMINI_KEY) "Ready. Reads cards on this phone when Gemini isn't available." else "Ready. Reads cards on this phone."
                     OnDeviceAiStatus.DOWNLOADING -> "Downloading to this phone. It's used once the download finishes."
-                    OnDeviceAiStatus.UNAVAILABLE -> "Not available on this phone. Cards without Gemini use basic text recognition."
+                    OnDeviceAiStatus.UNAVAILABLE ->
+                        if (BuildFlavor.OWN_GEMINI_KEY) "Not available on this phone. Cards without Gemini use basic text recognition."
+                        else "Not available on this phone. Cards are read with basic text recognition, which often misreads handwriting."
                 }
             )
         },

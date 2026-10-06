@@ -11,7 +11,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.IntentCompat
 import androidx.core.content.pm.PackageInfoCompat
-import io.github.isaiahyoder.recipebox.appContainer
+import io.github.isaiahyoder.recipebox.updater
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -288,7 +288,7 @@ class AppUpdater(
 /** Receives Android's answer about an update install. */
 class UpdateInstallReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val updater = context.appContainer.updater
+        val updater = context.updater
         when (val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 val confirm = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java) ?: return

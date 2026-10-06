@@ -47,6 +47,21 @@ android {
         }
     }
 
+    // Where the app comes from. The github build updates itself from GitHub
+    // releases and reads cards with her own Gemini key; it's the one she uses.
+    // The play build leaves updates to Google Play and has no install
+    // permission. Both keep the same applicationId, the app's identity.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") {
+            dimension = "distribution"
+            isDefault = true
+        }
+        create("play") {
+            dimension = "distribution"
+        }
+    }
+
     buildTypes {
         debug {
             // Debug builds are signed with this computer's debug key, so they

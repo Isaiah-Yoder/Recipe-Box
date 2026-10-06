@@ -42,7 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.isaiahyoder.recipebox.appContainer
+import io.github.isaiahyoder.recipebox.updater
 import io.github.isaiahyoder.recipebox.ui.copyToClipboard
 import io.github.isaiahyoder.recipebox.ui.formatAgo
 import io.github.isaiahyoder.recipebox.update.AppUpdater
@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 @Composable
 private fun rememberStartUpdate(): (AvailableUpdate) -> Unit {
     val context = LocalContext.current
-    val updater = context.appContainer.updater
+    val updater = context.updater
     var waiting by remember { mutableStateOf<AvailableUpdate?>(null) }
     var explaining by remember { mutableStateOf<AvailableUpdate?>(null) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -111,7 +111,7 @@ private fun WhatsNewDialog(update: AvailableUpdate, onDismiss: () -> Unit, onUpd
 /** A card above the import banner when an update is ready or underway. */
 @Composable
 fun UpdateBanner() {
-    val updater = LocalContext.current.appContainer.updater
+    val updater = LocalContext.current.updater
     val state by updater.state.collectAsStateWithLifecycle()
     // Changes when she puts the banner off, so it hides right away.
     var putOffCount by remember { mutableIntStateOf(0) }
@@ -203,7 +203,7 @@ fun UpdateBanner() {
 /** The update line in Settings: shows the status and checks or updates when tapped. */
 @Composable
 fun UpdateSettingsItem() {
-    val updater = LocalContext.current.appContainer.updater
+    val updater = LocalContext.current.updater
     val state by updater.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val startUpdate = rememberStartUpdate()

@@ -50,6 +50,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.isaiahyoder.recipebox.BuildFlavor
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.cards.OnDeviceAiStatus
 import java.io.File
@@ -189,6 +190,8 @@ fun CardScanScreen(onDraft: (Long) -> Unit, onBack: () -> Unit) {
 }
 
 private fun readerHint(hasKey: Boolean, onDevice: OnDeviceAiStatus): String = when {
+    !BuildFlavor.OWN_GEMINI_KEY && onDevice == OnDeviceAiStatus.READY -> "Cards are read with this phone's built-in AI."
+    !BuildFlavor.OWN_GEMINI_KEY -> "Cards are read with basic text recognition, which often misreads handwriting."
     hasKey -> "Cards are read with Gemini, using your key from Settings."
     onDevice == OnDeviceAiStatus.READY -> "Cards are read with this phone's built-in AI. A Gemini key in Settings reads handwriting better."
     else -> "Without a Gemini key, cards are read with basic text recognition, which often misreads handwriting. " +

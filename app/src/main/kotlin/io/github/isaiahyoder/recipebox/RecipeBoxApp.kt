@@ -13,7 +13,6 @@ import android.webkit.WebView
 import io.github.isaiahyoder.recipebox.backup.BackupManager
 import io.github.isaiahyoder.recipebox.cards.CardAssets
 import io.github.isaiahyoder.recipebox.cards.CardReader
-import io.github.isaiahyoder.recipebox.cards.GeminiKeyCardReader
 import io.github.isaiahyoder.recipebox.cards.GeminiCardReader
 import io.github.isaiahyoder.recipebox.cards.NanoCardReader
 import io.github.isaiahyoder.recipebox.cards.TextCardReader
@@ -29,7 +28,6 @@ import io.github.isaiahyoder.recipebox.importer.WebViewPageLoader
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import io.github.isaiahyoder.recipebox.tags.TagRefresher
-import io.github.isaiahyoder.recipebox.update.AppUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -166,10 +164,8 @@ class AppContainer(context: Context) {
         BackupOperations(context, appScope, backupManager, driveBackup, settings)
     }
 
-    val updater: AppUpdater by lazy { AppUpdater(context, httpClient, settings) }
-
-    /** How this build gets updates; shared code goes through this, not the updater. */
-    val distribution: AppDistribution by lazy { GitHubDistribution(updater) }
+    /** How this build gets updates, from [BuildFlavor]. */
+    val distribution: AppDistribution by lazy { BuildFlavor.distribution(context, httpClient, settings) }
 
     val recipeRefresher: RecipeRefresher by lazy {
         RecipeRefresher(context, database.recipeDao(), database.pageDao(), importer, tagRefresher, settings)
@@ -184,12 +180,9 @@ class AppContainer(context: Context) {
 
     val onDeviceCards: NanoCardReader by lazy { NanoCardReader(cardAssets, appScope) }
 
-    /**
-     * Card readers in the order they're tried. A build for an app store can
-     * supply its own list here, such as a cloud reader in place of her own key.
-     */
+    /** Card readers in the order they're tried. Each build adds its own to the shared ones. */
     val cardReader: CardReader by lazy {
-        CardReader(listOf(GeminiKeyCardReader(settings, geminiCards), onDeviceCards, TextCardReader(context)))
+        CardReader(BuildFlavor.cardReaders(settings, geminiCards, shared = listOf(onDeviceCards, TextCardReader(context))))
     }
 
     private companion object {

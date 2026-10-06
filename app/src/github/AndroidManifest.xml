@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The GitHub build installs its own updates. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Lets the app install its own updates. Android asks her to allow it once. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- After the app has installed itself once, later updates skip Android's extra confirmation. -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+
+    <application>
+        <receiver
+            android:name=".update.UpdateInstallReceiver"
+            android:exported="false" />
+    </application>
+
+</manifest>

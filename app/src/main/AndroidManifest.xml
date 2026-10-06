@@ -2,10 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Lets the app install its own updates. Android asks her to allow it once. -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!-- After the app has installed itself once, later updates skip Android's extra confirmation. -->
-    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <application
         android:name=".RecipeBoxApp"
@@ -53,9 +49,6 @@
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="ocr" />
-        <receiver
-            android:name=".update.UpdateInstallReceiver"
-            android:exported="false" />
     </application>
 
 </manifest>

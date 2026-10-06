@@ -22,7 +22,18 @@ The project has the following modules:
   and cards, parsing and scaling ingredients, tagging, and building grocery
   lists. It's a plain Kotlin module, so its tests run on the computer with
   `./gradlew :core:test`.
-- `app`: the Android app, with its database, screens, backups, and updates.
+- `app`: the Android app, with its database, screens, and backups.
+
+The app has two build flavors. Code that only one flavor needs lives in its
+source set, `app/src/github` or `app/src/play`, and each flavor's
+`BuildFlavor` object supplies it to the shared code:
+
+- `github`: the build that's released. It updates itself from this
+  repository's GitHub releases and can read recipe cards with the user's own
+  Gemini key.
+- `play`: a build for Google Play. Google Play installs its updates, so it has
+  no updater and no permission to install apps. It reads recipe cards on the
+  phone.
 
 ## Release
 
@@ -32,6 +43,8 @@ is higher than the installed one. To publish a release so the app finds it,
 follow these rules:
 
 - Increase `versionCode` and `versionName` in `app/build.gradle.kts`.
+- Build the GitHub flavor with `./gradlew :app:assembleGithubRelease`. The APK
+  is in `app/build/outputs/apk/github/release/`.
 - Tag the release `vX.Y.Z`, matching `versionName`.
 - Attach exactly one APK, signed with the release key, named
   `recipe-box-X.Y.Z.apk`.
