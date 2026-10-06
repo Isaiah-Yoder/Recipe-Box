@@ -47,6 +47,7 @@ class RecipeBoxApp : Application() {
         StallWatchdog(BuildConfigValues.versionName(this), container.settings::recordStall).start()
         // A cover photo file can go missing; download it again in the background.
         CoroutineScope(Dispatchers.IO).launch {
+            ShareActivity.publishShareShortcut(this@RecipeBoxApp)
             if (container.photoRestorer.forgetMissingFiles() > 0) PhotoRestorer.schedule(this@RecipeBoxApp)
             // Card photos from a scan she didn't save.
             container.photos.deleteUnusedCardPhotos(container.database.recipeDao().allCardPhotos().flatMap { it.cardPhotos }.toSet())

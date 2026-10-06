@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lets the "Save to Recipe Box" share shortcut take shared text, such as links. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <share-target android:targetClass="io.github.isaiahyoder.recipebox.ShareActivity">
+        <data android:mimeType="text/plain" />
+        <category android:name="io.github.isaiahyoder.recipebox.category.SAVE_RECIPE" />
+    </share-target>
+</shortcuts>
