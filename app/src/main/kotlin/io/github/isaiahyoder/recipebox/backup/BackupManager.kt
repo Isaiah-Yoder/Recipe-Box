@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.backup
 
 import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import androidx.room.withTransaction
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
@@ -130,14 +131,14 @@ class BackupManager(
                 }
             }
         }
-        (backup ?: throw BackupException("This file isn't a Recipe Box backup.")) to photoBytes
+        (backup ?: throw BackupException(strings.get(R.string.backup_file_not_backup))) to photoBytes
     }
 
     fun decode(bytes: ByteArray): BackupFile {
         val backup = runCatching { json.decodeFromString<BackupFile>(bytes.decodeToString()) }
-            .getOrElse { throw BackupException("This file isn't a Recipe Box backup, or it's damaged.") }
+            .getOrElse { throw BackupException(strings.get(R.string.backup_file_damaged)) }
         if (backup.format > BackupFile.FORMAT) {
-            throw BackupException("This backup was made by a newer version of Recipe Box. Update the app, then try again.")
+            throw BackupException(strings.get(R.string.backup_file_too_new))
         }
         return backup
     }

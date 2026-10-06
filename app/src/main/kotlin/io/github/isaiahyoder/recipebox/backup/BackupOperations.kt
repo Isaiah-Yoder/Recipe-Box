@@ -5,6 +5,8 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.annotation.StringRes
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import kotlinx.coroutines.CoroutineScope
@@ -36,10 +38,12 @@ class BackupOperations(
 
     private fun tell(message: String) = main.post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
 
+    private fun tell(@StringRes message: Int) = tell(context.getString(message))
+
     /** Runs [work] unless another operation is running. */
-    private fun run(label: String, work: suspend () -> Unit) {
+    private fun run(@StringRes label: Int, work: suspend () -> Unit) {
         if (_busy.value != null) return
-        _busy.value = label
+        _busy.value = context.getString(label)
         scope.launch {
             try {
                 work()
@@ -62,34 +66,35 @@ class BackupOperations(
         drive.cancel()
     }
 
-    fun backUpNow() = run("Backing up to Google Drive…") {
+    fun backUpNow() = run(R.string.backup_drive_backing_up) {
         when (val result = drive.backUp(force = true)) {
-            DriveBackupResult.Uploaded, DriveBackupResult.Unchanged -> tell("Backed up to Google Drive.")
+            DriveBackupResult.Uploaded, DriveBackupResult.Unchanged -> tell(R.string.backup_drive_backed_up)
             is DriveBackupResult.Failed -> tell(result.message)
         }
     }
 
-    fun saveFile(uri: Uri) = run("Saving backup file…") {
+    fun saveFile(uri: Uri) = run(R.string.backup_file_saving) {
         runCatchingCancellable {
             val backup = manager.snapshot()
             context.contentResolver.openOutputStream(uri)!!.use { manager.writeZip(backup, it, includePhotos = true) }
-        }.onSuccess { tell("Backup file saved.") }.onFailure { tell("Couldn't save the backup: ${it.message}") }
+        }.onSuccess { tell(R.string.backup_file_saved) }
+            .onFailure { tell(context.getString(R.string.backup_file_save_failed, it.message.toString())) }
     }
 
-    fun restoreFile(backup: BackupFile, photos: Map<String, ByteArray>) = run("Restoring…") {
+    fun restoreFile(backup: BackupFile, photos: Map<String, ByteArray>) = run(R.string.backup_restoring) {
         runCatchingCancellable { manager.restore(backup) { photos[it] } }
             .onSuccess { restored() }
-            .onFailure { tell(it.message ?: "The restore didn't finish. Nothing was changed.") }
+            .onFailure { tell(it.message ?: context.getString(R.string.backup_restore_failed)) }
     }
 
-    fun restoreDrive(file: DriveFile) = run("Restoring from Google Drive…") {
+    fun restoreDrive(file: DriveFile) = run(R.string.backup_drive_restoring) {
         runCatchingCancellable { drive.restore(file) }
             .onSuccess { restored() }
-            .onFailure { tell(it.message ?: "The restore didn't finish. Nothing was changed.") }
+            .onFailure { tell(it.message ?: context.getString(R.string.backup_restore_failed)) }
     }
 
     private fun restored() {
         PhotoRestorer.schedule(context)
-        tell("Restored. Recipe photos are downloading in the background.")
+        tell(R.string.backup_restored)
     }
 }

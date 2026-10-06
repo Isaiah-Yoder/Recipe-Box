@@ -25,10 +25,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.isaiahyoder.recipebox.BuildConfigValues
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.settings.ThemeMode
 
@@ -41,44 +43,46 @@ fun SettingsScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back))
                     }
                 },
             )
         },
     ) { padding ->
         Column(Modifier.padding(padding).verticalScroll(rememberScrollState())) {
-            SectionTitle("Appearance")
+            SectionTitle(stringResource(R.string.settings_section_appearance))
             Column(Modifier.selectableGroup()) {
-                ThemeOption("Use phone setting", ThemeMode.SYSTEM, themeMode, settings::setThemeMode)
-                ThemeOption("Light", ThemeMode.LIGHT, themeMode, settings::setThemeMode)
-                ThemeOption("Dark", ThemeMode.DARK, themeMode, settings::setThemeMode)
+                ThemeOption(stringResource(R.string.settings_theme_system), ThemeMode.SYSTEM, themeMode, settings::setThemeMode)
+                ThemeOption(stringResource(R.string.settings_theme_light), ThemeMode.LIGHT, themeMode, settings::setThemeMode)
+                ThemeOption(stringResource(R.string.settings_theme_dark), ThemeMode.DARK, themeMode, settings::setThemeMode)
             }
-            SectionTitle("Units")
+            SectionTitle(stringResource(R.string.settings_section_units))
             Column(Modifier.selectableGroup()) {
                 val units by settings.unitSystem.collectAsStateWithLifecycle()
-                UnitOption("US (cups, ounces, °F)", UnitSystem.US, units, settings::setUnitSystem)
-                UnitOption("Metric (milliliters, grams, °C)", UnitSystem.METRIC, units, settings::setUnitSystem)
+                UnitOption(stringResource(R.string.settings_units_us), UnitSystem.US, units, settings::setUnitSystem)
+                UnitOption(stringResource(R.string.settings_units_metric), UnitSystem.METRIC, units, settings::setUnitSystem)
             }
             Text(
-                "Recipes and new grocery lists start in these units. You can switch on any recipe or list.",
+                stringResource(R.string.settings_units_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
-            SectionTitle("Organization")
+            SectionTitle(stringResource(R.string.settings_section_organization))
             RefreshRecipesItem()
-            SectionTitle("Recipe cards")
+            SectionTitle(stringResource(R.string.settings_section_recipe_cards))
             CardReadingSection()
-            SectionTitle("Backups")
+            SectionTitle(stringResource(R.string.settings_section_backups))
             BackupSection()
-            SectionTitle("About")
+            SectionTitle(stringResource(R.string.settings_section_about))
             ListItem(
-                headlineContent = { Text("Recipe Box ${BuildConfigValues.versionName(LocalContext.current)}") },
-                supportingContent = { Text("Your recipes stay on this phone and in your own backups.") },
+                headlineContent = {
+                    Text(stringResource(R.string.settings_about_version, BuildConfigValues.versionName(LocalContext.current)))
+                },
+                supportingContent = { Text(stringResource(R.string.settings_about_privacy)) },
             )
             LocalContext.current.appContainer.distribution.SettingsItem()
             StallReportsItem()

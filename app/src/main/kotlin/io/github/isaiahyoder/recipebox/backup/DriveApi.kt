@@ -1,5 +1,7 @@
 package io.github.isaiahyoder.recipebox.backup
 
+import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -27,7 +29,7 @@ class DriveException(val code: Int, message: String) : Exception(message)
  * The few Google Drive REST calls backups need. With the drive.file scope,
  * the app sees only the files it created, never her other Drive files.
  */
-class DriveApi(private val client: OkHttpClient, private val token: String) {
+class DriveApi(private val client: OkHttpClient, private val token: String, private val strings: AppStrings) {
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun list(query: String, orderBy: String? = null): List<DriveFile> {
@@ -80,7 +82,7 @@ class DriveApi(private val client: OkHttpClient, private val token: String) {
     private suspend fun call(builder: Request.Builder): ByteArray = withContext(Dispatchers.IO) {
         client.newCall(builder.header("Authorization", "Bearer $token").build()).execute().use { response: Response ->
             val bytes = response.body.bytes()
-            if (!response.isSuccessful) throw DriveException(response.code, "Google Drive answered with HTTP ${response.code}")
+            if (!response.isSuccessful) throw DriveException(response.code, strings.get(R.string.backup_drive_http, response.code))
             bytes
         }
     }

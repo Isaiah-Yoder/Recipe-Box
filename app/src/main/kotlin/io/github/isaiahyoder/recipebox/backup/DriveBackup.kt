@@ -16,6 +16,9 @@ import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Scope
+import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
+import io.github.isaiahyoder.recipebox.ResourceStrings
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.settings.AppSettings
@@ -61,6 +64,8 @@ class DriveBackup(
 ) {
     private val running = Mutex()
 
+    private val strings: AppStrings = ResourceStrings(context)
+
     private val request = AuthorizationRequest.builder()
         .setRequestedScopes(listOf(Scope(DRIVE_FILE_SCOPE)))
         .build()
@@ -71,7 +76,7 @@ class DriveBackup(
         return if (result.hasResolution() && pending != null) {
             DriveAuth.NeedsConsent(pending)
         } else {
-            DriveAuth.Token(result.accessToken ?: throw DriveException(401, "Google didn't grant Drive access."))
+            DriveAuth.Token(result.accessToken ?: throw DriveException(401, strings.get(R.string.backup_drive_not_granted)))
         }
     }
 
@@ -81,7 +86,7 @@ class DriveBackup(
      */
     fun tokenFromConsent(data: Intent?): Result<String> = runCatching {
         Identity.getAuthorizationClient(context).getAuthorizationResultFromIntent(data).accessToken
-            ?: throw DriveException(401, "Google didn't grant Drive access.")
+            ?: throw DriveException(401, strings.get(R.string.backup_drive_not_granted))
     }
 
     /** Explains a sign-in failure in words, keeping Google's status code for diagnosis. */
@@ -93,12 +98,14 @@ class DriveBackup(
             // Google can't match this app's package name and signing fingerprint to an Android
             // client in the Google Cloud project, so sign-in can't start.
             code == CommonStatusCodes.DEVELOPER_ERROR || "UNREGISTERED_ON_API_CONSOLE" in api.message.orEmpty() ->
-                "Google doesn't recognize this app's sign-in setup. The Android client in Google Cloud needs this app's package name and signing fingerprint."
-            code == CommonStatusCodes.NETWORK_ERROR -> "Check the internet connection."
-            code == CommonStatusCodes.CANCELED -> "Sign-in was canceled."
+                strings.get(R.string.backup_drive_hint_setup)
+            code == CommonStatusCodes.NETWORK_ERROR -> strings.get(R.string.backup_drive_hint_network)
+            code == CommonStatusCodes.CANCELED -> strings.get(R.string.backup_drive_hint_canceled)
             else -> null
         }
-        return listOfNotNull(hint, "Google code $code ($name)${api.message?.let { ": $it" } ?: ""}").joinToString(" ")
+        val status = api.message?.let { strings.get(R.string.backup_drive_google_code_message, code, name, it) }
+            ?: strings.get(R.string.backup_drive_google_code, code, name)
+        return listOfNotNull(hint, status).joinToString(" ")
     }
 
     /**
@@ -111,7 +118,7 @@ class DriveBackup(
             val token = when (val auth = authorize()) {
                 is DriveAuth.Token -> auth.value
                 is DriveAuth.NeedsConsent ->
-                    return@runCatchingCancellable DriveBackupResult.Failed("Google Drive needs you to reconnect. Open Settings and tap Connect.")
+                    return@runCatchingCancellable DriveBackupResult.Failed(strings.get(R.string.backup_drive_reconnect))
             }
             val snapshot = backups.snapshot()
             val hash = backups.contentHash(snapshot)
@@ -120,7 +127,7 @@ class DriveBackup(
                 return@runCatchingCancellable DriveBackupResult.Unchanged
             }
 
-            val api = DriveApi(client, token)
+            val api = DriveApi(client, token, strings)
             val folder = ensureFolder(api, FOLDER_NAME, parentId = null, saved = settings.driveFolderId) {
                 settings.driveFolderId = it
             }
@@ -143,7 +150,7 @@ class DriveBackup(
             listBackups(api, folder).drop(KEEP).forEach { api.delete(it.id) }
             settings.driveLastHash = hash
             DriveBackupResult.Uploaded
-        }.getOrElse { DriveBackupResult.Failed(it.message ?: "The backup didn't finish.") }
+        }.getOrElse { DriveBackupResult.Failed(it.message ?: strings.get(R.string.backup_drive_unfinished)) }
 
         when (result) {
             is DriveBackupResult.Failed -> settings.recordDriveFailure(now, result.message)
@@ -154,8 +161,9 @@ class DriveBackup(
 
     /** Backups in Drive, newest first. */
     suspend fun listBackups(): List<DriveFile> {
-        val token = (authorize() as? DriveAuth.Token)?.value ?: throw DriveException(401, "Connect Google Drive first.")
-        val api = DriveApi(client, token)
+        val token = (authorize() as? DriveAuth.Token)?.value
+            ?: throw DriveException(401, strings.get(R.string.backup_drive_connect_first))
+        val api = DriveApi(client, token, strings)
         val folder = settings.driveFolderId?.let { api.get(it) }?.takeIf { !it.trashed }?.id
             ?: api.list(folderQuery(FOLDER_NAME, null)).firstOrNull()?.id
             ?: return emptyList()
@@ -164,8 +172,9 @@ class DriveBackup(
 
     /** Replaces everything in the app with [file], including her own photos from the photos folder. */
     suspend fun restore(file: DriveFile) {
-        val token = (authorize() as? DriveAuth.Token)?.value ?: throw DriveException(401, "Connect Google Drive first.")
-        val api = DriveApi(client, token)
+        val token = (authorize() as? DriveAuth.Token)?.value
+            ?: throw DriveException(401, strings.get(R.string.backup_drive_connect_first))
+        val api = DriveApi(client, token, strings)
         val (backup, _) = backups.readZip(ByteArrayInputStream(api.download(file.id)))
         val folder = api.list(folderQuery(FOLDER_NAME, null)).firstOrNull()?.id
         val photoFolder = folder?.let { api.list(folderQuery(PHOTO_FOLDER_NAME, it)).firstOrNull()?.id }

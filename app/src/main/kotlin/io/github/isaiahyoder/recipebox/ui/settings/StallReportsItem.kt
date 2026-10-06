@@ -9,8 +9,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.diagnostics.StallWatchdog
 import io.github.isaiahyoder.recipebox.ui.copyToClipboard
@@ -25,18 +28,18 @@ fun StallReportsItem() {
     if (reports.isEmpty()) return
     val longest = reports.maxOf { it.millis }
     ListItem(
-        headlineContent = { Text(if (reports.size == 1) "The app paused once" else "The app paused ${reports.size} times") },
+        headlineContent = { Text(pluralStringResource(R.plurals.diagnostics_stalls_title, reports.size, reports.size)) },
         supportingContent = {
-            Text(
-                "Longest %.1f seconds, last ${formatAgo(reports.first().at)}. ".format(longest / 1000.0) +
-                    "Copy the details to send them for help.",
-            )
+            Text(stringResource(R.string.diagnostics_stalls_summary, longest / 1000.0, formatAgo(reports.first().at)))
         },
     )
     Row(Modifier.padding(horizontal = 8.dp)) {
-        TextButton(onClick = { copyToClipboard(context, "Recipe Box pauses", StallWatchdog.describe(reports)) }) {
-            Text("Copy details")
+        // The copied details are for the developer, so they stay in English.
+        TextButton(onClick = {
+            copyToClipboard(context, context.getString(R.string.diagnostics_stalls_clip_label), StallWatchdog.describe(reports))
+        }) {
+            Text(stringResource(R.string.diagnostics_copy_details))
         }
-        TextButton(onClick = settings::clearStalls) { Text("Clear") }
+        TextButton(onClick = settings::clearStalls) { Text(stringResource(R.string.diagnostics_clear)) }
     }
 }

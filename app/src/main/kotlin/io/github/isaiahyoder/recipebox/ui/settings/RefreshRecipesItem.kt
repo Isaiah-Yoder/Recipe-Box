@@ -19,8 +19,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.ui.formatAgo
 import kotlinx.coroutines.launch
@@ -40,18 +43,23 @@ fun RefreshRecipesItem() {
 
     val summary = when {
         status.running && status.wifiOnly && status.done == 0 ->
-            "Applying this update's reading fixes to ${plural(status.total, "recipe")} when the phone is on Wi-Fi."
-        status.running -> "Recipe ${status.done + 1} of ${status.total}. You can keep using the app."
-        status.finishedAt > 0 -> buildList {
-            add("Refreshed ${plural(status.updated, "recipe")} ${formatAgo(status.finishedAt)}.")
-            if (status.failed.isNotEmpty()) add("${plural(status.failed.size, "page")} couldn't be read.")
-        }.joinToString(" ")
-        else -> "Reads each saved recipe's web page again with the latest fixes, such as ingredient groups and " +
-            "complete steps. Parts you edited, notes, favorites, categories, tags, and photos stay."
+            pluralStringResource(R.plurals.settings_refresh_waiting, status.total, status.total)
+        status.running -> stringResource(R.string.settings_refresh_progress, status.done + 1, status.total)
+        status.finishedAt > 0 -> listOfNotNull(
+            pluralStringResource(R.plurals.settings_refresh_done, status.updated, status.updated, formatAgo(status.finishedAt)),
+            if (status.failed.isNotEmpty()) {
+                pluralStringResource(R.plurals.settings_refresh_failed, status.failed.size, status.failed.size)
+            } else {
+                null
+            },
+        ).joinToString(" ")
+        else -> stringResource(R.string.settings_refresh_summary)
     }
 
     ListItem(
-        headlineContent = { Text(if (status.running) "Refreshing recipes" else "Refresh recipes") },
+        headlineContent = {
+            Text(stringResource(if (status.running) R.string.settings_refresh_running else R.string.settings_refresh))
+        },
         supportingContent = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(summary)
@@ -69,39 +77,40 @@ fun RefreshRecipesItem() {
     )
     Row(Modifier.padding(horizontal = 8.dp)) {
         if (status.running) {
-            TextButton(onClick = refresher::stop) { Text("Stop") }
+            TextButton(onClick = refresher::stop) { Text(stringResource(R.string.settings_refresh_stop)) }
         } else if (status.failed.isNotEmpty()) {
-            TextButton(onClick = refresher::retryFailed) { Text("Try again") }
+            TextButton(onClick = refresher::retryFailed) { Text(stringResource(R.string.settings_refresh_retry)) }
         }
     }
 
     confirming?.let { (linked, edited) ->
         AlertDialog(
             onDismissRequest = { confirming = null },
-            title = { Text("Refresh ${plural(linked, "recipe")}?") },
+            title = { Text(pluralStringResource(R.plurals.settings_refresh_confirm_title, linked, linked)) },
             text = {
+                val minutes = minutes(linked)
+                val body = pluralStringResource(R.plurals.settings_refresh_confirm_body, minutes, minutes)
                 Text(
-                    "Each recipe's page is read again, which takes about ${minutes(linked)} and needs an internet " +
-                        "connection. You can keep using the app. Your notes, favorites, categories, tags, and " +
-                        "photos stay." +
-                        if (edited > 0) " In the ${plural(edited, "recipe")} you edited, the parts you changed stay too." else ""
+                    if (edited > 0) {
+                        body + " " + pluralStringResource(R.plurals.settings_refresh_confirm_edited, edited, edited)
+                    } else {
+                        body
+                    }
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     confirming = null
                     scope.launch { refresher.start() }
-                }) { Text("Refresh") }
+                }) { Text(stringResource(R.string.settings_refresh_confirm)) }
             },
-            dismissButton = { TextButton(onClick = { confirming = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirming = null }) { Text(stringResource(R.string.settings_cancel)) } },
         )
     }
 }
 
-private fun plural(count: Int, noun: String) = "$count ${if (count == 1) noun else noun + "s"}"
-
-/** About six seconds per recipe: the download plus a pause, so sites don't refuse. */
-private fun minutes(count: Int): String {
-    val minutes = ((count * 6) + 59) / 60
-    return if (minutes <= 1) "a minute" else "$minutes minutes"
-}
+/**
+ * About six seconds per recipe: the download plus a pause, so sites don't
+ * refuse. It's at least 1, which the text shows as "a minute".
+ */
+private fun minutes(count: Int): Int = maxOf(1, ((count * 6) + 59) / 60)

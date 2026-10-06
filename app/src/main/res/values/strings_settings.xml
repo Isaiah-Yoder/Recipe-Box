@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_theme_system">Use phone setting</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_section_units">Units</string>
+    <string name="settings_units_us">US (cups, ounces, °F)</string>
+    <string name="settings_units_metric">Metric (milliliters, grams, °C)</string>
+    <string name="settings_units_note">Recipes and new grocery lists start in these units. You can switch on any recipe or list.</string>
+    <string name="settings_section_organization">Organization</string>
+    <string name="settings_section_recipe_cards">Recipe cards</string>
+    <string name="settings_section_backups">Backups</string>
+    <string name="settings_section_about">About</string>
+    <!-- %1$s is the app version, such as 0.6.0. -->
+    <string name="settings_about_version">Recipe Box %1$s</string>
+    <string name="settings_about_privacy">Your recipes stay on this phone and in your own backups.</string>
+    <string name="settings_cancel">Cancel</string>
+
+    <!-- Settings: refresh recipes -->
+    <plurals name="settings_refresh_waiting">
+        <item quantity="one">Applying this update\'s reading fixes to %d recipe when the phone is on Wi-Fi.</item>
+        <item quantity="other">Applying this update\'s reading fixes to %d recipes when the phone is on Wi-Fi.</item>
+    </plurals>
+    <string name="settings_refresh_progress">Recipe %1$d of %2$d. You can keep using the app.</string>
+    <!-- %2$s says how long ago, such as "5 minutes ago". -->
+    <plurals name="settings_refresh_done">
+        <item quantity="one">Refreshed %1$d recipe %2$s.</item>
+        <item quantity="other">Refreshed %1$d recipes %2$s.</item>
+    </plurals>
+    <plurals name="settings_refresh_failed">
+        <item quantity="one">%d page couldn\'t be read.</item>
+        <item quantity="other">%d pages couldn\'t be read.</item>
+    </plurals>
+    <string name="settings_refresh_summary">Reads each saved recipe\'s web page again with the latest fixes, such as ingredient groups and complete steps. Parts you edited, notes, favorites, categories, tags, and photos stay.</string>
+    <string name="settings_refresh_running">Refreshing recipes</string>
+    <string name="settings_refresh">Refresh recipes</string>
+    <string name="settings_refresh_stop">Stop</string>
+    <string name="settings_refresh_retry">Try again</string>
+    <plurals name="settings_refresh_confirm_title">
+        <item quantity="one">Refresh %d recipe?</item>
+        <item quantity="other">Refresh %d recipes?</item>
+    </plurals>
+    <!-- The quantity is the estimated number of minutes, at least 1. -->
+    <plurals name="settings_refresh_confirm_body">
+        <item quantity="one">Each recipe\'s page is read again, which takes about a minute and needs an internet connection. You can keep using the app. Your notes, favorites, categories, tags, and photos stay.</item>
+        <item quantity="other">Each recipe\'s page is read again, which takes about %d minutes and needs an internet connection. You can keep using the app. Your notes, favorites, categories, tags, and photos stay.</item>
+    </plurals>
+    <plurals name="settings_refresh_confirm_edited">
+        <item quantity="one">In the %d recipe you edited, the parts you changed stay too.</item>
+        <item quantity="other">In the %d recipes you edited, the parts you changed stay too.</item>
+    </plurals>
+    <string name="settings_refresh_confirm">Refresh</string>
+
+    <!-- Settings: reading recipe cards -->
+    <string name="settings_gemini_key">Gemini key</string>
+    <string name="settings_gemini_key_added">Added. Recipe cards are read with Gemini, which reads handwriting best.</string>
+    <string name="settings_gemini_key_missing">Not added. A free key from Google AI Studio reads handwritten cards much more accurately.</string>
+    <string name="settings_gemini_key_change">Change key</string>
+    <string name="settings_gemini_key_add">Add key</string>
+    <string name="settings_gemini_key_remove">Remove key</string>
+    <string name="settings_on_device_ai">On-device AI</string>
+    <string name="settings_on_device_checking">Checking this phone…</string>
+    <string name="settings_on_device_ready_with_gemini">Ready. Reads cards on this phone when Gemini isn\'t available.</string>
+    <string name="settings_on_device_ready">Ready. Reads cards on this phone.</string>
+    <string name="settings_on_device_downloading">Downloading to this phone. It\'s used once the download finishes.</string>
+    <string name="settings_on_device_unavailable_with_gemini">Not available on this phone. Cards without Gemini use basic text recognition.</string>
+    <string name="settings_on_device_unavailable">Not available on this phone. Cards are read with basic text recognition, which often misreads handwriting.</string>
+    <string name="settings_gemini_remove_title">Remove the Gemini key?</string>
+    <string name="settings_gemini_remove_body">Recipe cards will be read on this phone instead. The key itself keeps working in Google AI Studio.</string>
+    <string name="settings_remove">Remove</string>
+    <string name="settings_gemini_key_intro">Paste the key you created in Google AI Studio. It\'s stored only on this phone. On Gemini\'s free tier, Google may use the card photos you send to improve its products.</string>
+    <string name="settings_gemini_key_field">Key</string>
+    <string name="settings_gemini_key_hide">Hide key</string>
+    <string name="settings_gemini_key_show">Show key</string>
+    <string name="settings_paste">Paste</string>
+    <string name="settings_gemini_key_save_anyway">Save anyway</string>
+    <string name="settings_gemini_key_rejected">Gemini didn\'t accept this key. Check that you copied all of it.</string>
+    <string name="settings_gemini_key_unchecked">The key couldn\'t be checked.</string>
+    <string name="settings_gemini_key_checking">Checking…</string>
+    <string name="settings_save">Save</string>
+
+    <!-- Backups: Google Drive -->
+    <string name="backup_drive_title">Google Drive backup</string>
+    <string name="backup_drive_off">Off. Turn it on to back up to your Google Drive every day.</string>
+    <!-- %1$s is a date and time. -->
+    <string name="backup_drive_on_last">On. Last backup: %1$s.</string>
+    <string name="backup_drive_on_none">On. No backup yet.</string>
+    <string name="backup_drive_overdue">Backups haven\'t worked for over a week.</string>
+    <string name="backup_drive_connect">Connect Google Drive</string>
+    <string name="backup_copy_details">Copy details</string>
+    <!-- Label for the copied problem details on the clipboard. -->
+    <string name="backup_drive_problem_clip_label">Google Drive problem</string>
+    <string name="backup_drive_back_up_now">Back up now</string>
+    <string name="backup_restore">Restore</string>
+    <string name="backup_drive_turn_off">Turn off</string>
+    <string name="backup_drive_restore_title">Restore from Google Drive</string>
+    <string name="backup_drive_none">There are no backups in Google Drive yet.</string>
+    <string name="backup_close">Close</string>
+    <string name="backup_cancel">Cancel</string>
+    <string name="backup_drive_connecting">Connecting to Google Drive…</string>
+    <!-- %1$s explains why, from Google. -->
+    <string name="backup_drive_connect_failed">Couldn\'t connect Google Drive. %1$s</string>
+    <!-- %1$s explains why, from Google. -->
+    <string name="backup_drive_not_connected">Google Drive wasn\'t connected. %1$s</string>
+    <string name="backup_drive_not_connected_closed">Google Drive wasn\'t connected. The Google screen was closed.</string>
+    <string name="backup_drive_finding">Finding backups…</string>
+    <string name="backup_drive_list_failed">Couldn\'t list backups.</string>
+    <string name="backup_drive_backing_up">Backing up to Google Drive…</string>
+    <string name="backup_drive_backed_up">Backed up to Google Drive.</string>
+    <string name="backup_drive_restoring">Restoring from Google Drive…</string>
+    <string name="backup_drive_not_granted">Google didn\'t grant Drive access.</string>
+    <string name="backup_drive_hint_setup">Google doesn\'t recognize this app\'s sign-in setup. The Android client in Google Cloud needs this app\'s package name and signing fingerprint.</string>
+    <string name="backup_drive_hint_network">Check the internet connection.</string>
+    <string name="backup_drive_hint_canceled">Sign-in was canceled.</string>
+    <!-- %1$d is Google's status code and %2$s its name, such as NETWORK_ERROR. -->
+    <string name="backup_drive_google_code">Google code %1$d (%2$s)</string>
+    <!-- %1$d is Google's status code, %2$s its name, and %3$s Google's message. -->
+    <string name="backup_drive_google_code_message">Google code %1$d (%2$s): %3$s</string>
+    <string name="backup_drive_reconnect">Google Drive needs you to reconnect. Open Settings and tap Connect.</string>
+    <string name="backup_drive_unfinished">The backup didn\'t finish.</string>
+    <string name="backup_drive_connect_first">Connect Google Drive first.</string>
+    <string name="backup_drive_http">Google Drive answered with HTTP %1$d</string>
+
+    <!-- Backups: files -->
+    <string name="backup_file_title">Backup file</string>
+    <string name="backup_file_summary">Save everything, including your own photos, to a file you can keep anywhere, or restore from one.</string>
+    <string name="backup_file_save">Save backup file</string>
+    <string name="backup_file_restore">Restore from file</string>
+    <string name="backup_file_reading">Reading backup file…</string>
+    <string name="backup_file_read_failed">Couldn\'t read that file.</string>
+    <string name="backup_file_saving">Saving backup file…</string>
+    <string name="backup_file_saved">Backup file saved.</string>
+    <!-- %1$s is the error. -->
+    <string name="backup_file_save_failed">Couldn\'t save the backup: %1$s</string>
+    <string name="backup_file_not_backup">This file isn\'t a Recipe Box backup.</string>
+    <string name="backup_file_damaged">This file isn\'t a Recipe Box backup, or it\'s damaged.</string>
+    <string name="backup_file_too_new">This backup was made by a newer version of Recipe Box. Update the app, then try again.</string>
+
+    <!-- Backups: restoring -->
+    <string name="backup_restore_confirm_title">Replace everything?</string>
+    <!-- %1$s is the date and time of the backup, or its file name. -->
+    <string name="backup_restore_confirm_drive">Restoring the Google Drive backup from %1$s replaces all recipes, grocery lists, tags, and categories in Recipe Box. Recipes added since that backup are removed.</string>
+    <!-- %1$s is the date and time of the backup; %2$d is its number of recipes. English keeps "recipes" for one, as before. -->
+    <plurals name="backup_restore_confirm_file">
+        <item quantity="one">Restoring this backup file from %1$s with %2$d recipes replaces all recipes, grocery lists, tags, and categories in Recipe Box. Recipes added since that backup are removed.</item>
+        <item quantity="other">Restoring this backup file from %1$s with %2$d recipes replaces all recipes, grocery lists, tags, and categories in Recipe Box. Recipes added since that backup are removed.</item>
+    </plurals>
+    <string name="backup_restoring">Restoring…</string>
+    <string name="backup_restore_failed">The restore didn\'t finish. Nothing was changed.</string>
+    <string name="backup_restored">Restored. Recipe photos are downloading in the background.</string>
+
+    <!-- Backups: downloading cover photos again -->
+    <plurals name="backup_photos_downloading">
+        <item quantity="one">Downloading %d recipe photo…</item>
+        <item quantity="other">Downloading %d recipe photos…</item>
+    </plurals>
+    <plurals name="backup_photos_missing">
+        <item quantity="one">%d recipe photo is missing.</item>
+        <item quantity="other">%d recipe photos are missing.</item>
+    </plurals>
+    <string name="backup_photos_failed">Some photos couldn\'t be downloaded. Try again later.</string>
+    <string name="backup_photos_retry">Try again</string>
+
+    <!-- Settings: recorded pauses (stalls) -->
+    <plurals name="diagnostics_stalls_title">
+        <item quantity="one">The app paused once</item>
+        <item quantity="other">The app paused %d times</item>
+    </plurals>
+    <!-- %1$.1f is the longest pause in seconds; %2$s says how long ago, such as "5 minutes ago". -->
+    <string name="diagnostics_stalls_summary">Longest %1$.1f seconds, last %2$s. Copy the details to send them for help.</string>
+    <!-- Label for the copied pause details on the clipboard. -->
+    <string name="diagnostics_stalls_clip_label">Recipe Box pauses</string>
+    <string name="diagnostics_copy_details">Copy details</string>
+    <string name="diagnostics_clear">Clear</string>
+</resources>

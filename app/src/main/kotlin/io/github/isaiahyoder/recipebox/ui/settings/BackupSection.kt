@@ -27,10 +27,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.work.WorkManager
 import io.github.isaiahyoder.recipebox.BuildConfigValues
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.ui.copyToClipboard
 import io.github.isaiahyoder.recipebox.backup.PhotoRestorer
@@ -53,6 +56,7 @@ fun BackupSection() {
             context.applicationContext.contentResolver,
             container.database.recipeDao(),
             WorkManager.getInstance(context.applicationContext),
+            container.strings,
         )
     }
     val status by vm.driveStatus.collectAsStateWithLifecycle()
@@ -82,14 +86,14 @@ fun BackupSection() {
     // Drive
     val now = System.currentTimeMillis()
     ListItem(
-        headlineContent = { Text("Google Drive backup") },
+        headlineContent = { Text(stringResource(R.string.backup_drive_title)) },
         supportingContent = {
             Column {
                 Text(
                     when {
-                        !status.enabled -> "Off. Turn it on to back up to your Google Drive every day."
-                        status.lastSuccess > 0 -> "On. Last backup: ${formatTime(status.lastSuccess)}."
-                        else -> "On. No backup yet."
+                        !status.enabled -> stringResource(R.string.backup_drive_off)
+                        status.lastSuccess > 0 -> stringResource(R.string.backup_drive_on_last, formatTime(status.lastSuccess))
+                        else -> stringResource(R.string.backup_drive_on_none)
                     }
                 )
                 connectProblem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -97,45 +101,49 @@ fun BackupSection() {
                     Text(status.lastError!!, color = MaterialTheme.colorScheme.error)
                 }
                 if (status.isOverdue(now)) {
-                    Text("Backups haven't worked for over a week.", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.backup_drive_overdue), color = MaterialTheme.colorScheme.error)
                 }
             }
         },
     )
     FlowRow(Modifier.padding(start = 8.dp, end = 8.dp)) {
+        // This matches only the English backup_drive_reconnect message; a translation of it won't show the button.
         if (!status.enabled || status.lastError?.contains("reconnect", ignoreCase = true) == true) {
             TextButton(
                 onClick = { vm.connect { intent -> consent.launch(IntentSenderRequest.Builder(intent).build()) } },
                 enabled = busy == null,
-            ) { Text("Connect Google Drive") }
+            ) { Text(stringResource(R.string.backup_drive_connect)) }
         }
         val problems = listOfNotNull(connectProblem, status.lastError?.takeIf { status.enabled })
         if (problems.isNotEmpty()) {
             TextButton(onClick = {
                 val version = BuildConfigValues.versionName(context)
-                copyToClipboard(context, "Google Drive problem", (listOf("Recipe Box $version Google Drive") + problems).joinToString("\n"))
-            }) { Text("Copy details") }
+                // The heading line is for the developer, so it stays in English.
+                copyToClipboard(
+                    context,
+                    context.getString(R.string.backup_drive_problem_clip_label),
+                    (listOf("Recipe Box $version Google Drive") + problems).joinToString("\n"),
+                )
+            }) { Text(stringResource(R.string.backup_copy_details)) }
         }
         if (status.enabled) {
-            TextButton(onClick = vm::backUpNow, enabled = busy == null) { Text("Back up now") }
-            TextButton(onClick = { vm.listDriveBackups() }, enabled = busy == null) { Text("Restore") }
-            TextButton(onClick = vm::turnOffDrive, enabled = busy == null) { Text("Turn off") }
+            TextButton(onClick = vm::backUpNow, enabled = busy == null) { Text(stringResource(R.string.backup_drive_back_up_now)) }
+            TextButton(onClick = { vm.listDriveBackups() }, enabled = busy == null) { Text(stringResource(R.string.backup_restore)) }
+            TextButton(onClick = vm::turnOffDrive, enabled = busy == null) { Text(stringResource(R.string.backup_drive_turn_off)) }
         }
     }
 
     // Files
     ListItem(
-        headlineContent = { Text("Backup file") },
-        supportingContent = {
-            Text("Save everything, including your own photos, to a file you can keep anywhere, or restore from one.")
-        },
+        headlineContent = { Text(stringResource(R.string.backup_file_title)) },
+        supportingContent = { Text(stringResource(R.string.backup_file_summary)) },
     )
     FlowRow(Modifier.padding(start = 8.dp, end = 8.dp)) {
         TextButton(onClick = { exportFile.launch("recipe-box-backup-${Instant.now().toString().take(10)}.zip") }, enabled = busy == null) {
-            Text("Save backup file")
+            Text(stringResource(R.string.backup_file_save))
         }
         TextButton(onClick = { openFile.launch(arrayOf("application/zip", "application/octet-stream")) }, enabled = busy == null) {
-            Text("Restore from file")
+            Text(stringResource(R.string.backup_file_restore))
         }
     }
 
@@ -151,10 +159,10 @@ fun BackupSection() {
     driveBackups?.let { files ->
         AlertDialog(
             onDismissRequest = vm::closeDriveBackups,
-            title = { Text("Restore from Google Drive") },
+            title = { Text(stringResource(R.string.backup_drive_restore_title)) },
             text = {
                 if (files.isEmpty()) {
-                    Text("There are no backups in Google Drive yet.")
+                    Text(stringResource(R.string.backup_drive_none))
                 } else {
                     Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
                         files.forEach { file ->
@@ -169,19 +177,26 @@ fun BackupSection() {
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = vm::closeDriveBackups) { Text("Close") } },
+            confirmButton = { TextButton(onClick = vm::closeDriveBackups) { Text(stringResource(R.string.backup_close)) } },
         )
     }
 
     when (val restore = pending) {
         is PendingRestore.FromDrive -> ConfirmRestore(
-            description = "the Google Drive backup from " +
-                (restore.file.createdTime?.let { formatTime(Instant.parse(it).toEpochMilli()) } ?: restore.file.name),
+            message = stringResource(
+                R.string.backup_restore_confirm_drive,
+                restore.file.createdTime?.let { formatTime(Instant.parse(it).toEpochMilli()) } ?: restore.file.name,
+            ),
             onConfirm = vm::confirmRestore,
             onDismiss = vm::cancelRestore,
         )
         is PendingRestore.FromFile -> ConfirmRestore(
-            description = "this backup file from ${formatTime(restore.backup.exportedAt)} with ${restore.backup.recipes.size} recipes",
+            message = pluralStringResource(
+                R.plurals.backup_restore_confirm_file,
+                restore.backup.recipes.size,
+                formatTime(restore.backup.exportedAt),
+                restore.backup.recipes.size,
+            ),
             onConfirm = vm::confirmRestore,
             onDismiss = vm::cancelRestore,
         )
@@ -190,18 +205,13 @@ fun BackupSection() {
 }
 
 @Composable
-private fun ConfirmRestore(description: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun ConfirmRestore(message: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Replace everything?") },
-        text = {
-            Text(
-                "Restoring $description replaces all recipes, grocery lists, tags, and categories in Recipe Box. " +
-                    "Recipes added since that backup are removed."
-            )
-        },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Restore") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
+        text = { Text(message) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.backup_restore)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.backup_cancel)) } },
     )
 }
 
@@ -215,20 +225,20 @@ private fun PhotoStatus(vm: BackupViewModel) {
     ListItem(
         headlineContent = {
             Text(
-                if (running) {
-                    "Downloading $missing recipe ${if (missing == 1) "photo" else "photos"}…"
-                } else {
-                    "$missing recipe ${if (missing == 1) "photo is" else "photos are"} missing."
-                }
+                pluralStringResource(
+                    if (running) R.plurals.backup_photos_downloading else R.plurals.backup_photos_missing,
+                    missing,
+                    missing,
+                )
             )
         },
         supportingContent = if (running) null else {
-            { Text("Some photos couldn't be downloaded. Try again later.") }
+            { Text(stringResource(R.string.backup_photos_failed)) }
         },
         trailingContent = if (running) {
             { CircularProgressIndicator(Modifier.size(24.dp)) }
         } else {
-            { TextButton(onClick = { PhotoRestorer.schedule(context) }) { Text("Try again") } }
+            { TextButton(onClick = { PhotoRestorer.schedule(context) }) { Text(stringResource(R.string.backup_photos_retry)) } }
         },
     )
 }

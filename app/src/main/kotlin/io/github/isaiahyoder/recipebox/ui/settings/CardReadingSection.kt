@@ -27,11 +27,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.isaiahyoder.recipebox.BuildFlavor
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.cards.CardReadException
 import io.github.isaiahyoder.recipebox.cards.OnDeviceAiStatus
@@ -49,37 +51,41 @@ fun CardReadingSection() {
 
     if (BuildFlavor.OWN_GEMINI_KEY) {
         ListItem(
-            headlineContent = { Text("Gemini key") },
+            headlineContent = { Text(stringResource(R.string.settings_gemini_key)) },
             supportingContent = {
                 Text(
-                    if (key != null) {
-                        "Added. Recipe cards are read with Gemini, which reads handwriting best."
-                    } else {
-                        "Not added. A free key from Google AI Studio reads handwritten cards much more accurately."
-                    }
+                    stringResource(
+                        if (key != null) R.string.settings_gemini_key_added else R.string.settings_gemini_key_missing
+                    )
                 )
             },
         )
         Row(Modifier.padding(horizontal = 8.dp)) {
-            TextButton(onClick = { editing = true }) { Text(if (key != null) "Change key" else "Add key") }
+            TextButton(onClick = { editing = true }) {
+                Text(stringResource(if (key != null) R.string.settings_gemini_key_change else R.string.settings_gemini_key_add))
+            }
             if (key != null) {
-                TextButton(onClick = { removing = true }) { Text("Remove key", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = { removing = true }) {
+                    Text(stringResource(R.string.settings_gemini_key_remove), color = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }
     ListItem(
-        headlineContent = { Text("On-device AI") },
+        headlineContent = { Text(stringResource(R.string.settings_on_device_ai)) },
         supportingContent = {
             Text(
-                when (onDevice) {
-                    OnDeviceAiStatus.CHECKING -> "Checking this phone…"
-                    OnDeviceAiStatus.READY ->
-                        if (BuildFlavor.OWN_GEMINI_KEY) "Ready. Reads cards on this phone when Gemini isn't available." else "Ready. Reads cards on this phone."
-                    OnDeviceAiStatus.DOWNLOADING -> "Downloading to this phone. It's used once the download finishes."
-                    OnDeviceAiStatus.UNAVAILABLE ->
-                        if (BuildFlavor.OWN_GEMINI_KEY) "Not available on this phone. Cards without Gemini use basic text recognition."
-                        else "Not available on this phone. Cards are read with basic text recognition, which often misreads handwriting."
-                }
+                stringResource(
+                    when (onDevice) {
+                        OnDeviceAiStatus.CHECKING -> R.string.settings_on_device_checking
+                        OnDeviceAiStatus.READY ->
+                            if (BuildFlavor.OWN_GEMINI_KEY) R.string.settings_on_device_ready_with_gemini else R.string.settings_on_device_ready
+                        OnDeviceAiStatus.DOWNLOADING -> R.string.settings_on_device_downloading
+                        OnDeviceAiStatus.UNAVAILABLE ->
+                            if (BuildFlavor.OWN_GEMINI_KEY) R.string.settings_on_device_unavailable_with_gemini
+                            else R.string.settings_on_device_unavailable
+                    }
+                )
             )
         },
     )
@@ -88,15 +94,15 @@ fun CardReadingSection() {
     if (removing) {
         AlertDialog(
             onDismissRequest = { removing = false },
-            title = { Text("Remove the Gemini key?") },
-            text = { Text("Recipe cards will be read on this phone instead. The key itself keeps working in Google AI Studio.") },
+            title = { Text(stringResource(R.string.settings_gemini_remove_title)) },
+            text = { Text(stringResource(R.string.settings_gemini_remove_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     container.settings.setGeminiKey(null)
                     removing = false
-                }) { Text("Remove") }
+                }) { Text(stringResource(R.string.settings_remove)) }
             },
-            dismissButton = { TextButton(onClick = { removing = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { removing = false }) { Text(stringResource(R.string.settings_cancel)) } },
         )
     }
 }
@@ -121,13 +127,10 @@ private fun GeminiKeyDialog(onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Gemini key") },
+        title = { Text(stringResource(R.string.settings_gemini_key)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Paste the key you created in Google AI Studio. It's stored only on this phone. On Gemini's free " +
-                        "tier, Google may use the card photos you send to improve its products."
-                )
+                Text(stringResource(R.string.settings_gemini_key_intro))
                 OutlinedTextField(
                     value = text,
                     onValueChange = {
@@ -135,14 +138,16 @@ private fun GeminiKeyDialog(onDismiss: () -> Unit) {
                         problem = null
                         offerSaveAnyway = false
                     },
-                    label = { Text("Key") },
+                    label = { Text(stringResource(R.string.settings_gemini_key_field)) },
                     singleLine = true,
                     visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { visible = !visible }) {
                             Icon(
                                 if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                contentDescription = if (visible) "Hide key" else "Show key",
+                                contentDescription = stringResource(
+                                    if (visible) R.string.settings_gemini_key_hide else R.string.settings_gemini_key_show
+                                ),
                             )
                         }
                     },
@@ -154,13 +159,13 @@ private fun GeminiKeyDialog(onDismiss: () -> Unit) {
                     clipboard?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()?.trim()?.let { text = it }
                 }) {
                     Icon(Icons.Filled.ContentPaste, contentDescription = null)
-                    Text("Paste", Modifier.padding(start = 8.dp))
+                    Text(stringResource(R.string.settings_paste), Modifier.padding(start = 8.dp))
                 }
             }
         },
         confirmButton = {
             if (offerSaveAnyway) {
-                TextButton(onClick = ::save) { Text("Save anyway") }
+                TextButton(onClick = ::save) { Text(stringResource(R.string.settings_gemini_key_save_anyway)) }
             } else {
                 TextButton(
                     enabled = text.isNotBlank() && !checking,
@@ -172,17 +177,19 @@ private fun GeminiKeyDialog(onDismiss: () -> Unit) {
                             result.onSuccess { save() }.onFailure { error ->
                                 val badKey = (error as? CardReadException)?.badKey == true
                                 problem = if (badKey) {
-                                    "Gemini didn't accept this key. Check that you copied all of it."
+                                    context.getString(R.string.settings_gemini_key_rejected)
                                 } else {
-                                    error.message ?: "The key couldn't be checked."
+                                    error.message ?: context.getString(R.string.settings_gemini_key_unchecked)
                                 }
                                 offerSaveAnyway = !badKey
                             }
                         }
                     },
-                ) { Text(if (checking) "Checking…" else "Save") }
+                ) {
+                    Text(stringResource(if (checking) R.string.settings_gemini_key_checking else R.string.settings_save))
+                }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) } },
     )
 }

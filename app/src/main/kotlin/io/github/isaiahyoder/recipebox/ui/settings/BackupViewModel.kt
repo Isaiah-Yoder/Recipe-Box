@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.backup.BackupFile
 import io.github.isaiahyoder.recipebox.backup.BackupManager
 import io.github.isaiahyoder.recipebox.backup.BackupOperations
@@ -46,6 +48,7 @@ class BackupViewModel(
     private val resolver: ContentResolver,
     recipeDao: RecipeDao,
     workManager: WorkManager,
+    private val strings: AppStrings,
 ) : ViewModel() {
     val driveStatus: StateFlow<DriveStatus> = settings.driveStatus
     val connectProblem: StateFlow<String?> = settings.driveConnectProblem
@@ -81,7 +84,7 @@ class BackupViewModel(
 
     /** Connects Google Drive; when Google needs her approval, [onNeedsConsent] shows its screen. */
     fun connect(onNeedsConsent: (PendingIntent) -> Unit) = viewModelScope.launch {
-        _localBusy.value = "Connecting to Google Drive…"
+        _localBusy.value = strings.get(R.string.backup_drive_connecting)
         runCatchingCancellable { drive.authorize() }
             .onSuccess { auth ->
                 when (auth) {
@@ -92,7 +95,7 @@ class BackupViewModel(
                     }
                 }
             }
-            .onFailure { error -> connectFailed("Couldn't connect Google Drive. " + drive.describe(error)) }
+            .onFailure { error -> connectFailed(strings.get(R.string.backup_drive_connect_failed, drive.describe(error))) }
         _localBusy.value = null
     }
 
@@ -102,8 +105,11 @@ class BackupViewModel(
             .onSuccess { operations.driveConnected() }
             .onFailure { error ->
                 connectFailed(
-                    "Google Drive wasn't connected. " +
-                        if (closedWithoutAnswer) "The Google screen was closed." else drive.describe(error)
+                    if (closedWithoutAnswer) {
+                        strings.get(R.string.backup_drive_not_connected_closed)
+                    } else {
+                        strings.get(R.string.backup_drive_not_connected, drive.describe(error))
+                    }
                 )
             }
     }
@@ -120,18 +126,18 @@ class BackupViewModel(
     fun saveFile(uri: Uri) = operations.saveFile(uri)
 
     fun openFile(uri: Uri) = viewModelScope.launch {
-        _localBusy.value = "Reading backup file…"
+        _localBusy.value = strings.get(R.string.backup_file_reading)
         runCatchingCancellable { resolver.openInputStream(uri)!!.use { manager.readZip(it) } }
             .onSuccess { (backup, photos) -> _pending.value = PendingRestore.FromFile(backup, photos) }
-            .onFailure { _message.value = it.message ?: "Couldn't read that file." }
+            .onFailure { _message.value = it.message ?: strings.get(R.string.backup_file_read_failed) }
         _localBusy.value = null
     }
 
     fun listDriveBackups() = viewModelScope.launch {
-        _localBusy.value = "Finding backups…"
+        _localBusy.value = strings.get(R.string.backup_drive_finding)
         runCatchingCancellable { drive.listBackups() }
             .onSuccess { _driveBackups.value = it }
-            .onFailure { _message.value = it.message ?: "Couldn't list backups." }
+            .onFailure { _message.value = it.message ?: strings.get(R.string.backup_drive_list_failed) }
         _localBusy.value = null
     }
 
