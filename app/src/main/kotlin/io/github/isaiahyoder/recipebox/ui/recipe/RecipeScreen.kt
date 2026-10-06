@@ -228,7 +228,6 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
 
     if (addingToList && recipe != null) {
         AddToGroceryListDialog(
-            dao = container.database.groceryDao(),
             recipeId = recipe.id,
             scale = recipe.lastScale,
             onDone = { listName ->

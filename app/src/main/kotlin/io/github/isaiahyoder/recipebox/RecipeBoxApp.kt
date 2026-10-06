@@ -2,6 +2,7 @@ package io.github.isaiahyoder.recipebox
 
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import io.github.isaiahyoder.recipebox.diagnostics.StallWatchdog
+import io.github.isaiahyoder.recipebox.repository.GroceryRepository
 import io.github.isaiahyoder.recipebox.repository.LibraryRepository
 import io.github.isaiahyoder.recipebox.repository.RecipeRepository
 import android.app.Application
@@ -15,6 +16,7 @@ import io.github.isaiahyoder.recipebox.cards.CardReader
 import io.github.isaiahyoder.recipebox.cards.GeminiCardReader
 import io.github.isaiahyoder.recipebox.cards.NanoCardReader
 import io.github.isaiahyoder.recipebox.cards.TextCardReader
+import io.github.isaiahyoder.recipebox.backup.BackupOperations
 import io.github.isaiahyoder.recipebox.backup.DriveBackup
 import io.github.isaiahyoder.recipebox.backup.PhotoRestorer
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
@@ -94,6 +96,8 @@ class AppContainer(context: Context) {
     /** Tag and category changes, each with the category update it causes. */
     val library: LibraryRepository by lazy { LibraryRepository(database, tagRefresher) }
 
+    val groceries: GroceryRepository by lazy { GroceryRepository(database, settings) }
+
     /** Saving and deleting whole recipes with their tags and photo files. */
     val recipes: RecipeRepository by lazy { RecipeRepository(database, photos, tagRefresher) }
 
@@ -144,6 +148,11 @@ class AppContainer(context: Context) {
     }
 
     val driveBackup: DriveBackup by lazy { DriveBackup(context, httpClient, backupManager, settings, photos) }
+
+    /** Backups and restores that finish even when she leaves Settings. */
+    val backupOperations: BackupOperations by lazy {
+        BackupOperations(context, appScope, backupManager, driveBackup, settings)
+    }
 
     val updater: AppUpdater by lazy { AppUpdater(context, httpClient, settings) }
 

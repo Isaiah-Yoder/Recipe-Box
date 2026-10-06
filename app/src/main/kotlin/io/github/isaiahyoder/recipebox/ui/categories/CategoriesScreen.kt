@@ -31,7 +31,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,31 +40,24 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoriesScreen(onBack: () -> Unit) {
     val container = LocalContext.current.appContainer
-    val dao = container.database.categoryDao()
-    val library = container.library
-    val categories by dao.observeCategories().collectAsStateWithLifecycle(initialValue = emptyList())
-    val tagsInUse by container.database.tagDao().observeTagNamesInUse().collectAsStateWithLifecycle(initialValue = emptyList())
+    val vm = viewModel {
+        CategoriesViewModel(container.database.categoryDao(), container.database.tagDao(), container.library)
+    }
+    val loaded by vm.categories.collectAsStateWithLifecycle()
+    val categories = loaded.orEmpty()
+    val tagsInUse by vm.tagsInUse.collectAsStateWithLifecycle()
     var editingFeeders by rememberSaveable { mutableStateOf<Long?>(null) }
-    val scope = rememberCoroutineScope()
     var creating by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf<Long?>(null) }
     var deleting by rememberSaveable { mutableStateOf<Long?>(null) }
-
-    fun move(index: Int, delta: Int) {
-        val ids = categories.map { it.id }.toMutableList()
-        val target = index + delta
-        if (target !in ids.indices) return
-        ids.add(target, ids.removeAt(index))
-        scope.launch { dao.reorderCategories(ids) }
-    }
 
     Scaffold(
         topBar = {
@@ -84,6 +76,7 @@ fun CategoriesScreen(onBack: () -> Unit) {
             )
         },
     ) { padding ->
+        if (loaded == null) return@Scaffold
         if (categories.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
@@ -108,10 +101,10 @@ fun CategoriesScreen(onBack: () -> Unit) {
                     modifier = Modifier.clickable { editingFeeders = category.id },
                     trailingContent = {
                         androidx.compose.foundation.layout.Row {
-                            IconButton(onClick = { move(index, -1) }, enabled = index > 0) {
+                            IconButton(onClick = { vm.move(index, -1) }, enabled = index > 0) {
                                 Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move up")
                             }
-                            IconButton(onClick = { move(index, 1) }, enabled = index < categories.lastIndex) {
+                            IconButton(onClick = { vm.move(index, 1) }, enabled = index < categories.lastIndex) {
                                 Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move down")
                             }
                             IconButton(onClick = { renaming = category.id }) {
@@ -134,7 +127,7 @@ fun CategoriesScreen(onBack: () -> Unit) {
             tagsInUse = tagsInUse,
             onSave = { tags ->
                 editingFeeders = null
-                scope.launch { library.setFeederTags(category.id, tags) }
+                vm.setFeeders(category.id, tags)
             },
             onDismiss = { editingFeeders = null },
         )
@@ -146,10 +139,10 @@ fun CategoriesScreen(onBack: () -> Unit) {
             initial = "",
             onSave = { name ->
                 creating = false
-                scope.launch { dao.createCategory(name) }
+                vm.create(name)
             },
             onDismiss = { creating = false },
-            problem = { name -> takenMessage(categories, name, exceptId = null) },
+            problem = { name -> CategoriesViewModel.takenMessage(categories, name, exceptId = null) },
         )
     }
     categories.firstOrNull { it.id == renaming }?.let { category ->
@@ -158,10 +151,10 @@ fun CategoriesScreen(onBack: () -> Unit) {
             initial = category.name,
             onSave = { name ->
                 renaming = null
-                scope.launch { dao.renameCategory(category.id, name.trim()) }
+                vm.rename(category.id, name)
             },
             onDismiss = { renaming = null },
-            problem = { name -> takenMessage(categories, name, exceptId = category.id) },
+            problem = { name -> CategoriesViewModel.takenMessage(categories, name, exceptId = category.id) },
         )
     }
     categories.firstOrNull { it.id == deleting }?.let { category: CategoryEntity ->
@@ -172,21 +165,13 @@ fun CategoriesScreen(onBack: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     deleting = null
-                    scope.launch { dao.deleteCategory(category.id) }
+                    vm.delete(category.id)
                 }) { Text("Delete") }
             },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
         )
     }
 }
-
-/** Category names must be unique, ignoring case. */
-private fun takenMessage(categories: List<CategoryEntity>, name: String, exceptId: Long?): String? =
-    if (categories.any { it.id != exceptId && it.name.equals(name, ignoreCase = true) }) {
-        "You already have a category named \"$name\"."
-    } else {
-        null
-    }
 
 @Composable
 fun NameDialog(

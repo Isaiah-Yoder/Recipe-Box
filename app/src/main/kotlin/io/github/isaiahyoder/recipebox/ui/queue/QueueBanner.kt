@@ -64,7 +64,7 @@ fun shouldShowBanner(jobs: List<ImportJobEntity>, dismissedAt: Long): Boolean {
 
 @Composable
 fun QueueBanner(onOpenQueue: () -> Unit) {
-    val jobs by LocalContext.current.appContainer.database.importJobDao().observeAll()
+    val jobs by LocalContext.current.appContainer.importQueue.jobs
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val dismissedAt by QueueBannerState.dismissedAt.collectAsStateWithLifecycle()
     val visible = shouldShowBanner(jobs, dismissedAt)

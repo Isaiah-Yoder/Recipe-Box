@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.queue
 
+import androidx.lifecycle.viewmodel.compose.viewModel
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +33,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -44,7 +44,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.ImportJobEntity
 import io.github.isaiahyoder.recipebox.data.ImportStatus
-import kotlinx.coroutines.launch
 import java.net.URI
 import java.text.DateFormat
 import java.util.Date
@@ -53,9 +52,8 @@ import java.util.Date
 @Composable
 fun QueueScreen(onOpenRecipe: (Long) -> Unit, onEnterManually: (String, Long) -> Unit, onBack: () -> Unit) {
     val container = LocalContext.current.appContainer
-    val jobs by container.database.importJobDao().observeAll().collectAsStateWithLifecycle(initialValue = null)
-    val queue = container.importQueue
-    val scope = rememberCoroutineScope()
+    val vm = viewModel { QueueViewModel(container.importQueue) }
+    val jobs by vm.jobs.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -69,10 +67,10 @@ fun QueueScreen(onOpenRecipe: (Long) -> Unit, onEnterManually: (String, Long) ->
                 actions = {
                     val current = jobs.orEmpty()
                     if (current.any { it.status == ImportStatus.FAILED }) {
-                        TextButton(onClick = { scope.launch { queue.retryAllFailed() } }) { Text("Retry all") }
+                        TextButton(onClick = { vm.retryAllFailed() }) { Text("Retry all") }
                     }
                     if (current.any { it.status == ImportStatus.DONE || it.status == ImportStatus.DUPLICATE }) {
-                        TextButton(onClick = { scope.launch { queue.clearFinished() } }) { Text("Clear finished") }
+                        TextButton(onClick = { vm.clearFinished() }) { Text("Clear finished") }
                     }
                 },
             )
@@ -94,9 +92,9 @@ fun QueueScreen(onOpenRecipe: (Long) -> Unit, onEnterManually: (String, Long) ->
                 JobRow(
                     job = job,
                     onOpenRecipe = onOpenRecipe,
-                    onRetry = { scope.launch { queue.retry(job.id) } },
+                    onRetry = { vm.retry(job.id) },
                     onEnterManually = { onEnterManually(job.url, job.id) },
-                    onRemove = { scope.launch { queue.remove(job.id) } },
+                    onRemove = { vm.remove(job.id) },
                 )
                 HorizontalDivider()
             }

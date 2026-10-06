@@ -164,7 +164,7 @@ fun RecipeBoxNavHost() {
 
 @Composable
 private fun AppDrawer(navController: NavHostController, onClose: () -> Unit) {
-    val jobs by LocalContext.current.appContainer.database.importJobDao().observeAll()
+    val jobs by LocalContext.current.appContainer.importQueue.jobs
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val failed = jobs.count { it.status == ImportStatus.FAILED }
     val active = jobs.count { it.status == ImportStatus.PENDING || it.status == ImportStatus.RUNNING }

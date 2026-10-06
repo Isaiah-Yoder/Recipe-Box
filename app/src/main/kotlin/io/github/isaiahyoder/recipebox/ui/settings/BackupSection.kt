@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.ui.settings
 
-import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.LaunchedEffect
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -24,26 +25,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import io.github.isaiahyoder.recipebox.BuildConfigValues
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.ui.copyToClipboard
-import io.github.isaiahyoder.recipebox.backup.BackupFile
-import io.github.isaiahyoder.recipebox.backup.DriveAuth
-import io.github.isaiahyoder.recipebox.backup.DriveBackupResult
-import io.github.isaiahyoder.recipebox.backup.DriveFile
 import io.github.isaiahyoder.recipebox.backup.PhotoRestorer
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.time.Instant
 import java.util.Date
@@ -54,88 +44,39 @@ import java.util.Date
 fun BackupSection() {
     val context = LocalContext.current
     val container = context.appContainer
-    val settings = container.settings
-    val drive = container.driveBackup
-    val status by settings.driveStatus.collectAsStateWithLifecycle()
-    val connectProblem by settings.driveConnectProblem.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    var busy by remember { mutableStateOf<String?>(null) }
-    var driveBackups by remember { mutableStateOf<List<DriveFile>?>(null) }
-    var pendingDriveRestore by remember { mutableStateOf<DriveFile?>(null) }
-    var pendingFileRestore by remember { mutableStateOf<Pair<BackupFile, Map<String, ByteArray>>?>(null) }
+    val vm = viewModel {
+        BackupViewModel(
+            container.backupOperations,
+            container.driveBackup,
+            container.backupManager,
+            container.settings,
+            context.applicationContext.contentResolver,
+            container.database.recipeDao(),
+            WorkManager.getInstance(context.applicationContext),
+        )
+    }
+    val status by vm.driveStatus.collectAsStateWithLifecycle()
+    val connectProblem by vm.connectProblem.collectAsStateWithLifecycle()
+    val busy by vm.busy.collectAsStateWithLifecycle()
+    val driveBackups by vm.driveBackups.collectAsStateWithLifecycle()
+    val pending by vm.pendingRestore.collectAsStateWithLifecycle()
+    val message by vm.message.collectAsStateWithLifecycle()
 
-    fun toast(message: String) = Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-
-    suspend fun backUpNow() {
-        busy = "Backing up to Google Drive…"
-        when (val result = drive.backUp(force = true)) {
-            DriveBackupResult.Uploaded, DriveBackupResult.Unchanged -> toast("Backed up to Google Drive.")
-            is DriveBackupResult.Failed -> toast(result.message)
+    LaunchedEffect(message) {
+        message?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            vm.messageShown()
         }
-        busy = null
     }
 
     val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        // The result's data explains a failure even when the screen didn't return OK.
-        drive.tokenFromConsent(result.data)
-            .onSuccess {
-                settings.setDriveConnectProblem(null)
-                settings.setDriveEnabled(true)
-                drive.schedule()
-                scope.launch { backUpNow() }
-            }
-            .onFailure { error ->
-                val problem = "Google Drive wasn't connected. " +
-                    (if (result.resultCode == Activity.RESULT_CANCELED && result.data == null) "The Google screen was closed." else drive.describe(error))
-                settings.setDriveConnectProblem(problem)
-                toast(problem)
-            }
+        vm.consentResult(result.data, closedWithoutAnswer = result.resultCode == Activity.RESULT_CANCELED && result.data == null)
     }
-
-    fun connect() = scope.launch {
-        busy = "Connecting to Google Drive…"
-        runCatchingCancellable { drive.authorize() }
-            .onSuccess { auth ->
-                when (auth) {
-                    is DriveAuth.NeedsConsent -> consent.launch(IntentSenderRequest.Builder(auth.intent).build())
-                    is DriveAuth.Token -> {
-                        settings.setDriveConnectProblem(null)
-                        settings.setDriveEnabled(true)
-                        drive.schedule()
-                        busy = null
-                        backUpNow()
-                    }
-                }
-            }
-            .onFailure { error ->
-                val problem = "Couldn't connect Google Drive. " + drive.describe(error)
-                settings.setDriveConnectProblem(problem)
-                toast(problem)
-            }
-        busy = null
-    }
-
     val exportFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            busy = "Saving backup file…"
-            runCatchingCancellable {
-                val backup = container.backupManager.snapshot()
-                context.contentResolver.openOutputStream(uri)!!.use {
-                    container.backupManager.writeZip(backup, it, includePhotos = true)
-                }
-            }.onSuccess { toast("Backup file saved.") }.onFailure { toast("Couldn't save the backup: ${it.message}") }
-            busy = null
-        }
+        uri?.let(vm::saveFile)
     }
-
     val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            runCatchingCancellable { context.contentResolver.openInputStream(uri)!!.use { container.backupManager.readZip(it) } }
-                .onSuccess { pendingFileRestore = it }
-                .onFailure { toast(it.message ?: "Couldn't read that file.") }
-        }
+        uri?.let(vm::openFile)
     }
 
     // Drive
@@ -163,7 +104,10 @@ fun BackupSection() {
     )
     FlowRow(Modifier.padding(start = 8.dp, end = 8.dp)) {
         if (!status.enabled || status.lastError?.contains("reconnect", ignoreCase = true) == true) {
-            TextButton(onClick = { connect() }, enabled = busy == null) { Text("Connect Google Drive") }
+            TextButton(
+                onClick = { vm.connect { intent -> consent.launch(IntentSenderRequest.Builder(intent).build()) } },
+                enabled = busy == null,
+            ) { Text("Connect Google Drive") }
         }
         val problems = listOfNotNull(connectProblem, status.lastError?.takeIf { status.enabled })
         if (problems.isNotEmpty()) {
@@ -173,20 +117,9 @@ fun BackupSection() {
             }) { Text("Copy details") }
         }
         if (status.enabled) {
-            TextButton(onClick = { scope.launch { backUpNow() } }, enabled = busy == null) { Text("Back up now") }
-            TextButton(onClick = {
-                scope.launch {
-                    busy = "Finding backups…"
-                    runCatchingCancellable { drive.listBackups() }
-                        .onSuccess { driveBackups = it }
-                        .onFailure { toast(it.message ?: "Couldn't list backups.") }
-                    busy = null
-                }
-            }, enabled = busy == null) { Text("Restore") }
-            TextButton(onClick = {
-                settings.setDriveEnabled(false)
-                drive.cancel()
-            }, enabled = busy == null) { Text("Turn off") }
+            TextButton(onClick = vm::backUpNow, enabled = busy == null) { Text("Back up now") }
+            TextButton(onClick = { vm.listDriveBackups() }, enabled = busy == null) { Text("Restore") }
+            TextButton(onClick = vm::turnOffDrive, enabled = busy == null) { Text("Turn off") }
         }
     }
 
@@ -206,18 +139,18 @@ fun BackupSection() {
         }
     }
 
-    PhotoStatus()
+    PhotoStatus(vm)
 
-    busy?.let { message ->
+    busy?.let { label ->
         ListItem(
-            headlineContent = { Text(message) },
+            headlineContent = { Text(label) },
             leadingContent = { CircularProgressIndicator(Modifier.size(24.dp)) },
         )
     }
 
     driveBackups?.let { files ->
         AlertDialog(
-            onDismissRequest = { driveBackups = null },
+            onDismissRequest = vm::closeDriveBackups,
             title = { Text("Restore from Google Drive") },
             text = {
                 if (files.isEmpty()) {
@@ -229,58 +162,30 @@ fun BackupSection() {
                                 file.createdTime?.let { formatTime(Instant.parse(it).toEpochMilli()) } ?: file.name,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
-                                        driveBackups = null
-                                        pendingDriveRestore = file
-                                    }
+                                    .clickable { vm.chooseDriveBackup(file) }
                                     .padding(vertical = 12.dp),
                             )
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { driveBackups = null }) { Text("Close") } },
+            confirmButton = { TextButton(onClick = vm::closeDriveBackups) { Text("Close") } },
         )
     }
 
-    pendingDriveRestore?.let { file ->
-        ConfirmRestore(
-            description = "the Google Drive backup from ${file.createdTime?.let { formatTime(Instant.parse(it).toEpochMilli()) } ?: file.name}",
-            onConfirm = {
-                pendingDriveRestore = null
-                scope.launch {
-                    busy = "Restoring from Google Drive…"
-                    runCatchingCancellable { drive.restore(file) }
-                        .onSuccess {
-                            PhotoRestorer.schedule(context)
-                            toast("Restored. Recipe photos are downloading in the background.")
-                        }
-                        .onFailure { toast(it.message ?: "The restore didn't finish. Nothing was changed.") }
-                    busy = null
-                }
-            },
-            onDismiss = { pendingDriveRestore = null },
+    when (val restore = pending) {
+        is PendingRestore.FromDrive -> ConfirmRestore(
+            description = "the Google Drive backup from " +
+                (restore.file.createdTime?.let { formatTime(Instant.parse(it).toEpochMilli()) } ?: restore.file.name),
+            onConfirm = vm::confirmRestore,
+            onDismiss = vm::cancelRestore,
         )
-    }
-
-    pendingFileRestore?.let { (backup, photos) ->
-        ConfirmRestore(
-            description = "this backup file from ${formatTime(backup.exportedAt)} with ${backup.recipes.size} recipes",
-            onConfirm = {
-                pendingFileRestore = null
-                scope.launch {
-                    busy = "Restoring…"
-                    runCatchingCancellable { container.backupManager.restore(backup) { photos[it] } }
-                        .onSuccess {
-                            PhotoRestorer.schedule(context)
-                            toast("Restored. Recipe photos are downloading in the background.")
-                        }
-                        .onFailure { toast(it.message ?: "The restore didn't finish. Nothing was changed.") }
-                    busy = null
-                }
-            },
-            onDismiss = { pendingFileRestore = null },
+        is PendingRestore.FromFile -> ConfirmRestore(
+            description = "this backup file from ${formatTime(restore.backup.exportedAt)} with ${restore.backup.recipes.size} recipes",
+            onConfirm = vm::confirmRestore,
+            onDismiss = vm::cancelRestore,
         )
+        null -> Unit
     }
 }
 
@@ -302,14 +207,10 @@ private fun ConfirmRestore(description: String, onConfirm: () -> Unit, onDismiss
 
 /** Shows downloads of missing cover photos, such as after a restore. */
 @Composable
-private fun PhotoStatus() {
+private fun PhotoStatus(vm: BackupViewModel) {
     val context = LocalContext.current
-    val container = context.appContainer
-    val missing by container.database.recipeDao().observeMissingCoverCount().collectAsStateWithLifecycle(initialValue = 0)
-    val running by remember {
-        WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(PhotoRestorer.WORK_NAME)
-            .map { infos -> infos.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED } }
-    }.collectAsStateWithLifecycle(initialValue = false)
+    val missing by vm.missingPhotos.collectAsStateWithLifecycle()
+    val running by vm.downloadingPhotos.collectAsStateWithLifecycle()
     if (missing == 0) return
     ListItem(
         headlineContent = {

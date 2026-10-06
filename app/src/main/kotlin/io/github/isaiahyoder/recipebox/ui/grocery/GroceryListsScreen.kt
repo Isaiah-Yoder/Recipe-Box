@@ -35,7 +35,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,20 +44,16 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.isaiahyoder.recipebox.appContainer
-import io.github.isaiahyoder.recipebox.data.GroceryDao
-import io.github.isaiahyoder.recipebox.data.GroceryListEntity
-import io.github.isaiahyoder.recipebox.data.GroceryListRecipeEntity
 import io.github.isaiahyoder.recipebox.ui.categories.NameDialog
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
-    val dao = LocalContext.current.appContainer.database.groceryDao()
-    val settings = LocalContext.current.appContainer.settings
-    val lists by dao.observeSummaries().collectAsStateWithLifecycle(initialValue = null)
-    val scope = rememberCoroutineScope()
+    val container = LocalContext.current.appContainer
+    val vm = viewModel { GroceryListsViewModel(container.groceries) }
+    val lists by vm.lists.collectAsStateWithLifecycle()
     var creating by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
@@ -111,10 +106,7 @@ fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
     if (creating) {
         NameDialog("New grocery list", "", onSave = { name ->
             creating = false
-            scope.launch {
-                val now = System.currentTimeMillis()
-                onOpenList(dao.insertList(GroceryListEntity(name = name, createdAt = now, updatedAt = now, units = settings.unitSystem.value)))
-            }
+            vm.create(name, onOpenList)
         }, onDismiss = { creating = false })
     }
 }
@@ -125,17 +117,16 @@ fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
  */
 @Composable
 fun AddToGroceryListDialog(
-    dao: GroceryDao,
     recipeId: Long,
     scale: Double,
     onDone: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val settings = LocalContext.current.appContainer.settings
-    val lists by dao.observeSummaries().collectAsStateWithLifecycle(initialValue = emptyList())
+    val container = LocalContext.current.appContainer
+    val vm = viewModel(key = "add-to-grocery-list") { GroceryListsViewModel(container.groceries) }
+    val lists = vm.lists.collectAsStateWithLifecycle().value.orEmpty()
     var chosen by rememberSaveable { mutableLongStateOf(0L) }
     var newName by rememberSaveable { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
     val selected = if (chosen == 0L) lists.firstOrNull()?.id ?: -1L else chosen
     val creatingNew = selected == -1L
 
@@ -177,19 +168,7 @@ fun AddToGroceryListDialog(
         confirmButton = {
             TextButton(
                 enabled = !creatingNew || newName.isNotBlank(),
-                onClick = {
-                    scope.launch {
-                        val now = System.currentTimeMillis()
-                        val listId = if (creatingNew) {
-                            dao.insertList(GroceryListEntity(name = newName.trim(), createdAt = now, updatedAt = now, units = settings.unitSystem.value))
-                        } else {
-                            selected
-                        }
-                        dao.upsertRecipe(GroceryListRecipeEntity(listId, recipeId, scale, now))
-                        dao.touch(listId, now)
-                        onDone(if (creatingNew) newName.trim() else lists.first { it.id == listId }.name)
-                    }
-                },
+                onClick = { vm.addRecipe(recipeId, scale, selected, newName.takeIf { creatingNew }, onDone) },
             ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },

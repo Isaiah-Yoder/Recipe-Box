@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
+import kotlinx.coroutines.flow.Flow
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -27,19 +28,22 @@ import java.util.concurrent.TimeUnit
  */
 class ImportQueue(
     private val context: Context,
-    private val jobs: ImportJobDao,
+    private val jobDao: ImportJobDao,
     private val importer: RecipeImporter,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val processing = Mutex()
 
+    /** Every job, newest first, for the queue screen, its banner, and the menu's counts. */
+    val jobs: Flow<List<ImportJobEntity>> = jobDao.observeAll()
+
     /** Adds links to the queue and returns how many were new. */
     suspend fun enqueue(urls: List<String>): Int {
         var added = 0
         for (url in urls) {
-            if (jobs.countActive(url) > 0) continue
+            if (jobDao.countActive(url) > 0) continue
             val now = clock()
-            jobs.insert(ImportJobEntity(url = url, createdAt = now, updatedAt = now))
+            jobDao.insert(ImportJobEntity(url = url, createdAt = now, updatedAt = now))
             added++
         }
         if (added > 0) scheduleNow()
@@ -47,27 +51,27 @@ class ImportQueue(
     }
 
     suspend fun retry(jobId: Long) {
-        jobs.retry(jobId, clock())
+        jobDao.retry(jobId, clock())
         scheduleNow()
     }
 
     suspend fun retryAllFailed() {
-        jobs.retryAllFailed(clock())
+        jobDao.retryAllFailed(clock())
         scheduleNow()
     }
 
-    suspend fun remove(jobId: Long) = jobs.remove(jobId)
+    suspend fun remove(jobId: Long) = jobDao.remove(jobId)
 
-    suspend fun clearFinished() = jobs.clearFinished()
+    suspend fun clearFinished() = jobDao.clearFinished()
 
     /** Imports every job that is due, one at a time. Called by [ImportQueueWorker]. */
     suspend fun processDueJobs() = processing.withLock {
-        jobs.requeueInterrupted()
-        jobs.clearFinishedBefore(clock() - TimeUnit.DAYS.toMillis(7))
+        jobDao.requeueInterrupted()
+        jobDao.clearFinishedBefore(clock() - TimeUnit.DAYS.toMillis(7))
         var first = true
         while (true) {
-            val job = jobs.nextReady(clock()) ?: break
-            if (jobs.claim(job.id, clock()) == 0) continue
+            val job = jobDao.nextReady(clock()) ?: break
+            if (jobDao.claim(job.id, clock()) == 0) continue
             // A pause between pages keeps sites from refusing rapid requests.
             if (!first) delay(PAUSE_BETWEEN_JOBS_MS)
             first = false
@@ -80,18 +84,18 @@ class ImportQueue(
         val now = clock()
         when (outcome) {
             is ImportOutcome.Saved ->
-                jobs.finish(job.id, ImportStatus.DONE, job.attempts, 0, null, outcome.recipeId, outcome.title, now)
+                jobDao.finish(job.id, ImportStatus.DONE, job.attempts, 0, null, outcome.recipeId, outcome.title, now)
             is ImportOutcome.AlreadySaved ->
-                jobs.finish(job.id, ImportStatus.DUPLICATE, job.attempts, 0, null, outcome.recipeId, outcome.title, now)
+                jobDao.finish(job.id, ImportStatus.DUPLICATE, job.attempts, 0, null, outcome.recipeId, outcome.title, now)
             ImportOutcome.NoLink ->
-                jobs.finish(job.id, ImportStatus.FAILED, job.attempts, 0, "This isn't a web link.", null, null, now)
+                jobDao.finish(job.id, ImportStatus.FAILED, job.attempts, 0, "This isn't a web link.", null, null, now)
             is ImportOutcome.NotFound -> {
                 val attempts = job.attempts + 1
                 val delayMs = RETRY_DELAYS_MS.getOrNull(attempts - 1)
                 if (outcome.retryable && delayMs != null) {
-                    jobs.finish(job.id, ImportStatus.PENDING, attempts, now + delayMs, outcome.reason, null, null, now)
+                    jobDao.finish(job.id, ImportStatus.PENDING, attempts, now + delayMs, outcome.reason, null, null, now)
                 } else {
-                    jobs.finish(job.id, ImportStatus.FAILED, attempts, 0, outcome.reason, null, null, now)
+                    jobDao.finish(job.id, ImportStatus.FAILED, attempts, 0, outcome.reason, null, null, now)
                 }
             }
         }
@@ -107,7 +111,7 @@ class ImportQueue(
     }
 
     private suspend fun scheduleRetry() {
-        val next = jobs.earliestPending() ?: return
+        val next = jobDao.earliestPending() ?: return
         val wait = (next - clock()).coerceAtLeast(0)
         WorkManager.getInstance(context).enqueueUniqueWork(
             WORK_RETRY,
