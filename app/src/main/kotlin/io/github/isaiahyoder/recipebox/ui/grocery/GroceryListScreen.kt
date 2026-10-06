@@ -1,5 +1,8 @@
 package io.github.isaiahyoder.recipebox.ui.grocery
 
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import io.github.isaiahyoder.recipebox.ui.components.UndoSnackbars
 import io.github.isaiahyoder.recipebox.ui.components.UnitToggle
 import android.content.Intent
 import androidx.annotation.StringRes
@@ -92,8 +95,11 @@ fun GroceryListScreen(listId: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> 
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var editingKey by rememberSaveable { mutableStateOf<String?>(null) }
     var newItem by rememberSaveable { mutableStateOf("") }
+    val snackbars = remember { SnackbarHostState() }
+    UndoSnackbars(vm.undo, snackbars)
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbars) },
         topBar = {
             TopAppBar(
                 title = { Text(list?.name ?: "") },
@@ -173,7 +179,7 @@ fun GroceryListScreen(listId: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> 
             if (recipes.isNotEmpty()) {
                 item { SectionTitle(stringResource(R.string.grocery_recipes_on_list)) }
                 items(recipes, key = { "recipe-${it.recipeId}" }) { row ->
-                    RecipeOnList(row, onOpen = { onOpenRecipe(row.recipeId) }, onScale = { vm.setScale(row.recipeId, it) }, onRemove = { vm.removeRecipe(row.recipeId) })
+                    RecipeOnList(row, onOpen = { onOpenRecipe(row.recipeId) }, onScale = { vm.setScale(row.recipeId, it) }, onRemove = { vm.removeRecipe(row.recipeId, row.title) })
                 }
             }
             val current = groups

@@ -118,13 +118,22 @@ interface TagDao {
      * Removes a tag from a recipe. The link is hidden rather than deleted, so
      * recomputing automatic tags never brings back a tag she removed, even
      * when the rules would produce it. Adding the tag again shows it again.
+     * Returns the link as it was, so the removal can be undone.
      */
     @Transaction
-    suspend fun removeTag(recipeId: Long, name: String) {
-        val tagId = findTagId(name) ?: return
-        val link = getRecipeTags(recipeId).firstOrNull { it.tagId == tagId } ?: return
+    suspend fun removeTag(recipeId: Long, name: String): RecipeTagEntity? {
+        val tagId = findTagId(name) ?: return null
+        val link = getRecipeTags(recipeId).firstOrNull { it.tagId == tagId } ?: return null
         upsertRecipeTag(link.copy(hidden = true))
         markRecipeChanged(recipeId)
+        return link
+    }
+
+    /** Puts back a tag link exactly as it was before [removeTag], for undo. */
+    @Transaction
+    suspend fun restoreTag(link: RecipeTagEntity) {
+        upsertRecipeTag(link)
+        markRecipeChanged(link.recipeId)
     }
 
 

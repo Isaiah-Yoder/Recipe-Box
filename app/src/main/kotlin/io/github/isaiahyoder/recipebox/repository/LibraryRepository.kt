@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.repository
 
+import io.github.isaiahyoder.recipebox.data.RecipeTagEntity
 import androidx.room.withTransaction
 import io.github.isaiahyoder.recipebox.data.CategoryDao
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
@@ -33,8 +34,14 @@ class LibraryRepository(
         if (trimmed.isNotEmpty()) changeThenFill { tags.addManualTag(recipeId, trimmed) }
     }
 
-    /** Removed tags stay removed, even automatic ones the rules would add again. */
-    suspend fun removeTag(recipeId: Long, name: String) = changeThenFill { tags.removeTag(recipeId, name) }
+    /**
+     * Removed tags stay removed, even automatic ones the rules would add again.
+     * Returns the tag as it was, for [restoreTag].
+     */
+    suspend fun removeTag(recipeId: Long, name: String): RecipeTagEntity? = changeThenFill { tags.removeTag(recipeId, name) }
+
+    /** Undoes [removeTag] or [dismissSuggestion], and fills categories again. */
+    suspend fun restoreTag(link: RecipeTagEntity) = changeThenFill { tags.restoreTag(link) }
 
     /** Confirms suggestions, which then count like tags she added. */
     suspend fun acceptSuggestions(items: Collection<RecipeTag>) = changeThenFill {
@@ -42,7 +49,7 @@ class LibraryRepository(
     }
 
     /** A dismissed suggestion stays dismissed, like a removed tag. Suggestions never fill categories. */
-    suspend fun dismissSuggestion(recipeId: Long, name: String) = tags.removeTag(recipeId, name)
+    suspend fun dismissSuggestion(recipeId: Long, name: String): RecipeTagEntity? = tags.removeTag(recipeId, name)
 
     /**
      * Creates a category filled by [tag], or adds [tag] as a feeder to the

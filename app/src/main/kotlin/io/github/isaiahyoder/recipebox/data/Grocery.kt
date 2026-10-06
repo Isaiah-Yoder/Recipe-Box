@@ -204,6 +204,12 @@ interface GroceryDao {
     @Query("SELECT * FROM grocery_manual_items WHERE listId = :listId ORDER BY createdAt")
     fun observeManualItems(listId: Long): Flow<List<GroceryManualItemEntity>>
 
+    @Query("SELECT * FROM grocery_manual_items WHERE listId = :listId")
+    suspend fun getManualItems(listId: Long): List<GroceryManualItemEntity>
+
+    @Query("SELECT * FROM grocery_manual_items WHERE id = :id")
+    suspend fun getManualItem(id: Long): GroceryManualItemEntity?
+
     @Insert
     suspend fun insertManualItemRow(item: GroceryManualItemEntity): Long
 
@@ -241,6 +247,9 @@ interface GroceryDao {
     @Query("SELECT * FROM grocery_line_state WHERE listId = :listId")
     fun observeLineStates(listId: Long): Flow<List<GroceryLineStateEntity>>
 
+    @Query("SELECT * FROM grocery_line_state WHERE listId = :listId")
+    suspend fun getLineStates(listId: Long): List<GroceryLineStateEntity>
+
     @Query("SELECT * FROM grocery_line_state WHERE listId = :listId AND lineKey = :lineKey")
     suspend fun getLineState(listId: Long, lineKey: String): GroceryLineStateEntity?
 
@@ -259,6 +268,14 @@ interface GroceryDao {
 
     @Query("UPDATE grocery_manual_items SET checked = 0 WHERE listId = :listId")
     suspend fun uncheckAllManualRows(listId: Long)
+
+    /** Checks the lines and items again that [uncheckAll] unchecked, for undo. */
+    @Transaction
+    suspend fun checkAgain(listId: Long, lineKeys: Collection<String>, manualIds: Collection<Long>) {
+        lineKeys.forEach { key -> getLineState(listId, key)?.let { upsertLineState(it.copy(checked = true)) } }
+        manualIds.forEach { setManualCheckedRow(it, true) }
+        markListChanged(listId)
+    }
 
     /** Unchecks every line and item, such as before the next shopping trip. */
     @Transaction

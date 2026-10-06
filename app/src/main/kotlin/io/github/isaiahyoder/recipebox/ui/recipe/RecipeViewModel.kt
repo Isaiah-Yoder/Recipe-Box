@@ -1,5 +1,8 @@
 package io.github.isaiahyoder.recipebox.ui.recipe
 
+import io.github.isaiahyoder.recipebox.R
+import io.github.isaiahyoder.recipebox.ui.components.UndoReports
+import io.github.isaiahyoder.recipebox.ui.components.Undoable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
@@ -56,11 +59,20 @@ class RecipeViewModel(
 
     fun addTag(name: String) = viewModelScope.launch { library.addTag(recipeId, name) }
 
-    fun removeTag(name: String) = viewModelScope.launch { library.removeTag(recipeId, name) }
+    /** Tag removals she can take back from a snackbar. */
+    val undo = UndoReports(viewModelScope)
+
+    fun removeTag(name: String) = viewModelScope.launch {
+        val link = library.removeTag(recipeId, name) ?: return@launch
+        undo.report(Undoable(R.string.recipe_removed_tag, listOf(name)) { library.restoreTag(link) })
+    }
 
     fun acceptSuggestion(name: String) = viewModelScope.launch { library.acceptSuggestions(listOf(RecipeTag(recipeId, name))) }
 
-    fun dismissSuggestion(name: String) = viewModelScope.launch { library.dismissSuggestion(recipeId, name) }
+    fun dismissSuggestion(name: String) = viewModelScope.launch {
+        val link = library.dismissSuggestion(recipeId, name) ?: return@launch
+        undo.report(Undoable(R.string.recipe_dismissed_suggestion, listOf(name)) { library.restoreTag(link) })
+    }
 
     fun makeCategory(tag: String) = viewModelScope.launch { library.makeCategory(tag) }
 

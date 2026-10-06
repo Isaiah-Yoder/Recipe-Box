@@ -1,5 +1,8 @@
 package io.github.isaiahyoder.recipebox.ui.recipe
 
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import io.github.isaiahyoder.recipebox.ui.components.UndoSnackbars
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
@@ -77,7 +80,10 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
     }
 
     val recipe = (state as? RecipeUiState.Loaded)?.recipe
+    val snackbars = remember { SnackbarHostState() }
+    UndoSnackbars(viewModel.undo, snackbars)
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbars) },
         topBar = {
             TopAppBar(
                 title = {},

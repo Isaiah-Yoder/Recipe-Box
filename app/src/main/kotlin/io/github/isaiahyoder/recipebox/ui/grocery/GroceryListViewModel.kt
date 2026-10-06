@@ -1,5 +1,8 @@
 package io.github.isaiahyoder.recipebox.ui.grocery
 
+import io.github.isaiahyoder.recipebox.R
+import io.github.isaiahyoder.recipebox.ui.components.UndoReports
+import io.github.isaiahyoder.recipebox.ui.components.Undoable
 import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,6 +26,9 @@ import kotlinx.coroutines.launch
 
 /** One grocery list, rebuilt whenever its recipes, items, or her changes change. */
 class GroceryListViewModel(private val dao: GroceryDao, private val listId: Long) : ViewModel() {
+    /** Removals she can take back from a snackbar. */
+    val undo = UndoReports(viewModelScope)
+
     val list: StateFlow<GroceryListEntity?> = dao.observeList(listId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -77,9 +83,14 @@ class GroceryListViewModel(private val dao: GroceryDao, private val listId: Long
     fun delete(line: GroceryLine) = viewModelScope.launch {
         val manualId = line.manualId
         if (manualId != null) {
+            val item = dao.getManualItem(manualId) ?: return@launch
             dao.deleteManualItem(manualId)
+            undo.report(Undoable(R.string.grocery_removed_item, listOf(line.text)) { dao.insertManualItem(item) })
         } else {
             dao.updateLineState(listId, line.key) { it.copy(hidden = true) }
+            undo.report(Undoable(R.string.grocery_removed_item, listOf(line.text)) {
+                dao.updateLineState(listId, line.key) { it.copy(hidden = false) }
+            })
         }
     }
 
@@ -91,7 +102,11 @@ class GroceryListViewModel(private val dao: GroceryDao, private val listId: Long
 
     fun setScale(recipeId: Long, scale: Double) = viewModelScope.launch { dao.setRecipeScale(listId, recipeId, scale) }
 
-    fun removeRecipe(recipeId: Long) = viewModelScope.launch { dao.removeRecipe(listId, recipeId) }
+    fun removeRecipe(recipeId: Long, title: String) = viewModelScope.launch {
+        val link = dao.getRecipeLink(listId, recipeId) ?: return@launch
+        dao.removeRecipe(listId, recipeId)
+        undo.report(Undoable(R.string.grocery_removed_recipe, listOf(title)) { dao.upsertRecipe(link) })
+    }
 
     fun rename(name: String) = viewModelScope.launch { dao.renameList(listId, name.trim(), System.currentTimeMillis()) }
 
@@ -100,7 +115,11 @@ class GroceryListViewModel(private val dao: GroceryDao, private val listId: Long
     fun setUnits(units: UnitSystem) = viewModelScope.launch { dao.setUnits(listId, units) }
 
     fun uncheckAll() = viewModelScope.launch {
+        val checkedLines = dao.getLineStates(listId).filter { it.checked }.map { it.lineKey }
+        val checkedItems = dao.getManualItems(listId).filter { it.checked }.map { it.id }
+        if (checkedLines.isEmpty() && checkedItems.isEmpty()) return@launch
         dao.uncheckAll(listId)
+        undo.report(Undoable(R.string.grocery_unchecked_all) { dao.checkAgain(listId, checkedLines, checkedItems) })
     }
 
     fun deleteList(onDeleted: () -> Unit) = viewModelScope.launch {

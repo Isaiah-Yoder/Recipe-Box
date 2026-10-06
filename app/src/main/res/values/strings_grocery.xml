@@ -57,4 +57,9 @@
     <string name="grocery_new_list_title">New grocery list</string>
     <string name="grocery_add_to_list_title">Add to grocery list</string>
     <string name="grocery_list_name">List name</string>
+
+    <!-- Undo snackbars. %1$s is the recipe title or the line's text. -->
+    <string name="grocery_removed_recipe">Removed %1$s from this list</string>
+    <string name="grocery_removed_item">Removed %1$s</string>
+    <string name="grocery_unchecked_all">Unchecked everything on this list</string>
 </resources>

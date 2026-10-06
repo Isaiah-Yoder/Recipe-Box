@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Snackbar action that takes back the change it reports. -->
+    <string name="common_undo">Undo</string>
+</resources>

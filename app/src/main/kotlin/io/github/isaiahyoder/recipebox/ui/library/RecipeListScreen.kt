@@ -1,5 +1,8 @@
 package io.github.isaiahyoder.recipebox.ui.library
 
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import io.github.isaiahyoder.recipebox.ui.components.UndoSnackbars
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,6 +69,8 @@ fun RecipeListScreen(key: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit
     val tagsInUse by viewModel.tagsInUse.collectAsStateWithLifecycle()
     val suggested by viewModel.suggested.collectAsStateWithLifecycle()
     var editingFeeders by rememberSaveable { mutableStateOf(false) }
+    val snackbars = remember { SnackbarHostState() }
+    UndoSnackbars(viewModel.undo, snackbars)
 
     val title = when (key) {
         Shelf.ALL -> stringResource(R.string.library_all_recipes)
@@ -75,6 +80,7 @@ fun RecipeListScreen(key: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbars) },
         topBar = {
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },

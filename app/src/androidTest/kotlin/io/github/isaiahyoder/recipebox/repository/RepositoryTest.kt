@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.isaiahyoder.recipebox.data.GroceryListEntity
+import io.github.isaiahyoder.recipebox.data.GroceryManualItemEntity
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.model.RecipeDraft
@@ -93,8 +95,30 @@ class RepositoryTest {
         assertEquals(listOf("Family Favorites"), category.feederTags)
         assertEquals(listOf(category.id), database.categoryDao().getCategoryIds(id))
 
-        library.removeTag(id, "Family Favorites")
+        val removed = library.removeTag(id, "Family Favorites")!!
         assertTrue(database.categoryDao().getCategoryIds(id).isEmpty())
+
+        // Undo puts the tag back as it was, and the category fills again.
+        library.restoreTag(removed)
+        assertTrue("Family Favorites" in database.tagDao().getTagNames(id))
+        assertEquals(listOf(category.id), database.categoryDao().getCategoryIds(id))
+    }
+
+    @Test fun undoingUncheckAllChecksTheSameLinesAgain() = runBlocking {
+        val grocery = database.groceryDao()
+        val list = grocery.insertList(GroceryListEntity(name = "Saturday", createdAt = 1, updatedAt = 1))
+        val towels = grocery.insertManualItem(GroceryManualItemEntity(listId = list, text = "paper towels", createdAt = 1))
+        grocery.insertManualItem(GroceryManualItemEntity(listId = list, text = "foil", createdAt = 2))
+        grocery.setManualChecked(towels, true)
+        grocery.updateLineState(list, "r:flour") { it.copy(checked = true) }
+        grocery.updateLineState(list, "r:sugar") { it.copy(hidden = true) }
+
+        grocery.uncheckAll(list)
+        assertTrue(grocery.getManualItems(list).none { it.checked } && grocery.getLineStates(list).none { it.checked })
+
+        grocery.checkAgain(list, listOf("r:flour"), listOf(towels))
+        assertEquals(listOf("paper towels"), grocery.getManualItems(list).filter { it.checked }.map { it.text })
+        assertEquals(listOf("r:flour"), grocery.getLineStates(list).filter { it.checked }.map { it.lineKey })
     }
 
     @Test fun savingEditsKeepsACoverDownloadedWhileTheEditorWasOpen() = runBlocking {

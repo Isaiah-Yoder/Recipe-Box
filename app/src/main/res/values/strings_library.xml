@@ -197,4 +197,9 @@
     <string name="recipe_servings_title">How many servings?</string>
     <string name="recipe_servings">Servings</string>
     <string name="recipe_set">Set</string>
+
+    <!-- Undo snackbars. %1$s is a tag name, or a recipe title in library_dismissed_suggestion. -->
+    <string name="recipe_removed_tag">Removed the %1$s tag</string>
+    <string name="recipe_dismissed_suggestion">Dismissed the %1$s suggestion</string>
+    <string name="library_dismissed_suggestion">Dismissed the suggestion for %1$s</string>
 </resources>

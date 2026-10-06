@@ -1,5 +1,8 @@
 package io.github.isaiahyoder.recipebox.ui.library
 
+import io.github.isaiahyoder.recipebox.R
+import io.github.isaiahyoder.recipebox.ui.components.UndoReports
+import io.github.isaiahyoder.recipebox.ui.components.Undoable
 import kotlinx.coroutines.flow.flowOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -96,7 +99,13 @@ class RecipeListViewModel(
     }
 
     /** No: the suggestion is dismissed for good. */
-    fun dismiss(item: SuggestedRecipe) = viewModelScope.launch { library.dismissSuggestion(item.recipe.id, item.tag) }
+    fun dismiss(item: SuggestedRecipe) = viewModelScope.launch {
+        val link = library.dismissSuggestion(item.recipe.id, item.tag) ?: return@launch
+        undo.report(Undoable(R.string.library_dismissed_suggestion, listOf(item.recipe.title)) { library.restoreTag(link) })
+    }
+
+    /** Dismissals she can take back from a snackbar. */
+    val undo = UndoReports(viewModelScope)
 
     fun setFeeders(tagNames: List<String>) = viewModelScope.launch {
         val current = category.value ?: return@launch
