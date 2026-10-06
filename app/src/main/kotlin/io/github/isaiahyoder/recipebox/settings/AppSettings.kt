@@ -156,6 +156,10 @@ class AppSettings(context: Context, fileName: String = "settings") {
         _refreshStatus.value = status
     }
 
+    /** Changes the refresh status in one step, so a batch and Stop can't overwrite each other. */
+    @Synchronized
+    fun updateRefreshStatus(change: (RefreshStatus) -> RefreshStatus) = setRefreshStatus(change(_refreshStatus.value))
+
     private val _stallReports = MutableStateFlow(
         prefs.getString(KEY_STALLS, null)
             ?.let { runCatching { json.decodeFromString<List<StallReport>>(it) }.getOrNull() }

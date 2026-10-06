@@ -28,6 +28,15 @@ interface TagDao {
     )
     fun observeTagNames(recipeId: Long): Flow<List<String>>
 
+    /** A recipe's visible, confirmed tags, the ones that fill categories. */
+    @Query(
+        """
+        SELECT t.name FROM recipe_tags rt JOIN tags t ON t.id = rt.tagId
+        WHERE rt.recipeId = :recipeId AND rt.hidden = 0 AND rt.source != 'SUGGESTED'
+        """
+    )
+    suspend fun getTagNames(recipeId: Long): List<String>
+
     /** Guessed tags she hasn't confirmed or dismissed, such as an occasion. */
     @Query(
         """

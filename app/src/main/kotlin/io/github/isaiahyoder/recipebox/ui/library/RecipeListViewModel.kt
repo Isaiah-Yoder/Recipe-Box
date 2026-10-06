@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.library
 
+import kotlinx.coroutines.flow.flowOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.isaiahyoder.recipebox.data.CategoryDao
@@ -64,16 +65,23 @@ class RecipeListViewModel(
         category,
         tagDao.observeSuggestions(),
         categoryDao.observeCategoryLinks(),
-        dao.observeSummaries(""),
-    ) { category, suggestions, links, all ->
+    ) { category, suggestions, links ->
         if (category == null || category.feederTags.isEmpty()) return@combine emptyList()
         val feeders = category.feederTags.map { it.lowercase() }.toSet()
         val members = links.filter { it.categoryId == category.id }.map { it.recipeId }.toSet()
-        val byId = all.associateBy { it.id }
         suggestions
             .filter { it.tag.lowercase() in feeders && it.recipeId !in members }
             .distinctBy { it.recipeId }
-            .mapNotNull { suggestion -> byId[suggestion.recipeId]?.let { SuggestedRecipe(it, suggestion.tag) } }
+    }.flatMapLatest { picks ->
+        // Rows for just the suggested recipes, not the whole library.
+        if (picks.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            dao.observeSummariesIn(picks.map { it.recipeId }).map { rows ->
+                val byId = rows.associateBy { it.id }
+                picks.mapNotNull { pick -> byId[pick.recipeId]?.let { SuggestedRecipe(it, pick.tag) } }
+            }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun setTag(tag: String) = _filter.update { it.copy(tag = tag) }

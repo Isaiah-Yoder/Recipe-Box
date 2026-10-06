@@ -82,4 +82,21 @@ class CategoryRulesTest {
         val link = database.tagDao().getRecipeTags(gravy).single { database.tagDao().findTagId(AutoTagger.THANKSGIVING) == it.tagId }
         assertTrue(link.hidden)
     }
+
+    @Test fun oneRecipesRefreshFillsOnlyItsCategoriesAndRespectsHerChoices() = runBlocking {
+        val dessert = database.categoryDao().createCategory("Dessert")
+        database.categoryDao().setFeederTags(dessert, listOf(AutoTagger.DESSERT))
+        val cookies = add("Sugar Cookies", listOf("2 cups flour"))
+        val pie = add("Pumpkin Pie", listOf("1 can pumpkin"))
+
+        refresher.refreshRecipe(database.recipeDao().getRecipe(cookies)!!)
+        assertEquals(listOf(dessert), database.categoryDao().getCategoryIds(cookies))
+        // Only the refreshed recipe was checked.
+        assertTrue(database.categoryDao().getCategoryIds(pie).isEmpty())
+
+        // She took the cookies out; refreshing them again keeps them out.
+        database.categoryDao().setRecipeCategories(cookies, emptyList())
+        refresher.refreshRecipe(database.recipeDao().getRecipe(cookies)!!)
+        assertTrue(database.categoryDao().getCategoryIds(cookies).isEmpty())
+    }
 }

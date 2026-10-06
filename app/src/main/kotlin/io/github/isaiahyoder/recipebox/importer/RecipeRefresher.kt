@@ -45,14 +45,11 @@ class RecipeRefresher(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     /** How many recipes have a page to read again, and how many of those she edited. */
-    suspend fun counts(): Pair<Int, Int> {
-        val linked = dao.getAllRecipes().filter { it.sourceUrl != null }
-        return linked.size to linked.count { it.editedFields.isNotEmpty() }
-    }
+    suspend fun counts(): Pair<Int, Int> = dao.countLinked() to dao.countLinkedEdited()
 
     /** Downloads every linked recipe's page again, on any connection. */
     suspend fun start() {
-        val linked = dao.getAllRecipes().filter { it.sourceUrl != null }.map { it.id }
+        val linked = dao.linkedIds()
         begin(RefreshStatus(running = true, pending = linked, total = linked.size))
     }
 
@@ -63,8 +60,7 @@ class RecipeRefresher(
 
     fun stop() {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
-        val status = settings.refreshStatus.value
-        settings.setRefreshStatus(status.copy(running = false, pending = emptyList(), finishedAt = clock()))
+        settings.updateRefreshStatus { it.copy(running = false, pending = emptyList(), finishedAt = clock()) }
     }
 
     private fun begin(status: RefreshStatus) {
@@ -79,7 +75,7 @@ class RecipeRefresher(
      */
     suspend fun upgradeReading() {
         reparseSaved()
-        val missing = dao.getAllRecipes().filter { it.sourceUrl != null && pages.getPage(it.id) == null }.map { it.id }
+        val missing = pages.linkedIdsWithoutPage()
         if (missing.isNotEmpty() && !settings.refreshStatus.value.running) {
             begin(RefreshStatus(running = true, pending = missing, total = missing.size, wifiOnly = true))
         }
@@ -88,9 +84,11 @@ class RecipeRefresher(
     /** Reads every saved page again with the current rules, without downloading. Returns how many changed. */
     suspend fun reparseSaved(): Int {
         var changed = 0
-        for (recipe in dao.getAllRecipes()) {
+        // One recipe and its page at a time, so a large library never sits in memory at once.
+        for (id in pages.recipeIdsWithPage()) {
+            val recipe = dao.getRecipe(id) ?: continue
             val url = recipe.sourceUrl ?: continue
-            val page = pages.getPage(recipe.id) ?: continue
+            val page = pages.getPage(id) ?: continue
             val extracted = RecipeExtractor.extract(page.html, url)?.takeIf { it.isComplete } ?: continue
             val refreshed = recipe.refreshedWith(extracted)
             if (refreshed != recipe) {
@@ -122,19 +120,18 @@ class RecipeRefresher(
             val id = settings.refreshStatus.value.pending.firstOrNull() ?: break
             if (clock() > deadline) return false
             val outcome = refreshOne(id)
-            val status = settings.refreshStatus.value
-            settings.setRefreshStatus(
+            settings.updateRefreshStatus { status ->
                 status.copy(
                     pending = status.pending - id,
                     updated = status.updated + if (outcome == Outcome.UPDATED) 1 else 0,
                     failed = (status.failed - id) + if (outcome == Outcome.FAILED) listOf(id) else emptyList(),
                 )
-            )
+            }
             if (settings.refreshStatus.value.pending.isNotEmpty()) delay(PAUSE_MS)
         }
         // Recipes without a page, such as recipe cards, get the latest tag rules too.
         tags.refreshAll()
-        settings.setRefreshStatus(settings.refreshStatus.value.copy(running = false, finishedAt = clock()))
+        settings.updateRefreshStatus { it.copy(running = false, finishedAt = clock()) }
         return true
     }
 

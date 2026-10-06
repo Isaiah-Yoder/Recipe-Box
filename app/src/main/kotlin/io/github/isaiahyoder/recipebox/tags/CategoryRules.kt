@@ -19,6 +19,25 @@ class CategoryRules(private val database: RecipeDatabase) {
         for (category in database.categoryDao().getCategories()) apply(category)
     }
 
+    /**
+     * Fills categories for one recipe, such as after it's imported or edited,
+     * without checking every other recipe.
+     */
+    suspend fun applyTo(recipeId: Long) = database.withTransaction {
+        val dao = database.categoryDao()
+        val tagNames = database.tagDao().getTagNames(recipeId).map { it.lowercase() }.toSet()
+        val links = dao.getCategoryLinks(recipeId).associateBy { it.categoryId }
+        for (category in dao.getCategories()) {
+            val wanted = category.feederTags.any { it.lowercase() in tagNames }
+            val link = links[category.id]
+            when {
+                wanted && link == null -> dao.addToCategory(RecipeCategoryEntity(recipeId, category.id, TagSource.AUTO))
+                !wanted && link != null && link.source == TagSource.AUTO && !link.hidden ->
+                    dao.deleteCategoryLink(recipeId, category.id)
+            }
+        }
+    }
+
     private suspend fun apply(category: CategoryEntity) {
         val dao = database.categoryDao()
         val wanted = if (category.feederTags.isEmpty()) {

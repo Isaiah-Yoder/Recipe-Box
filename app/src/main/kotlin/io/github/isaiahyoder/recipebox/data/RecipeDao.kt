@@ -141,6 +141,38 @@ interface RecipeDao {
     @Query("DELETE FROM recipes WHERE id = :id")
     suspend fun delete(id: Long)
 
-    @Query("SELECT * FROM recipes")
-    suspend fun getAllRecipes(): List<RecipeEntity>
+    // Light queries, so work over the whole library never loads every recipe at once.
+
+    /** Each recipe's photo and favorite flag, for the home screen's counts and photos. */
+    @Query("SELECT id, favorite, imageFile, cardPhotos FROM recipes ORDER BY favorite DESC, updatedAt DESC")
+    fun observeShelfRecipes(): Flow<List<ShelfRecipe>>
+
+    /** Library rows for just these recipes, such as a category's suggestions. */
+    @Query(
+        """
+        SELECT r.id, r.title, r.siteName, r.imageFile, r.cardPhotos, r.totalMinutes, r.favorite,
+            (SELECT GROUP_CONCAT(t.name, '|') FROM recipe_tags rt
+                JOIN tags t ON t.id = rt.tagId
+                WHERE rt.recipeId = r.id AND rt.hidden = 0 AND rt.source != 'SUGGESTED') AS tagNames
+        FROM recipes r WHERE r.id IN (:ids)
+        ORDER BY r.favorite DESC, r.updatedAt DESC
+        """
+    )
+    fun observeSummariesIn(ids: List<Long>): Flow<List<RecipeSummary>>
+
+    @Query("SELECT id FROM recipes ORDER BY id")
+    suspend fun allIds(): List<Long>
+
+    /** Recipes with a web page to read again. */
+    @Query("SELECT id FROM recipes WHERE sourceUrl IS NOT NULL ORDER BY id")
+    suspend fun linkedIds(): List<Long>
+
+    @Query("SELECT COUNT(*) FROM recipes WHERE sourceUrl IS NOT NULL")
+    suspend fun countLinked(): Int
+
+    @Query("SELECT COUNT(*) FROM recipes WHERE sourceUrl IS NOT NULL AND editedFields != '[]'")
+    suspend fun countLinkedEdited(): Int
 }
+
+/** A recipe's photo and favorite flag, without its text. */
+data class ShelfRecipe(val id: Long, val favorite: Boolean, val imageFile: String?, val cardPhotos: List<String>)

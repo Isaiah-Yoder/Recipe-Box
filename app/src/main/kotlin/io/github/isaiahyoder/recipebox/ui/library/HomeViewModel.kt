@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.library
 
+import io.github.isaiahyoder.recipebox.data.ShelfRecipe
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.isaiahyoder.recipebox.data.CategoryDao
@@ -38,7 +39,7 @@ data class HomeRow(
     val key: Long,
     val title: String,
     val count: Int,
-    val photo: RecipeSummary?,
+    val photo: ShelfRecipe?,
     /** Recipes suggested for this category that she hasn't answered yet. */
     val suggested: Int = 0,
 )
@@ -69,7 +70,8 @@ class HomeViewModel(
 
     /** Null until the first load finishes, so the empty-library message doesn't flash. */
     val rows: StateFlow<List<HomeRow>?> = combine(
-        dao.observeSummaries(""),
+        // Only ids, favorites, and photos: the home screen needs counts, not recipe text.
+        dao.observeShelfRecipes(),
         categoryDao.observeCategories(),
         categoryDao.observeCategoryLinks(),
         tagDao.observeSuggestions(),
