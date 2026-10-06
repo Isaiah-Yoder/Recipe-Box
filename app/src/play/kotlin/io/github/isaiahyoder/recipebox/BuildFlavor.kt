@@ -20,6 +20,11 @@ object BuildFlavor {
     fun distribution(context: Context, httpClient: OkHttpClient, settings: AppSettings): AppDistribution = PlayDistribution
 
     @Suppress("UNUSED_PARAMETER")
-    fun cardReaders(settings: AppSettings, gemini: GeminiCardReader, shared: List<RecipeCardReader>): List<RecipeCardReader> =
+    fun cardReaders(
+        settings: AppSettings,
+        gemini: GeminiCardReader,
+        strings: AppStrings,
+        shared: List<RecipeCardReader>,
+    ): List<RecipeCardReader> =
         shared
 }

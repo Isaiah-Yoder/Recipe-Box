@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.backup
 
+import io.github.isaiahyoder.recipebox.ResourceStrings
 import io.github.isaiahyoder.recipebox.tags.TagResult
 import android.content.Context
 import androidx.room.Room
@@ -44,7 +45,7 @@ class BackupManagerTest {
         // Its own photo folder and settings file, so the test never touches the app's real data.
         photoFolder = File(context.cacheDir, "backup-test-photos").apply { deleteRecursively() }
         photos = PhotoStore(context, OkHttpClient(), "test", photoFolder)
-        manager = BackupManager(database, photos, AppSettings(context, "backup-test-settings"), appVersion = "test")
+        manager = BackupManager(database, photos, AppSettings(context, "backup-test-settings"), appVersion = "test", strings = ResourceStrings(context))
     }
 
     @After fun tearDown() {

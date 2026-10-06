@@ -20,6 +20,11 @@ object BuildFlavor {
         GitHubDistribution(AppUpdater(context, httpClient, settings))
 
     /** Gemini with her key reads handwriting best, so it goes first; the shared readers follow. */
-    fun cardReaders(settings: AppSettings, gemini: GeminiCardReader, shared: List<RecipeCardReader>): List<RecipeCardReader> =
-        listOf(GeminiKeyCardReader(settings, gemini)) + shared
+    fun cardReaders(
+        settings: AppSettings,
+        gemini: GeminiCardReader,
+        strings: AppStrings,
+        shared: List<RecipeCardReader>,
+    ): List<RecipeCardReader> =
+        listOf(GeminiKeyCardReader(settings, gemini, strings)) + shared
 }

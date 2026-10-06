@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
+import io.github.isaiahyoder.recipebox.AppStrings
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -23,6 +24,7 @@ sealed interface FetchResult {
 class PageFetcher(
     private val client: OkHttpClient,
     private val userAgent: String,
+    private val strings: AppStrings,
     private val retryDelaysMs: List<Long> = listOf(3_000, 10_000),
 ) {
     suspend fun fetch(url: String): FetchResult = withContext(Dispatchers.IO) {

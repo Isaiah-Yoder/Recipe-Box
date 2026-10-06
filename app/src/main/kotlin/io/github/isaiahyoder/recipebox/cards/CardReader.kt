@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import io.github.isaiahyoder.recipebox.AppStrings
 import io.github.isaiahyoder.recipebox.model.RecipeDraft
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import io.github.isaiahyoder.recipebox.settings.AppSettings
@@ -32,7 +33,11 @@ interface RecipeCardReader {
 }
 
 /** Her own Gemini key's reader, available when she has entered a key. */
-class GeminiKeyCardReader(private val settings: AppSettings, private val gemini: GeminiCardReader) : RecipeCardReader {
+class GeminiKeyCardReader(
+    private val settings: AppSettings,
+    private val gemini: GeminiCardReader,
+    private val strings: AppStrings,
+) : RecipeCardReader {
     override val kind = CardReaderKind.GEMINI
 
     override fun isAvailable() = settings.geminiKey.value != null
@@ -47,7 +52,7 @@ class GeminiKeyCardReader(private val settings: AppSettings, private val gemini:
  * the fallback that always runs. Whatever is read, she checks it in the
  * editor before saving.
  */
-class CardReader(private val readers: List<RecipeCardReader>) {
+class CardReader(private val readers: List<RecipeCardReader>, private val strings: AppStrings) {
     init {
         require(readers.isNotEmpty()) { "At least one card reader is needed." }
     }

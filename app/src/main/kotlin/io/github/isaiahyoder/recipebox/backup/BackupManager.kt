@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.backup
 
+import io.github.isaiahyoder.recipebox.AppStrings
 import androidx.room.withTransaction
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
@@ -63,6 +64,7 @@ class BackupManager(
     private val photos: PhotoStore,
     private val settings: AppSettings,
     private val appVersion: String,
+    private val strings: AppStrings,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }

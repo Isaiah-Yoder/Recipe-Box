@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import io.github.isaiahyoder.recipebox.AppStrings
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import android.content.Context
 import android.graphics.Bitmap
@@ -31,7 +32,11 @@ enum class OnDeviceAiStatus { CHECKING, READY, DOWNLOADING, UNAVAILABLE }
  * such as the Galaxy S26. Nothing leaves the phone. Phones without it,
  * including the emulator, report [OnDeviceAiStatus.UNAVAILABLE].
  */
-class NanoCardReader(private val assets: CardAssets, private val scope: CoroutineScope) : RecipeCardReader {
+class NanoCardReader(
+    private val assets: CardAssets,
+    private val scope: CoroutineScope,
+    private val strings: AppStrings,
+) : RecipeCardReader {
     override val kind = CardReaderKind.ON_DEVICE_AI
 
     override fun isAvailable() = status.value == OnDeviceAiStatus.READY

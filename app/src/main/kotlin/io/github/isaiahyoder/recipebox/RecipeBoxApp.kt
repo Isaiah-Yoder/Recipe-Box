@@ -108,6 +108,9 @@ private const val TAG = "RecipeBox"
 class AppContainer(context: Context) {
     val database: RecipeDatabase by lazy { RecipeDatabase.create(context) }
 
+    /** Text resources for code without a Context. */
+    val strings: AppStrings = ResourceStrings(context)
+
     val settings: AppSettings by lazy { AppSettings(context) }
 
     val tagRefresher: TagRefresher by lazy { TagRefresher(database) }
@@ -149,7 +152,7 @@ class AppContainer(context: Context) {
      * Where shared links are read from, in the order they're tried. A source
      * for videos or social posts goes before web pages, which take any link.
      */
-    private val linkSources: List<LinkSource> by lazy { listOf(WebPageSource(pageFetcher, browserLoader)) }
+    private val linkSources: List<LinkSource> by lazy { listOf(WebPageSource(pageFetcher, browserLoader, strings)) }
 
     val importer: RecipeImporter by lazy {
         RecipeImporter(dao = database.recipeDao(), sources = linkSources, recipes = recipes, photos = photos)
@@ -157,12 +160,12 @@ class AppContainer(context: Context) {
 
     val importQueue: ImportQueue by lazy { ImportQueue(context, database.importJobDao(), importer) }
 
-    private val pageFetcher: PageFetcher by lazy { PageFetcher(httpClient, userAgent) }
+    private val pageFetcher: PageFetcher by lazy { PageFetcher(httpClient, userAgent, strings) }
 
     val photoRestorer: PhotoRestorer by lazy { PhotoRestorer(database.recipeDao(), photos, pageFetcher) }
 
     val backupManager: BackupManager by lazy {
-        BackupManager(database, photos, settings, appVersion = BuildConfigValues.versionName(context))
+        BackupManager(database, photos, settings, appVersion = BuildConfigValues.versionName(context), strings = strings)
     }
 
     val driveBackup: DriveBackup by lazy { DriveBackup(context, httpClient, backupManager, settings, photos) }
@@ -184,13 +187,16 @@ class AppContainer(context: Context) {
 
     private val cardAssets = CardAssets { path -> context.assets.open(path).use { it.readBytes().decodeToString() } }
 
-    val geminiCards: GeminiCardReader by lazy { GeminiCardReader(httpClient, cardAssets) }
+    val geminiCards: GeminiCardReader by lazy { GeminiCardReader(httpClient, cardAssets, strings) }
 
-    val onDeviceCards: NanoCardReader by lazy { NanoCardReader(cardAssets, appScope) }
+    val onDeviceCards: NanoCardReader by lazy { NanoCardReader(cardAssets, appScope, strings) }
 
     /** Card readers in the order they're tried. Each build adds its own to the shared ones. */
     val cardReader: CardReader by lazy {
-        CardReader(BuildFlavor.cardReaders(settings, geminiCards, shared = listOf(onDeviceCards, TextCardReader(context))))
+        CardReader(
+            BuildFlavor.cardReaders(settings, geminiCards, strings, shared = listOf(onDeviceCards, TextCardReader(context))),
+            strings,
+        )
     }
 
     private companion object {

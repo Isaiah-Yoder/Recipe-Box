@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.importer
 
+import io.github.isaiahyoder.recipebox.AppStrings
 import android.util.Log
 import io.github.isaiahyoder.recipebox.model.RecipeDraft
 
@@ -11,6 +12,7 @@ import io.github.isaiahyoder.recipebox.model.RecipeDraft
 class WebPageSource(
     private val fetcher: PageFetcher,
     private val browserLoader: WebViewPageLoader,
+    private val strings: AppStrings,
 ) : LinkSource {
     override fun handles(url: String): Boolean = true
 

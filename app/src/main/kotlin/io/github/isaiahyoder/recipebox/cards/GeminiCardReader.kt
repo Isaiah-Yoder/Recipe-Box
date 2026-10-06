@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import io.github.isaiahyoder.recipebox.AppStrings
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -45,7 +46,7 @@ class CardReadException(
  * answers in the JSON layout of assets/cards/schema.json. On the free tier,
  * Google may use what's sent to improve its products.
  */
-class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets) {
+class GeminiCardReader(http: OkHttpClient, private val assets: CardAssets, private val strings: AppStrings) {
     private val client = http.newBuilder().readTimeout(120, TimeUnit.SECONDS).build()
     private val json = Json { ignoreUnknownKeys = true }
 
