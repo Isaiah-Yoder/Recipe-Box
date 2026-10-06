@@ -14,7 +14,6 @@ data class RecipeLine(
     val isHeader: Boolean = false,
 )
 
-@Serializable
 @Entity(
     tableName = "recipes",
     indices = [Index("sourceUrl")],
@@ -67,9 +66,8 @@ data class RecipeEntity(
     /**
      * The ingredient lines as plain text, for search. The DAO fills it on every
      * write, so search never matches the JSON that stores [ingredients]. It's
-     * rebuilt from the ingredients, so backups leave it out.
+     * rebuilt from the ingredients, so the backup layout leaves it out.
      */
-    @kotlinx.serialization.Transient
     @ColumnInfo(defaultValue = "")
     val ingredientText: String = "",
 ) {
@@ -77,7 +75,6 @@ data class RecipeEntity(
     fun indexed(): RecipeEntity = copy(ingredientText = ingredients.filterNot { it.isHeader }.joinToString("\n") { it.text })
 }
 
-@Serializable
 @Entity(
     tableName = "tags",
     indices = [Index(value = ["name"], unique = true)],
@@ -105,7 +102,6 @@ object EditedField {
     const val SOURCE = "source"
 }
 
-@Serializable
 @Entity(
     tableName = "recipe_tags",
     primaryKeys = ["recipeId", "tagId"],
@@ -123,7 +119,6 @@ data class RecipeTagEntity(
     @ColumnInfo(defaultValue = "0") val hidden: Boolean = false,
 )
 
-@Serializable
 @Entity(
     tableName = "categories",
     indices = [Index(value = ["name"], unique = true)],
@@ -136,7 +131,6 @@ data class CategoryEntity(
     @ColumnInfo(defaultValue = "[]") val feederTags: List<String> = emptyList(),
 )
 
-@Serializable
 @Entity(
     tableName = "recipe_categories",
     primaryKeys = ["recipeId", "categoryId"],

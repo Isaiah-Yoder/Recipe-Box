@@ -13,9 +13,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
-import kotlinx.serialization.Serializable
 
-@Serializable
 @Entity(tableName = "grocery_lists")
 data class GroceryListEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -29,7 +27,6 @@ data class GroceryListEntity(
 )
 
 /** A recipe on a list, at its own scale. */
-@Serializable
 @Entity(
     tableName = "grocery_list_recipes",
     primaryKeys = ["listId", "recipeId"],
@@ -47,7 +44,6 @@ data class GroceryListRecipeEntity(
 )
 
 /** An item she typed in herself. It stays when recipes are added or removed. */
-@Serializable
 @Entity(
     tableName = "grocery_manual_items",
     foreignKeys = [ForeignKey(GroceryListEntity::class, ["id"], ["listId"], onDelete = ForeignKey.CASCADE)],
@@ -68,7 +64,6 @@ data class GroceryManualItemEntity(
  * rewrote it. Keyed by the ingredient's name, so the state survives scale
  * changes and recipes being added.
  */
-@Serializable
 @Entity(
     tableName = "grocery_line_state",
     primaryKeys = ["listId", "lineKey"],
@@ -83,7 +78,6 @@ data class GroceryLineStateEntity(
 )
 
 /** Her choice of store section for an ingredient, remembered for every list. */
-@Serializable
 @Entity(tableName = "section_overrides")
 data class SectionOverrideEntity(
     @PrimaryKey val nameKey: String,

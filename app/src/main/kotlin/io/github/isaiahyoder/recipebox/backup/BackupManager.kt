@@ -1,17 +1,7 @@
 package io.github.isaiahyoder.recipebox.backup
 
 import androidx.room.withTransaction
-import io.github.isaiahyoder.recipebox.data.CategoryEntity
-import io.github.isaiahyoder.recipebox.data.GroceryLineStateEntity
-import io.github.isaiahyoder.recipebox.data.GroceryListEntity
-import io.github.isaiahyoder.recipebox.data.GroceryListRecipeEntity
-import io.github.isaiahyoder.recipebox.data.GroceryManualItemEntity
-import io.github.isaiahyoder.recipebox.data.RecipeCategoryEntity
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
-import io.github.isaiahyoder.recipebox.data.RecipeEntity
-import io.github.isaiahyoder.recipebox.data.RecipeTagEntity
-import io.github.isaiahyoder.recipebox.data.SectionOverrideEntity
-import io.github.isaiahyoder.recipebox.data.TagEntity
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import io.github.isaiahyoder.recipebox.settings.ThemeMode
@@ -38,16 +28,16 @@ data class BackupFile(
     val format: Int = FORMAT,
     val appVersion: String,
     val exportedAt: Long,
-    val recipes: List<RecipeEntity>,
-    val tags: List<TagEntity>,
-    val recipeTags: List<RecipeTagEntity>,
-    val categories: List<CategoryEntity>,
-    val recipeCategories: List<RecipeCategoryEntity>,
-    val groceryLists: List<GroceryListEntity>,
-    val groceryListRecipes: List<GroceryListRecipeEntity>,
-    val groceryManualItems: List<GroceryManualItemEntity>,
-    val groceryLineStates: List<GroceryLineStateEntity>,
-    val sectionOverrides: List<SectionOverrideEntity>,
+    val recipes: List<BackupRecipe>,
+    val tags: List<BackupTag>,
+    val recipeTags: List<BackupRecipeTag>,
+    val categories: List<BackupCategory>,
+    val recipeCategories: List<BackupRecipeCategory>,
+    val groceryLists: List<BackupGroceryList>,
+    val groceryListRecipes: List<BackupGroceryListRecipe>,
+    val groceryManualItems: List<BackupGroceryManualItem>,
+    val groceryLineStates: List<BackupGroceryLineState>,
+    val sectionOverrides: List<BackupSectionOverride>,
     val themeMode: String? = null,
 ) {
     /** File names of her own photos and card photos, which travel with the backup. */
@@ -81,16 +71,16 @@ class BackupManager(
             appVersion = appVersion,
             exportedAt = clock(),
             // Downloaded cover photos are left out; only the address is kept.
-            recipes = dao.recipes().map { if (it.imageIsOwn) it else it.copy(imageFile = null) },
-            tags = dao.tags(),
-            recipeTags = dao.recipeTags(),
-            categories = dao.categories(),
-            recipeCategories = dao.recipeCategories(),
-            groceryLists = dao.groceryLists(),
-            groceryListRecipes = dao.groceryListRecipes(),
-            groceryManualItems = dao.groceryManualItems(),
-            groceryLineStates = dao.groceryLineStates(),
-            sectionOverrides = dao.sectionOverrides(),
+            recipes = dao.recipes().map { (if (it.imageIsOwn) it else it.copy(imageFile = null)).toBackup() },
+            tags = dao.tags().map { it.toBackup() },
+            recipeTags = dao.recipeTags().map { it.toBackup() },
+            categories = dao.categories().map { it.toBackup() },
+            recipeCategories = dao.recipeCategories().map { it.toBackup() },
+            groceryLists = dao.groceryLists().map { it.toBackup() },
+            groceryListRecipes = dao.groceryListRecipes().map { it.toBackup() },
+            groceryManualItems = dao.groceryManualItems().map { it.toBackup() },
+            groceryLineStates = dao.groceryLineStates().map { it.toBackup() },
+            sectionOverrides = dao.sectionOverrides().map { it.toBackup() },
             themeMode = settings.themeMode.value.name,
         )
     }
@@ -177,16 +167,16 @@ class BackupManager(
             dao.clearRecipeTags()
             dao.clearTags()
             dao.clearRecipes()
-            dao.insertRecipes(recipes.map { it.indexed() })
-            dao.insertTags(backup.tags)
-            dao.insertRecipeTags(backup.recipeTags)
-            dao.insertCategories(backup.categories)
-            dao.insertRecipeCategories(backup.recipeCategories)
-            dao.insertGroceryLists(backup.groceryLists)
-            dao.insertGroceryListRecipes(backup.groceryListRecipes)
-            dao.insertGroceryManualItems(backup.groceryManualItems)
-            dao.insertGroceryLineStates(backup.groceryLineStates)
-            dao.insertSectionOverrides(backup.sectionOverrides)
+            dao.insertRecipes(recipes.map { it.toEntity() })
+            dao.insertTags(backup.tags.map { it.toEntity() })
+            dao.insertRecipeTags(backup.recipeTags.map { it.toEntity() })
+            dao.insertCategories(backup.categories.map { it.toEntity() })
+            dao.insertRecipeCategories(backup.recipeCategories.map { it.toEntity() })
+            dao.insertGroceryLists(backup.groceryLists.map { it.toEntity() })
+            dao.insertGroceryListRecipes(backup.groceryListRecipes.map { it.toEntity() })
+            dao.insertGroceryManualItems(backup.groceryManualItems.map { it.toEntity() })
+            dao.insertGroceryLineStates(backup.groceryLineStates.map { it.toEntity() })
+            dao.insertSectionOverrides(backup.sectionOverrides.map { it.toEntity() })
         }
 
         // Old photo files no restored recipe uses are removed; cover photos download again.

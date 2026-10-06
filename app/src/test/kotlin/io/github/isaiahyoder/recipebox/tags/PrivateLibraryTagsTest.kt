@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.tags
 
+import io.github.isaiahyoder.recipebox.backup.toEntity
 import io.github.isaiahyoder.recipebox.backup.BackupFile
 import kotlinx.serialization.json.Json
 import org.junit.Assume.assumeTrue
@@ -38,7 +39,7 @@ class PrivateLibraryTagsTest {
         val categoryNames = backup.categories.associate { it.id to it.name }
         val chosen = backup.recipeCategories.groupBy({ it.recipeId }, { categoryNames.getValue(it.categoryId) })
         val report = StringBuilder()
-        val results = backup.recipes.associate { it.id to AutoTagger.tags(it.toTaggable()) }
+        val results = backup.recipes.associate { it.id to AutoTagger.tags(it.toEntity().toTaggable()) }
 
         for ((category, tags) in feeders) {
             val hers = backup.recipes.filter { category in chosen[it.id].orEmpty() }.map { it.id }.toSet()
