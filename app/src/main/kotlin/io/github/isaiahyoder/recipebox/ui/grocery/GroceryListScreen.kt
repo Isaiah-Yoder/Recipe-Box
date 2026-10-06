@@ -1,6 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.grocery
 
-import io.github.isaiahyoder.recipebox.ui.recipe.UnitToggle
+import io.github.isaiahyoder.recipebox.ui.components.UnitToggle
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
