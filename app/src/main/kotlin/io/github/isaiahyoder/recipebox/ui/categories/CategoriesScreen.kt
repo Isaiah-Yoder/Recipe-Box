@@ -36,11 +36,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
 
@@ -62,9 +64,11 @@ fun CategoriesScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Categories") },
+                title = { Text(stringResource(R.string.library_categories)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.library_back))
+                    }
                 },
             )
         },
@@ -72,7 +76,7 @@ fun CategoriesScreen(onBack: () -> Unit) {
             ExtendedFloatingActionButton(
                 onClick = { creating = true },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("New category") },
+                text = { Text(stringResource(R.string.library_category_new)) },
             )
         },
     ) { padding ->
@@ -80,8 +84,7 @@ fun CategoriesScreen(onBack: () -> Unit) {
         if (categories.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "Group recipes your own way, such as Weeknight dinners or Holidays. " +
-                        "A recipe can be in several categories, and a category can fill itself from tags.",
+                    stringResource(R.string.library_categories_empty),
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -94,24 +97,33 @@ fun CategoriesScreen(onBack: () -> Unit) {
                     headlineContent = { Text(category.name) },
                     supportingContent = {
                         Text(
-                            if (category.feederTags.isEmpty()) "Filled by hand. Tap to fill from tags."
-                            else "Fills from ${category.feederTags.joinToString(" or ")}"
+                            if (category.feederTags.isEmpty()) {
+                                stringResource(R.string.library_category_by_hand)
+                            } else {
+                                stringResource(
+                                    R.string.library_category_fills_from,
+                                    category.feederTags.joinToString(stringResource(R.string.library_or_separator)),
+                                )
+                            }
                         )
                     },
                     modifier = Modifier.clickable { editingFeeders = category.id },
                     trailingContent = {
                         androidx.compose.foundation.layout.Row {
                             IconButton(onClick = { vm.move(index, -1) }, enabled = index > 0) {
-                                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move up")
+                                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.library_category_move_up))
                             }
                             IconButton(onClick = { vm.move(index, 1) }, enabled = index < categories.lastIndex) {
-                                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move down")
+                                Icon(
+                                    Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = stringResource(R.string.library_category_move_down),
+                                )
                             }
                             IconButton(onClick = { renaming = category.id }) {
-                                Icon(Icons.Filled.Edit, contentDescription = "Rename ${category.name}")
+                                Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.library_category_rename, category.name))
                             }
                             IconButton(onClick = { deleting = category.id }) {
-                                Icon(Icons.Filled.Delete, contentDescription = "Delete ${category.name}")
+                                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.library_category_delete, category.name))
                             }
                         }
                     },
@@ -135,40 +147,40 @@ fun CategoriesScreen(onBack: () -> Unit) {
 
     if (creating) {
         NameDialog(
-            title = "New category",
+            title = stringResource(R.string.library_category_new),
             initial = "",
             onSave = { name ->
                 creating = false
                 vm.create(name)
             },
             onDismiss = { creating = false },
-            problem = { name -> CategoriesViewModel.takenMessage(categories, name, exceptId = null) },
+            problem = { name -> CategoriesViewModel.takenMessage(categories, name, exceptId = null, container.strings) },
         )
     }
     categories.firstOrNull { it.id == renaming }?.let { category ->
         NameDialog(
-            title = "Rename category",
+            title = stringResource(R.string.library_category_rename_title),
             initial = category.name,
             onSave = { name ->
                 renaming = null
                 vm.rename(category.id, name)
             },
             onDismiss = { renaming = null },
-            problem = { name -> CategoriesViewModel.takenMessage(categories, name, exceptId = category.id) },
+            problem = { name -> CategoriesViewModel.takenMessage(categories, name, exceptId = category.id, container.strings) },
         )
     }
     categories.firstOrNull { it.id == deleting }?.let { category: CategoryEntity ->
         AlertDialog(
             onDismissRequest = { deleting = null },
-            title = { Text("Delete \"${category.name}\"?") },
-            text = { Text("The category is removed. Its recipes stay in your library.") },
+            title = { Text(stringResource(R.string.library_category_delete_title, category.name)) },
+            text = { Text(stringResource(R.string.library_category_delete_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     deleting = null
                     vm.delete(category.id)
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.library_delete)) }
             },
-            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.library_cancel)) } },
         )
     }
 }
@@ -191,7 +203,7 @@ fun NameDialog(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.library_category_name)) },
                 singleLine = true,
                 isError = issue != null,
                 supportingText = issue?.let { { Text(it) } },
@@ -199,8 +211,10 @@ fun NameDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = { onSave(name.trim()) }, enabled = name.isNotBlank() && issue == null) { Text("Save") }
+            TextButton(onClick = { onSave(name.trim()) }, enabled = name.isNotBlank() && issue == null) {
+                Text(stringResource(R.string.library_save))
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.library_cancel)) } },
     )
 }

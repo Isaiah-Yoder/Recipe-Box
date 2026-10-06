@@ -26,9 +26,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.isaiahyoder.recipebox.R
 
 /**
  * A recipe's tags, suggestions, and categories, with the dialogs for
@@ -55,7 +57,7 @@ internal fun RecipeTagsSection(tags: List<String>, viewModel: RecipeViewModel) {
                     trailingIcon = {
                         Icon(
                             Icons.Filled.Close,
-                            contentDescription = "Remove tag $tag",
+                            contentDescription = stringResource(R.string.recipe_remove_tag_named, tag),
                             modifier = Modifier.size(18.dp).clickable { viewModel.removeTag(tag) },
                         )
                     },
@@ -64,13 +66,13 @@ internal fun RecipeTagsSection(tags: List<String>, viewModel: RecipeViewModel) {
             suggestions.forEach { tag ->
                 SuggestionChip(
                     onClick = { askingAbout = tag },
-                    label = { Text("$tag?") },
+                    label = { Text(stringResource(R.string.recipe_suggested_tag, tag)) },
                     icon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, Modifier.size(18.dp)) },
                 )
             }
             AssistChip(
                 onClick = { addingTag = true },
-                label = { Text("Add tag") },
+                label = { Text(stringResource(R.string.recipe_add_tag)) },
                 leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, Modifier.size(18.dp)) },
             )
         }
@@ -80,7 +82,9 @@ internal fun RecipeTagsSection(tags: List<String>, viewModel: RecipeViewModel) {
             }
             AssistChip(
                 onClick = { editingCategories = true },
-                label = { Text(if (categories.isEmpty()) "Add to category" else "Categories") },
+                label = {
+                    Text(stringResource(if (categories.isEmpty()) R.string.recipe_add_to_category else R.string.recipe_categories))
+                },
                 leadingIcon = { Icon(Icons.Filled.Folder, contentDescription = null, Modifier.size(18.dp)) },
             )
         }
@@ -95,10 +99,9 @@ internal fun RecipeTagsSection(tags: List<String>, viewModel: RecipeViewModel) {
             text = {
                 Text(
                     if (feeding.isEmpty()) {
-                        "Make a category from this tag? Every recipe tagged $tag joins it, now and in the future. " +
-                            "You can still add or remove recipes yourself."
+                        stringResource(R.string.recipe_make_category_body, tag)
                     } else {
-                        "Recipes tagged $tag join ${feeding.joinToString { it.name }} automatically."
+                        stringResource(R.string.recipe_tag_feeds, tag, feeding.joinToString { it.name })
                     }
                 )
             },
@@ -107,35 +110,35 @@ internal fun RecipeTagsSection(tags: List<String>, viewModel: RecipeViewModel) {
                     TextButton(onClick = {
                         tagMenuFor = null
                         viewModel.makeCategory(tag)
-                    }) { Text("Make a category") }
+                    }) { Text(stringResource(R.string.recipe_make_category)) }
                 } else {
-                    TextButton(onClick = { tagMenuFor = null }) { Text("OK") }
+                    TextButton(onClick = { tagMenuFor = null }) { Text(stringResource(R.string.recipe_ok)) }
                 }
             },
             dismissButton = {
                 TextButton(onClick = {
                     tagMenuFor = null
                     viewModel.removeTag(tag)
-                }) { Text("Remove tag") }
+                }) { Text(stringResource(R.string.recipe_remove_tag)) }
             },
         )
     }
     askingAbout?.let { tag ->
         AlertDialog(
             onDismissRequest = { askingAbout = null },
-            title = { Text("Is this a $tag recipe?") },
-            text = { Text("Recipe Box guessed $tag from the recipe's name. Your answer is kept, even when recipes refresh.") },
+            title = { Text(stringResource(R.string.recipe_suggestion_title, tag)) },
+            text = { Text(stringResource(R.string.recipe_suggestion_body, tag)) },
             confirmButton = {
                 TextButton(onClick = {
                     askingAbout = null
                     viewModel.acceptSuggestion(tag)
-                }) { Text("Yes") }
+                }) { Text(stringResource(R.string.recipe_yes)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     askingAbout = null
                     viewModel.dismissSuggestion(tag)
-                }) { Text("No") }
+                }) { Text(stringResource(R.string.recipe_no)) }
             },
         )
     }

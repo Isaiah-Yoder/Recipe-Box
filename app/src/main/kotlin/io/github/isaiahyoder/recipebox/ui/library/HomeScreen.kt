@@ -51,12 +51,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.importer.Links
 import io.github.isaiahyoder.recipebox.ui.queue.QueueBanner
@@ -75,7 +78,10 @@ fun HomeScreen(
     val container = LocalContext.current.appContainer
     val viewModel = viewModel {
         val database = container.database
-        HomeViewModel(database.recipeDao(), database.tagDao(), database.categoryDao(), container.settings, container.library)
+        HomeViewModel(
+            database.recipeDao(), database.tagDao(), database.categoryDao(), container.settings, container.library,
+            container.strings,
+        )
     }
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
@@ -88,10 +94,10 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Recipe Box") },
+                title = { Text(stringResource(R.string.library_app_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenMenu) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        Icon(Icons.Filled.Menu, contentDescription = stringResource(R.string.library_menu))
                     }
                 },
             )
@@ -106,7 +112,7 @@ fun HomeScreen(
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Add recipe") },
+                text = { Text(stringResource(R.string.library_add_recipe)) },
             )
         },
     ) { padding ->
@@ -115,7 +121,7 @@ fun HomeScreen(
             when {
                 query.isNotBlank() -> RecipeList(
                     recipes = results,
-                    empty = "No recipes match \"${query.trim()}\".",
+                    empty = stringResource(R.string.library_search_no_match, query.trim()),
                     onOpenRecipe = onOpenRecipe,
                 )
                 rows == null -> Unit
@@ -160,12 +166,12 @@ internal fun SearchField(query: String, onChange: (String) -> Unit) {
         value = query,
         onValueChange = onChange,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        placeholder = { Text("Search recipes, ingredients, or tags") },
+        placeholder = { Text(stringResource(R.string.library_search_hint)) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onChange("") }) {
-                    Icon(Icons.Filled.Clear, contentDescription = "Clear search")
+                    Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.library_search_clear))
                 }
             }
         },
@@ -194,8 +200,8 @@ internal fun ShelfRow(row: HomeRow, onClick: () -> Unit) {
             Text(row.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 listOfNotNull(
-                    "${row.count} ${if (row.count == 1) "recipe" else "recipes"}",
-                    row.suggested.takeIf { it > 0 }?.let { "$it suggested" },
+                    pluralStringResource(R.plurals.library_shelf_count, row.count, row.count),
+                    row.suggested.takeIf { it > 0 }?.let { stringResource(R.string.library_shelf_suggested, it) },
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (row.suggested > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -209,17 +215,14 @@ internal fun ShelfRow(row: HomeRow, onClick: () -> Unit) {
 @Composable
 internal fun FeederOfferCard(offers: List<FeederOffer>, onAccept: (List<FeederOffer>) -> Unit, onDismiss: () -> Unit) {
     val chosen = remember(offers) { mutableStateListOf(*offers.toTypedArray()) }
+    val orSeparator = stringResource(R.string.library_or_separator)
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Fill your categories automatically?", style = MaterialTheme.typography.titleSmall)
-            Text(
-                "Recipes with a matching tag can join your categories on their own, now and in the future. " +
-                    "Recipes you already sorted stay where they are.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Text(stringResource(R.string.library_offer_title), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.library_offer_body), style = MaterialTheme.typography.bodyMedium)
             for (offer in offers) {
                 val checked = offer in chosen
                 Row(
@@ -230,20 +233,26 @@ internal fun FeederOfferCard(offers: List<FeederOffer>, onAccept: (List<FeederOf
                 ) {
                     Checkbox(checked = checked, onCheckedChange = null)
                     val effects = listOfNotNull(
-                        offer.adds.takeIf { it > 0 }?.let { "adds $it" },
-                        offer.suggested.takeIf { it > 0 }?.let { "$it suggested to review" },
+                        offer.adds.takeIf { it > 0 }?.let { stringResource(R.string.library_offer_adds, it) },
+                        offer.suggested.takeIf { it > 0 }?.let { stringResource(R.string.library_offer_suggested, it) },
                     )
+                    val tags = offer.tags.joinToString(orSeparator)
                     Text(
-                        "${offer.category.name} from ${offer.tags.joinToString(" or ")}" +
-                            if (effects.isNotEmpty()) " (${effects.joinToString(", ")})" else "",
+                        if (effects.isEmpty()) {
+                            stringResource(R.string.library_offer_line, offer.category.name, tags)
+                        } else {
+                            stringResource(R.string.library_offer_line_effects, offer.category.name, tags, effects.joinToString(", "))
+                        },
                         Modifier.padding(start = 12.dp),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text("Not now") }
-                TextButton(onClick = { onAccept(chosen.toList()) }, enabled = chosen.isNotEmpty()) { Text("Fill these") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.library_offer_not_now)) }
+                TextButton(onClick = { onAccept(chosen.toList()) }, enabled = chosen.isNotEmpty()) {
+                    Text(stringResource(R.string.library_offer_fill))
+                }
             }
         }
     }
@@ -253,8 +262,7 @@ internal fun FeederOfferCard(offers: List<FeederOffer>, onAccept: (List<FeederOf
 internal fun EmptyLibrary() {
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         Text(
-            "No recipes yet.\n\nIn your browser, open a recipe and tap Share, then Recipe Box. " +
-                "Or tap Add recipe to paste a link or scan a recipe card.",
+            stringResource(R.string.library_empty),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -275,14 +283,14 @@ internal fun AddRecipeDialog(
     val links = remember(text) { Links.findAllUrls(text) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add recipes") },
+        title = { Text(stringResource(R.string.library_add_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("Recipe links") },
-                    placeholder = { Text("Paste one or more links") },
+                    label = { Text(stringResource(R.string.library_add_links_label)) },
+                    placeholder = { Text(stringResource(R.string.library_add_links_hint)) },
                     minLines = 3,
                     maxLines = 8,
                 )
@@ -294,15 +302,15 @@ internal fun AddRecipeDialog(
                     }
                 }) {
                     Icon(Icons.Filled.ContentPaste, contentDescription = null)
-                    Text("Paste", Modifier.padding(start = 8.dp))
+                    Text(stringResource(R.string.library_add_paste), Modifier.padding(start = 8.dp))
                 }
                 TextButton(onClick = onScanCard) {
                     Icon(Icons.Filled.CameraAlt, contentDescription = null)
-                    Text("Scan a recipe card", Modifier.padding(start = 8.dp))
+                    Text(stringResource(R.string.library_add_scan_card), Modifier.padding(start = 8.dp))
                 }
                 TextButton(onClick = onTypeIn) {
                     Icon(Icons.Filled.Edit, contentDescription = null)
-                    Text("Type in a recipe instead", Modifier.padding(start = 8.dp))
+                    Text(stringResource(R.string.library_add_type_in), Modifier.padding(start = 8.dp))
                 }
             }
         },
@@ -310,12 +318,12 @@ internal fun AddRecipeDialog(
             TextButton(onClick = { onAdd(links) }, enabled = links.isNotEmpty()) {
                 Text(
                     when (links.size) {
-                        0, 1 -> "Add recipe"
-                        else -> "Add ${links.size} recipes"
+                        0, 1 -> stringResource(R.string.library_add_recipe)
+                        else -> pluralStringResource(R.plurals.library_add_recipes, links.size, links.size)
                     }
                 )
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.library_cancel)) } },
     )
 }

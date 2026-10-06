@@ -41,9 +41,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.ui.grocery.AddToGroceryListDialog
 
@@ -81,7 +83,7 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                 title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.recipe_back))
                     }
                 },
                 actions = {
@@ -89,23 +91,27 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                         IconButton(onClick = { viewModel.setCookMode(!cookMode) }) {
                             Icon(
                                 if (cookMode) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb,
-                                contentDescription = if (cookMode) "Turn off cook mode" else "Turn on cook mode",
+                                contentDescription = stringResource(
+                                    if (cookMode) R.string.recipe_cook_mode_off else R.string.recipe_cook_mode_on
+                                ),
                                 tint = if (cookMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             )
                         }
                         IconButton(onClick = { viewModel.setFavorite(!recipe.favorite) }) {
                             Icon(
                                 if (recipe.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                contentDescription = if (recipe.favorite) "Remove from favorites" else "Add to favorites",
+                                contentDescription = stringResource(
+                                    if (recipe.favorite) R.string.recipe_favorite_remove else R.string.recipe_favorite_add
+                                ),
                             )
                         }
                         Box {
                             IconButton(onClick = { menuOpen = true }) {
-                                Icon(Icons.Filled.MoreVert, contentDescription = "More options")
+                                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.recipe_more_options))
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 DropdownMenuItem(
-                                    text = { Text("Add to grocery list") },
+                                    text = { Text(stringResource(R.string.recipe_menu_grocery)) },
                                     leadingIcon = { Icon(Icons.Filled.ShoppingCart, null) },
                                     onClick = {
                                         menuOpen = false
@@ -113,7 +119,7 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Edit recipe") },
+                                    text = { Text(stringResource(R.string.recipe_menu_edit)) },
                                     leadingIcon = { Icon(Icons.Filled.Edit, null) },
                                     onClick = {
                                         menuOpen = false
@@ -122,7 +128,7 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                                 )
                                 if (recipe.sourceUrl != null && recipe.editedFields.isNotEmpty()) {
                                     DropdownMenuItem(
-                                        text = { Text("Use the website's version") },
+                                        text = { Text(stringResource(R.string.recipe_menu_website)) },
                                         leadingIcon = { Icon(Icons.Filled.Restore, null) },
                                         onClick = {
                                             menuOpen = false
@@ -132,7 +138,7 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                                 }
                                 recipe.sourceUrl?.let { url ->
                                     DropdownMenuItem(
-                                        text = { Text("Open original page") },
+                                        text = { Text(stringResource(R.string.recipe_menu_original)) },
                                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
                                         onClick = {
                                             menuOpen = false
@@ -141,7 +147,7 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                                     )
                                 }
                                 DropdownMenuItem(
-                                    text = { Text("Delete recipe") },
+                                    text = { Text(stringResource(R.string.recipe_menu_delete)) },
                                     leadingIcon = { Icon(Icons.Filled.Delete, null) },
                                     onClick = {
                                         menuOpen = false
@@ -160,7 +166,7 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
                 CircularProgressIndicator()
             }
             RecipeUiState.Missing -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("This recipe was deleted.")
+                Text(stringResource(R.string.recipe_missing))
             }
             is RecipeUiState.Loaded -> RecipeContent(
                 recipe = recipe!!,
@@ -179,7 +185,7 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
             scale = recipe.lastScale,
             onDone = { listName ->
                 addingToList = false
-                Toast.makeText(context, "Added to $listName", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.recipe_added_to_list, listName), Toast.LENGTH_SHORT).show()
             },
             onDismiss = { addingToList = false },
         )
@@ -188,37 +194,36 @@ fun RecipeScreen(recipeId: Long, onEdit: () -> Unit, onBack: () -> Unit) {
     if (confirmWebsiteVersion && recipe != null) {
         AlertDialog(
             onDismissRequest = { confirmWebsiteVersion = false },
-            title = { Text("Use the website's version?") },
-            text = {
-                Text(
-                    "Your changes to this recipe's title, servings, times, ingredients, and steps are replaced " +
-                        "with what its web page says. Your notes, tags, categories, and photos stay."
-                )
-            },
+            title = { Text(stringResource(R.string.recipe_website_title)) },
+            text = { Text(stringResource(R.string.recipe_website_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmWebsiteVersion = false
                     viewModel.useWebsiteVersion { worked ->
-                        if (!worked) Toast.makeText(context, "The web page couldn't be read. Try again later.", Toast.LENGTH_LONG).show()
+                        if (!worked) {
+                            Toast.makeText(context, context.getString(R.string.recipe_website_failed), Toast.LENGTH_LONG).show()
+                        }
                     }
-                }) { Text("Use website's version") }
+                }) { Text(stringResource(R.string.recipe_website_confirm)) }
             },
-            dismissButton = { TextButton(onClick = { confirmWebsiteVersion = false }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(onClick = { confirmWebsiteVersion = false }) { Text(stringResource(R.string.recipe_cancel)) }
+            },
         )
     }
 
     if (confirmDelete && recipe != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this recipe?") },
-            text = { Text("\"${recipe.title}\" and its photo will be removed from Recipe Box.") },
+            title = { Text(stringResource(R.string.recipe_delete_title)) },
+            text = { Text(stringResource(R.string.recipe_delete_body, recipe.title)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
                     viewModel.delete(onDeleted = onBack)
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.recipe_delete)) }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.recipe_cancel)) } },
         )
     }
 }

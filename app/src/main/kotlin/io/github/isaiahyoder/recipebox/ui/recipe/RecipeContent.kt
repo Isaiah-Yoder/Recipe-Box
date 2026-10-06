@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.ingredients.IngredientParser
@@ -89,7 +91,7 @@ internal fun RecipeContent(
                 if (!missing) {
                     AsyncImage(
                         model = container.photos.file(name),
-                        contentDescription = "Photo of ${recipe.title}",
+                        contentDescription = stringResource(R.string.recipe_photo_of, recipe.title),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
@@ -114,9 +116,9 @@ internal fun RecipeContent(
                     Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 val times = listOfNotNull(
-                    formatMinutes(recipe.prepMinutes)?.let { "Prep $it" },
-                    formatMinutes(recipe.cookMinutes)?.let { "Cook $it" },
-                    formatMinutes(recipe.totalMinutes)?.let { "Total $it" },
+                    formatMinutes(recipe.prepMinutes)?.let { stringResource(R.string.recipe_time_prep, it) },
+                    formatMinutes(recipe.cookMinutes)?.let { stringResource(R.string.recipe_time_cook, it) },
+                    formatMinutes(recipe.totalMinutes)?.let { stringResource(R.string.recipe_time_total, it) },
                 )
                 if (times.isNotEmpty()) Text(times.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
             }
@@ -138,12 +140,12 @@ internal fun RecipeContent(
                 onUnits = { units = it },
             )
         }
-        if (recipe.ingredients.isNotEmpty()) sectionHeading("Ingredients")
+        if (recipe.ingredients.isNotEmpty()) sectionHeading(R.string.recipe_ingredients)
         lines(recipe.ingredients) { line ->
             val shown = remember(line.text, scale, units) { IngredientScaler.display(line.text, scale, units) }
             IngredientRow(shown, bodyStyle)
         }
-        if (recipe.steps.isNotEmpty()) sectionHeading("Steps")
+        if (recipe.steps.isNotEmpty()) sectionHeading(R.string.recipe_steps)
         var stepNumber = 0
         val numbered = recipe.steps.map { line -> if (line.isHeader) line to 0 else line to ++stepNumber }
         itemsIndexed(numbered) { _, (line, number) ->
@@ -176,7 +178,7 @@ internal fun RecipeContent(
             }
         }
         if (recipe.notes.isNotBlank()) {
-            sectionHeading("Notes")
+            sectionHeading(R.string.recipe_notes)
             item {
                 Text(
                     recipe.notes,
@@ -186,7 +188,7 @@ internal fun RecipeContent(
             }
         }
         // Tags and categories come last, so the recipe itself is what she sees first.
-        sectionHeading("Tags and categories")
+        sectionHeading(R.string.recipe_tags_and_categories)
         item { RecipeTagsSection(tags, viewModel) }
     }
 

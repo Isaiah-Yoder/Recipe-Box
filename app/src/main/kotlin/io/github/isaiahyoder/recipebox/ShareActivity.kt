@@ -18,7 +18,7 @@ class ShareActivity : ComponentActivity() {
         val text = intent?.takeIf { it.action == Intent.ACTION_SEND }?.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
         val urls = Links.findAllUrls(text)
         if (urls.isEmpty()) {
-            Toast.makeText(this, "Recipe Box didn't find a link to save.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.library_share_no_link), Toast.LENGTH_LONG).show()
             finish()
             return
         }
@@ -26,9 +26,9 @@ class ShareActivity : ComponentActivity() {
         lifecycleScope.launch {
             val added = queue.enqueue(urls)
             val message = when {
-                added == 0 -> "That recipe is already in the Recipe Box queue."
-                added == 1 -> "Saving to Recipe Box…"
-                else -> "Saving $added recipes to Recipe Box…"
+                added == 0 -> getString(R.string.library_share_already_queued)
+                added == 1 -> getString(R.string.library_share_saving_one)
+                else -> resources.getQuantityString(R.plurals.library_share_saving, added, added)
             }
             Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
             finish()

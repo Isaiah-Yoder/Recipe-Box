@@ -29,9 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.RecipeSummary
 import io.github.isaiahyoder.recipebox.ui.formatMinutes
@@ -92,7 +94,7 @@ internal fun RecipeRow(recipe: RecipeSummary, onClick: () -> Unit) {
         if (recipe.favorite) {
             Icon(
                 Icons.Filled.Favorite,
-                contentDescription = "Favorite",
+                contentDescription = stringResource(R.string.library_list_favorite),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 8.dp).size(20.dp),
             )

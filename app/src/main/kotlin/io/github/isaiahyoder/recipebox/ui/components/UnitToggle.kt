@@ -8,6 +8,8 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 
 /** Switches amounts between US and metric units, on a recipe or a grocery list. */
@@ -15,12 +17,13 @@ import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 @Composable
 fun UnitToggle(units: UnitSystem, onUnits: (UnitSystem) -> Unit, modifier: Modifier = Modifier) {
     SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
-        listOf(UnitSystem.US to "US", UnitSystem.METRIC to "Metric").forEachIndexed { index, (option, label) ->
-            SegmentedButton(
-                selected = units == option,
-                onClick = { onUnits(option) },
-                shape = SegmentedButtonDefaults.itemShape(index, 2),
-            ) { Text(label) }
+        listOf(UnitSystem.US to R.string.library_units_us, UnitSystem.METRIC to R.string.library_units_metric)
+            .forEachIndexed { index, (option, label) ->
+                SegmentedButton(
+                    selected = units == option,
+                    onClick = { onUnits(option) },
+                    shape = SegmentedButtonDefaults.itemShape(index, 2),
+                ) { Text(stringResource(label)) }
         }
     }
 }

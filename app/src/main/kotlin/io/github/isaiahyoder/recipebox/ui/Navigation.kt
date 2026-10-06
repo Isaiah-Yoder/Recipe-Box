@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -30,6 +31,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.ImportStatus
 import io.github.isaiahyoder.recipebox.ui.cards.CardScanScreen
@@ -179,33 +181,33 @@ private fun AppDrawer(navController: NavHostController, onClose: () -> Unit) {
 
     ModalDrawerSheet {
         Text(
-            "Recipe Box",
+            stringResource(R.string.library_app_title),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
         )
         NavigationDrawerItem(
-            label = { Text("Recipes") },
+            label = { Text(stringResource(R.string.library_nav_recipes)) },
             icon = { Icon(Icons.Filled.MenuBook, contentDescription = null) },
             selected = false,
             onClick = { go(LibraryRoute) },
             modifier = Modifier.padding(horizontal = 12.dp),
         )
         NavigationDrawerItem(
-            label = { Text("Grocery lists") },
+            label = { Text(stringResource(R.string.library_nav_grocery_lists)) },
             icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
             selected = false,
             onClick = { go(GroceryListsRoute) },
             modifier = Modifier.padding(horizontal = 12.dp),
         )
         NavigationDrawerItem(
-            label = { Text("Categories") },
+            label = { Text(stringResource(R.string.library_categories)) },
             icon = { Icon(Icons.Filled.Folder, contentDescription = null) },
             selected = false,
             onClick = { go(CategoriesRoute) },
             modifier = Modifier.padding(horizontal = 12.dp),
         )
         NavigationDrawerItem(
-            label = { Text("Import queue") },
+            label = { Text(stringResource(R.string.library_nav_import_queue)) },
             icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
             badge = {
                 when {
@@ -218,7 +220,7 @@ private fun AppDrawer(navController: NavHostController, onClose: () -> Unit) {
             modifier = Modifier.padding(horizontal = 12.dp),
         )
         NavigationDrawerItem(
-            label = { Text("Settings") },
+            label = { Text(stringResource(R.string.library_nav_settings)) },
             icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
             selected = false,
             onClick = { go(SettingsRoute) },

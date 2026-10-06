@@ -27,9 +27,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
 import io.github.isaiahyoder.recipebox.ingredients.Fractions
 import kotlinx.coroutines.launch
@@ -41,13 +43,13 @@ fun AddTagDialog(suggestions: List<String>, onAdd: (String) -> Unit, onDismiss: 
     val matches = suggestions.filter { it.contains(text.trim(), ignoreCase = true) }.take(12)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add a tag") },
+        title = { Text(stringResource(R.string.recipe_add_tag_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("Tag") },
+                    label = { Text(stringResource(R.string.recipe_tag)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                 )
@@ -58,8 +60,10 @@ fun AddTagDialog(suggestions: List<String>, onAdd: (String) -> Unit, onDismiss: 
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onAdd(text) }, enabled = text.isNotBlank()) { Text("Add") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = {
+            TextButton(onClick = { onAdd(text) }, enabled = text.isNotBlank()) { Text(stringResource(R.string.recipe_add)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.recipe_cancel)) } },
     )
 }
 
@@ -77,12 +81,12 @@ fun CategoryPickerDialog(
     val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Categories") },
+        title = { Text(stringResource(R.string.recipe_categories)) },
         text = {
             Column {
                 Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
                     if (allCategories.isEmpty()) {
-                        Text("You don't have any categories yet. Create one, such as Weeknight dinners.")
+                        Text(stringResource(R.string.recipe_no_categories))
                     }
                     allCategories.forEach { category ->
                         Row(
@@ -100,7 +104,7 @@ fun CategoryPickerDialog(
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = { Text("New category") },
+                        label = { Text(stringResource(R.string.recipe_new_category)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                         modifier = Modifier.weight(1f),
@@ -112,12 +116,12 @@ fun CategoryPickerDialog(
                             scope.launch { chosen = chosen + onCreate(name) }
                         },
                         enabled = newName.isNotBlank(),
-                    ) { Text("Create") }
+                    ) { Text(stringResource(R.string.recipe_create)) }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(chosen) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onSave(chosen) }) { Text(stringResource(R.string.recipe_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.recipe_cancel)) } },
     )
 }
 
@@ -129,19 +133,21 @@ fun ServingsDialog(current: Double, onSet: (Double) -> Unit, onDismiss: () -> Un
     val count = text.toIntOrNull()?.takeIf { it in 1..999 }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("How many servings?") },
+        title = { Text(stringResource(R.string.recipe_servings_title)) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { value -> text = value.filter { it.isDigit() }.take(3) },
-                label = { Text("Servings") },
+                label = { Text(stringResource(R.string.recipe_servings)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
         },
         confirmButton = {
-            TextButton(onClick = { count?.let { onSet(it.toDouble()) } }, enabled = count != null) { Text("Set") }
+            TextButton(onClick = { count?.let { onSet(it.toDouble()) } }, enabled = count != null) {
+                Text(stringResource(R.string.recipe_set))
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.recipe_cancel)) } },
     )
 }

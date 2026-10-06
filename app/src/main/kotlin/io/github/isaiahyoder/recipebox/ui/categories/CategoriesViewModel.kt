@@ -2,6 +2,8 @@ package io.github.isaiahyoder.recipebox.ui.categories
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.data.CategoryDao
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
 import io.github.isaiahyoder.recipebox.data.TagDao
@@ -44,9 +46,9 @@ class CategoriesViewModel(
 
     companion object {
         /** Category names must be unique, ignoring case. */
-        fun takenMessage(categories: List<CategoryEntity>, name: String, exceptId: Long?): String? =
+        fun takenMessage(categories: List<CategoryEntity>, name: String, exceptId: Long?, strings: AppStrings): String? =
             if (categories.any { it.id != exceptId && it.name.equals(name.trim(), ignoreCase = true) }) {
-                "You already have a category named \"${name.trim()}\"."
+                strings.get(R.string.library_category_taken, name.trim())
             } else {
                 null
             }

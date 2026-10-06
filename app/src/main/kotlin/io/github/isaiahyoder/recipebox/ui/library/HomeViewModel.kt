@@ -3,6 +3,8 @@ package io.github.isaiahyoder.recipebox.ui.library
 import io.github.isaiahyoder.recipebox.data.ShelfRecipe
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.isaiahyoder.recipebox.AppStrings
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.data.CategoryDao
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
 import io.github.isaiahyoder.recipebox.data.RecipeDao
@@ -54,6 +56,7 @@ class HomeViewModel(
     categoryDao: CategoryDao,
     private val settings: AppSettings,
     private val library: LibraryRepository,
+    private val strings: AppStrings,
 ) : ViewModel() {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -82,9 +85,11 @@ class HomeViewModel(
         val members = links.groupBy({ it.categoryId }, { it.recipeId }).mapValues { it.value.toSet() }
         val categorized = links.map { it.recipeId }.toSet()
         buildList {
-            add(HomeRow(Shelf.ALL, "All recipes", all.size, photoOf(byId.keys)))
+            add(HomeRow(Shelf.ALL, strings.get(R.string.library_all_recipes), all.size, photoOf(byId.keys)))
             val favorites = all.filter { it.favorite }.map { it.id }
-            if (favorites.isNotEmpty()) add(HomeRow(Shelf.FAVORITES, "Favorites", favorites.size, photoOf(favorites)))
+            if (favorites.isNotEmpty()) {
+                add(HomeRow(Shelf.FAVORITES, strings.get(R.string.library_favorites), favorites.size, photoOf(favorites)))
+            }
             for (category in categories) {
                 val ids = members[category.id].orEmpty()
                 val feeders = category.feederTags.map { it.lowercase() }.toSet()
@@ -94,7 +99,9 @@ class HomeViewModel(
                 add(HomeRow(category.id, category.name, ids.size, photoOf(ids), suggested))
             }
             val loose = byId.keys - categorized
-            if (loose.isNotEmpty()) add(HomeRow(Shelf.UNCATEGORIZED_SHELF, "Not in a category", loose.size, photoOf(loose)))
+            if (loose.isNotEmpty()) {
+                add(HomeRow(Shelf.UNCATEGORIZED_SHELF, strings.get(R.string.library_uncategorized), loose.size, photoOf(loose)))
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 

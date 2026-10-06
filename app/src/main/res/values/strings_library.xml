@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared words on the library, home, and categories screens -->
+    <string name="library_app_title">Recipe Box</string>
+    <string name="library_back">Back</string>
+    <string name="library_cancel">Cancel</string>
+    <string name="library_save">Save</string>
+    <string name="library_delete">Delete</string>
+    <string name="library_add">Add</string>
+    <string name="library_no">No</string>
+    <!-- Joins tag names in a list, such as "Dessert or Cookies". -->
+    <string name="library_or_separator">" or "</string>
+
+    <!-- Navigation drawer -->
+    <string name="library_nav_recipes">Recipes</string>
+    <string name="library_nav_grocery_lists">Grocery lists</string>
+    <string name="library_categories">Categories</string>
+    <string name="library_nav_import_queue">Import queue</string>
+    <string name="library_nav_settings">Settings</string>
+
+    <!-- Home screen -->
+    <string name="library_menu">Menu</string>
+    <string name="library_add_recipe">Add recipe</string>
+    <plurals name="library_add_recipes">
+        <item quantity="one">Add %d recipe</item>
+        <item quantity="other">Add %d recipes</item>
+    </plurals>
+    <string name="library_search_hint">Search recipes, ingredients, or tags</string>
+    <string name="library_search_clear">Clear search</string>
+    <string name="library_search_no_match">No recipes match \"%1$s\".</string>
+    <plurals name="library_shelf_count">
+        <item quantity="one">%d recipe</item>
+        <item quantity="other">%d recipes</item>
+    </plurals>
+    <string name="library_shelf_suggested">%d suggested</string>
+    <string name="library_empty">No recipes yet.\n\nIn your browser, open a recipe and tap Share, then Recipe Box. Or tap Add recipe to paste a link or scan a recipe card.</string>
+
+    <!-- Built-in shelves -->
+    <string name="library_all_recipes">All recipes</string>
+    <string name="library_favorites">Favorites</string>
+    <string name="library_uncategorized">Not in a category</string>
+
+    <!-- Offer to fill categories from tags -->
+    <string name="library_offer_title">Fill your categories automatically?</string>
+    <string name="library_offer_body">Recipes with a matching tag can join your categories on their own, now and in the future. Recipes you already sorted stay where they are.</string>
+    <!-- %1$s is a category name; %2$s is a list of tags. -->
+    <string name="library_offer_line">%1$s from %2$s</string>
+    <!-- %1$s is a category name; %2$s is a list of tags; %3$s lists the effects, such as "adds 3, 2 suggested to review". -->
+    <string name="library_offer_line_effects">%1$s from %2$s (%3$s)</string>
+    <string name="library_offer_adds">adds %d</string>
+    <string name="library_offer_suggested">%d suggested to review</string>
+    <string name="library_offer_not_now">Not now</string>
+    <string name="library_offer_fill">Fill these</string>
+
+    <!-- Add recipes dialog -->
+    <string name="library_add_title">Add recipes</string>
+    <string name="library_add_links_label">Recipe links</string>
+    <string name="library_add_links_hint">Paste one or more links</string>
+    <string name="library_add_paste">Paste</string>
+    <string name="library_add_scan_card">Scan a recipe card</string>
+    <string name="library_add_type_in">Type in a recipe instead</string>
+
+    <!-- Recipe list screen -->
+    <string name="library_list_fill_from_tags">Fill from tags</string>
+    <string name="library_list_filled_by_hand">You add recipes to this category yourself.</string>
+    <string name="library_list_fills_from">Fills automatically from %1$s.</string>
+    <string name="library_list_suggested_for">Suggested for %1$s</string>
+    <string name="library_list_add_all">Add all</string>
+    <string name="library_list_in">In %1$s</string>
+    <string name="library_list_no_match">No recipes match these filters.</string>
+    <string name="library_list_empty">No recipes here yet.</string>
+    <string name="library_list_clear_filters">Clear filters</string>
+    <string name="library_list_clear_tag">Clear tag filter</string>
+    <string name="library_list_tag">Tag</string>
+    <string name="library_list_favorite">Favorite</string>
+
+    <!-- Unit toggle -->
+    <string name="library_units_us">US</string>
+    <string name="library_units_metric">Metric</string>
+
+    <!-- Times and other formatting -->
+    <string name="library_minutes">%1$d min</string>
+    <string name="library_hours">%1$d hr</string>
+    <string name="library_hours_minutes">%1$d hr %2$d min</string>
+    <string name="library_just_now">just now</string>
+    <string name="library_copied">Copied</string>
+
+    <!-- Share target -->
+    <string name="library_share_no_link">Recipe Box didn\'t find a link to save.</string>
+    <string name="library_share_already_queued">That recipe is already in the Recipe Box queue.</string>
+    <string name="library_share_saving_one">Saving to Recipe Box…</string>
+    <plurals name="library_share_saving">
+        <item quantity="one">Saving %d recipe to Recipe Box…</item>
+        <item quantity="other">Saving %d recipes to Recipe Box…</item>
+    </plurals>
+
+    <!-- Categories screen -->
+    <string name="library_category_new">New category</string>
+    <string name="library_category_rename_title">Rename category</string>
+    <string name="library_categories_empty">Group recipes your own way, such as Weeknight dinners or Holidays. A recipe can be in several categories, and a category can fill itself from tags.</string>
+    <string name="library_category_by_hand">Filled by hand. Tap to fill from tags.</string>
+    <string name="library_category_fills_from">Fills from %1$s</string>
+    <string name="library_category_move_up">Move up</string>
+    <string name="library_category_move_down">Move down</string>
+    <string name="library_category_rename">Rename %1$s</string>
+    <string name="library_category_delete">Delete %1$s</string>
+    <string name="library_category_delete_title">Delete \"%1$s\"?</string>
+    <string name="library_category_delete_body">The category is removed. Its recipes stay in your library.</string>
+    <string name="library_category_name">Name</string>
+    <string name="library_category_taken">You already have a category named \"%1$s\".</string>
+
+    <!-- Feeder tags dialog -->
+    <string name="library_feeder_title">Fill \"%1$s\" from tags</string>
+    <string name="library_feeder_body">Recipes with any checked tag join this category, now and in the future. Recipes you add or take out yourself stay that way.</string>
+    <string name="library_feeder_fits">Fits \"%1$s\"</string>
+    <string name="library_feeder_your_tags">Your tags</string>
+    <string name="library_tag_group_course">Course</string>
+    <string name="library_tag_group_kind">Kind of dish</string>
+    <string name="library_tag_group_occasion">Occasion</string>
+    <string name="library_tag_group_method">Method</string>
+    <string name="library_tag_group_main_ingredient">Main ingredient</string>
+    <string name="library_tag_group_diet">Diet</string>
+    <string name="library_tag_group_cuisine">Cuisine</string>
+    <string name="library_tag_group_time">Time</string>
+    <string name="library_tag_group_source">Source</string>
+
+    <!-- Recipe screen -->
+    <string name="recipe_back">Back</string>
+    <string name="recipe_cancel">Cancel</string>
+    <string name="recipe_save">Save</string>
+    <string name="recipe_add">Add</string>
+    <string name="recipe_delete">Delete</string>
+    <string name="recipe_ok">OK</string>
+    <string name="recipe_yes">Yes</string>
+    <string name="recipe_no">No</string>
+    <string name="recipe_cook_mode_on">Turn on cook mode</string>
+    <string name="recipe_cook_mode_off">Turn off cook mode</string>
+    <string name="recipe_favorite_add">Add to favorites</string>
+    <string name="recipe_favorite_remove">Remove from favorites</string>
+    <string name="recipe_more_options">More options</string>
+    <string name="recipe_menu_grocery">Add to grocery list</string>
+    <string name="recipe_menu_edit">Edit recipe</string>
+    <string name="recipe_menu_website">Use the website\'s version</string>
+    <string name="recipe_menu_original">Open original page</string>
+    <string name="recipe_menu_delete">Delete recipe</string>
+    <string name="recipe_missing">This recipe was deleted.</string>
+    <!-- %1$s is a grocery list name. -->
+    <string name="recipe_added_to_list">Added to %1$s</string>
+    <string name="recipe_website_title">Use the website\'s version?</string>
+    <string name="recipe_website_body">Your changes to this recipe\'s title, servings, times, ingredients, and steps are replaced with what its web page says. Your notes, tags, categories, and photos stay.</string>
+    <string name="recipe_website_confirm">Use website\'s version</string>
+    <string name="recipe_website_failed">The web page couldn\'t be read. Try again later.</string>
+    <string name="recipe_delete_title">Delete this recipe?</string>
+    <string name="recipe_delete_body">\"%1$s\" and its photo will be removed from Recipe Box.</string>
+
+    <!-- Recipe content -->
+    <string name="recipe_photo_of">Photo of %1$s</string>
+    <!-- %1$s is a time, such as "1 hr 20 min". -->
+    <string name="recipe_time_prep">Prep %1$s</string>
+    <string name="recipe_time_cook">Cook %1$s</string>
+    <string name="recipe_time_total">Total %1$s</string>
+    <string name="recipe_ingredients">Ingredients</string>
+    <string name="recipe_steps">Steps</string>
+    <string name="recipe_notes">Notes</string>
+    <string name="recipe_tags_and_categories">Tags and categories</string>
+    <string name="recipe_not_scaled">This amount isn\'t scaled</string>
+
+    <!-- Scale card. %1$s is a number that can be a fraction, such as 1½. -->
+    <string name="recipe_scale">%1$s× recipe</string>
+    <plurals name="recipe_makes_servings">
+        <item quantity="one">Makes %1$s serving</item>
+        <item quantity="other">Makes %1$s servings</item>
+    </plurals>
+    <string name="recipe_type_servings">Type a number of servings</string>
+
+    <!-- Tags and categories on a recipe -->
+    <string name="recipe_remove_tag_named">Remove tag %1$s</string>
+    <!-- A suggested tag waiting for her answer. -->
+    <string name="recipe_suggested_tag">%1$s?</string>
+    <string name="recipe_add_tag">Add tag</string>
+    <string name="recipe_add_to_category">Add to category</string>
+    <string name="recipe_categories">Categories</string>
+    <string name="recipe_make_category_body">Make a category from this tag? Every recipe tagged %1$s joins it, now and in the future. You can still add or remove recipes yourself.</string>
+    <!-- %1$s is a tag; %2$s is a list of categories. -->
+    <string name="recipe_tag_feeds">Recipes tagged %1$s join %2$s automatically.</string>
+    <string name="recipe_make_category">Make a category</string>
+    <string name="recipe_remove_tag">Remove tag</string>
+    <string name="recipe_suggestion_title">Is this a %1$s recipe?</string>
+    <string name="recipe_suggestion_body">Recipe Box guessed %1$s from the recipe\'s name. Your answer is kept, even when recipes refresh.</string>
+
+    <!-- Recipe dialogs -->
+    <string name="recipe_add_tag_title">Add a tag</string>
+    <string name="recipe_tag">Tag</string>
+    <string name="recipe_no_categories">You don\'t have any categories yet. Create one, such as Weeknight dinners.</string>
+    <string name="recipe_new_category">New category</string>
+    <string name="recipe_create">Create</string>
+    <string name="recipe_servings_title">How many servings?</string>
+    <string name="recipe_servings">Servings</string>
+    <string name="recipe_set">Set</string>
+</resources>

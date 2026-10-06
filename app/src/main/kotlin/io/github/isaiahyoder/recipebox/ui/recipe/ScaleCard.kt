@@ -19,11 +19,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
 import io.github.isaiahyoder.recipebox.ingredients.Fractions
 import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** Scale stops on the slider. */
 internal val scaleStops = listOf(0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0)
@@ -44,19 +48,21 @@ internal fun ScaleCard(
         Column(Modifier.padding(16.dp)) {
             val makes = recipe.servings?.let {
                 val count = it * scale
-                "Makes ${Fractions.format(count)} ${if (Fractions.isPlural(count)) "servings" else "serving"}"
+                // Plurals take a whole number: 1 for the singular, otherwise the rounded count, at least 2.
+                val quantity = if (Fractions.isPlural(count)) count.roundToInt().coerceAtLeast(2) else 1
+                pluralStringResource(R.plurals.recipe_makes_servings, quantity, Fractions.format(count))
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = if (recipe.servings != null) Modifier.clickable(onClick = onEditServings) else Modifier,
             ) {
                 Text(
-                    listOfNotNull("${Fractions.format(scale)}× recipe", makes).joinToString(" · "),
+                    listOfNotNull(stringResource(R.string.recipe_scale, Fractions.format(scale)), makes).joinToString(" · "),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
                 if (recipe.servings != null) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Type a number of servings", Modifier.size(20.dp))
+                    Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.recipe_type_servings), Modifier.size(20.dp))
                 }
             }
             Slider(

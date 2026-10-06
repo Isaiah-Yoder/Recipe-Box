@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.ui.categories
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,8 +19,10 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
 import io.github.isaiahyoder.recipebox.tags.AutoTagger
 import io.github.isaiahyoder.recipebox.tags.FeederSuggestions
@@ -40,23 +43,22 @@ fun FeederDialog(
     val fitting = FeederSuggestions.forCategory(category.name, tagsInUse)
     val known = (AutoTagger.VOCABULARY.keys + tagsInUse + category.feederTags).distinct()
     val sections = buildList {
-        if (fitting.isNotEmpty()) add("Fits \"${category.name}\"" to fitting)
+        if (fitting.isNotEmpty()) add(stringResource(R.string.library_feeder_fits, category.name) to fitting)
         for (group in TagGroup.entries) {
             val tags = known.filter { AutoTagger.groupOf(it) == group && it !in fitting }.sorted()
-            if (tags.isNotEmpty()) add(group.label to tags)
+            if (tags.isNotEmpty()) add(stringResource(group.labelRes()) to tags)
         }
         val own = known.filter { AutoTagger.groupOf(it) == null && it !in fitting }.sorted()
-        if (own.isNotEmpty()) add("Your tags" to own)
+        if (own.isNotEmpty()) add(stringResource(R.string.library_feeder_your_tags) to own)
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Fill \"${category.name}\" from tags") },
+        title = { Text(stringResource(R.string.library_feeder_title, category.name)) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                 Text(
-                    "Recipes with any checked tag join this category, now and in the future. Recipes you add " +
-                        "or take out yourself stay that way.",
+                    stringResource(R.string.library_feeder_body),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 for ((title, tags) in sections) {
@@ -84,7 +86,21 @@ fun FeederDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(chosen.toList()) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onSave(chosen.toList()) }) { Text(stringResource(R.string.library_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.library_cancel)) } },
     )
+}
+
+/** The heading for a group of tags. [TagGroup.label] in core stays English; this one can be translated. */
+@StringRes
+private fun TagGroup.labelRes(): Int = when (this) {
+    TagGroup.COURSE -> R.string.library_tag_group_course
+    TagGroup.KIND -> R.string.library_tag_group_kind
+    TagGroup.OCCASION -> R.string.library_tag_group_occasion
+    TagGroup.METHOD -> R.string.library_tag_group_method
+    TagGroup.MAIN_INGREDIENT -> R.string.library_tag_group_main_ingredient
+    TagGroup.DIET -> R.string.library_tag_group_diet
+    TagGroup.CUISINE -> R.string.library_tag_group_cuisine
+    TagGroup.TIME -> R.string.library_tag_group_time
+    TagGroup.SOURCE -> R.string.library_tag_group_source
 }

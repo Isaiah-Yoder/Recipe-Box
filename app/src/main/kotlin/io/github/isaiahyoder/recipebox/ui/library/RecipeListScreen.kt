@@ -41,10 +41,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.ui.categories.FeederDialog
 
@@ -66,9 +68,9 @@ fun RecipeListScreen(key: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit
     var editingFeeders by rememberSaveable { mutableStateOf(false) }
 
     val title = when (key) {
-        Shelf.ALL -> "All recipes"
-        Shelf.FAVORITES -> "Favorites"
-        Shelf.UNCATEGORIZED_SHELF -> "Not in a category"
+        Shelf.ALL -> stringResource(R.string.library_all_recipes)
+        Shelf.FAVORITES -> stringResource(R.string.library_favorites)
+        Shelf.UNCATEGORIZED_SHELF -> stringResource(R.string.library_uncategorized)
         else -> category?.name ?: ""
     }
 
@@ -77,12 +79,14 @@ fun RecipeListScreen(key: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.library_back))
+                    }
                 },
                 actions = {
                     if (category != null) {
                         IconButton(onClick = { editingFeeders = true }) {
-                            Icon(Icons.Filled.AutoAwesome, contentDescription = "Fill from tags")
+                            Icon(Icons.Filled.AutoAwesome, contentDescription = stringResource(R.string.library_list_fill_from_tags))
                         }
                     }
                 },
@@ -92,8 +96,14 @@ fun RecipeListScreen(key: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit
         Column(Modifier.padding(padding).fillMaxSize()) {
             category?.let { current ->
                 Text(
-                    if (current.feederTags.isEmpty()) "You add recipes to this category yourself."
-                    else "Fills automatically from ${current.feederTags.joinToString(" or ")}.",
+                    if (current.feederTags.isEmpty()) {
+                        stringResource(R.string.library_list_filled_by_hand)
+                    } else {
+                        stringResource(
+                            R.string.library_list_fills_from,
+                            current.feederTags.joinToString(stringResource(R.string.library_or_separator)),
+                        )
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -116,26 +126,28 @@ fun RecipeListScreen(key: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit
                     item(key = "suggested-heading") {
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "Suggested for $title",
+                                stringResource(R.string.library_list_suggested_for, title),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.weight(1f),
                             )
-                            TextButton(onClick = { viewModel.accept(*suggested.toTypedArray()) }) { Text("Add all") }
+                            TextButton(onClick = { viewModel.accept(*suggested.toTypedArray()) }) {
+                                Text(stringResource(R.string.library_list_add_all))
+                            }
                         }
                     }
                     items(suggested, key = { "s-${it.recipe.id}" }) { item ->
                         Column {
                             RecipeRow(item.recipe, onClick = { onOpenRecipe(item.recipe.id) })
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                TextButton(onClick = { viewModel.dismiss(item) }) { Text("No") }
-                                TextButton(onClick = { viewModel.accept(item) }) { Text("Add") }
+                                TextButton(onClick = { viewModel.dismiss(item) }) { Text(stringResource(R.string.library_no)) }
+                                TextButton(onClick = { viewModel.accept(item) }) { Text(stringResource(R.string.library_add)) }
                             }
                         }
                     }
                     item(key = "members-heading") {
                         Text(
-                            "In $title",
+                            stringResource(R.string.library_list_in, title),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 16.dp),
@@ -146,10 +158,12 @@ fun RecipeListScreen(key: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> Unit
                     item(key = "empty") {
                         Column(Modifier.padding(vertical = 16.dp)) {
                             Text(
-                                if (filter.isFiltered) "No recipes match these filters." else "No recipes here yet.",
+                                stringResource(if (filter.isFiltered) R.string.library_list_no_match else R.string.library_list_empty),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            if (filter.isFiltered) TextButton(onClick = viewModel::clearFilters) { Text("Clear filters") }
+                            if (filter.isFiltered) {
+                                TextButton(onClick = viewModel::clearFilters) { Text(stringResource(R.string.library_list_clear_filters)) }
+                            }
                         }
                     }
                 }
@@ -191,7 +205,7 @@ internal fun FilterRow(
                 FilterChip(
                     selected = filter.favoritesOnly,
                     onClick = onToggleFavorites,
-                    label = { Text("Favorites") },
+                    label = { Text(stringResource(R.string.library_favorites)) },
                     leadingIcon = { Icon(Icons.Filled.Favorite, contentDescription = null, Modifier.size(18.dp)) },
                 )
             }
@@ -203,13 +217,19 @@ internal fun FilterRow(
                         selected = true,
                         onClick = { onSetTag("") },
                         label = { Text(filter.tag) },
-                        trailingIcon = { Icon(Icons.Filled.Close, contentDescription = "Clear tag filter", Modifier.size(18.dp)) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.library_list_clear_tag),
+                                Modifier.size(18.dp),
+                            )
+                        },
                     )
                 } else {
                     FilterChip(
                         selected = false,
                         onClick = { tagMenuOpen = true },
-                        label = { Text("Tag") },
+                        label = { Text(stringResource(R.string.library_list_tag)) },
                         trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null, Modifier.size(18.dp)) },
                         enabled = tags.isNotEmpty(),
                     )
