@@ -1,5 +1,6 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import io.github.isaiahyoder.recipebox.model.RecipeDraft
 import io.github.isaiahyoder.recipebox.util.runCatchingCancellable
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import java.io.File
@@ -69,7 +70,10 @@ class CardReader(private val readers: List<RecipeCardReader>) {
 }
 
 /** A read card waiting in the editor. Kept in memory between the scan and editor screens. */
-data class CardDraft(val recipe: CardRecipe, val photos: List<String>, val kind: CardReaderKind?, val problems: List<String>)
+data class CardDraft(val draft: RecipeDraft, val kind: CardReaderKind?, val problems: List<String>) {
+    /** The card photos, front first. */
+    val photos: List<String> get() = draft.sourcePhotos
+}
 
 object CardDrafts {
     private val drafts = mutableMapOf<Long, CardDraft>()

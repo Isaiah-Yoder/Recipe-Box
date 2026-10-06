@@ -1,14 +1,10 @@
 package io.github.isaiahyoder.recipebox.importer
 
-import android.util.Log
-import io.github.isaiahyoder.recipebox.data.PageDao
 import io.github.isaiahyoder.recipebox.data.RecipeDao
-import io.github.isaiahyoder.recipebox.data.RecipeEntity
-import io.github.isaiahyoder.recipebox.data.RecipePageEntity
+import io.github.isaiahyoder.recipebox.model.RecipeDraft
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
-import io.github.isaiahyoder.recipebox.tags.TagRefresher
-
-enum class ImportStage { DOWNLOADING, TRYING_BROWSER, SAVING }
+import io.github.isaiahyoder.recipebox.repository.AddResult
+import io.github.isaiahyoder.recipebox.repository.RecipeRepository
 
 sealed interface ImportOutcome {
     data class Saved(val recipeId: Long, val title: String) : ImportOutcome
@@ -23,95 +19,41 @@ sealed interface ImportOutcome {
     data class NotFound(val url: String, val reason: String, val retryable: Boolean) : ImportOutcome
 }
 
-/** A page's recipe, or why there isn't one. [pageLoaded] is false when the page never loaded. */
-data class PageLoad(val recipe: ExtractedRecipe?, val reason: String, val pageLoaded: Boolean)
-
-/** Turns a shared link into a saved recipe. */
+/**
+ * Turns a shared link into a saved recipe: the first of [sources] that
+ * handles the link reads it, and [recipes] saves the draft like every other.
+ */
 class RecipeImporter(
     private val dao: RecipeDao,
-    private val pages: PageDao,
-    private val fetcher: PageFetcher,
-    private val browserLoader: WebViewPageLoader,
+    private val sources: List<LinkSource>,
+    private val recipes: RecipeRepository,
     private val photos: PhotoStore,
-    private val tags: TagRefresher,
-    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     suspend fun import(sharedText: String, onStage: (ImportStage) -> Unit): ImportOutcome {
         val url = Links.findUrl(sharedText)?.let(Links::normalize) ?: return ImportOutcome.NoLink
+        // Checked before downloading, so a link she already saved costs nothing.
         dao.findIdBySourceUrl(url)?.let { return ImportOutcome.AlreadySaved(it, dao.getRecipe(it)?.title) }
 
-        val loaded = load(url, onStage)
-        val recipe = loaded.recipe ?: return ImportOutcome.NotFound(url, loaded.reason, retryable = !loaded.pageLoaded)
-
+        val draft = when (val result = read(url, onStage)) {
+            is SourceResult.Found -> result.draft
+            is SourceResult.NotFound -> return ImportOutcome.NotFound(url, result.reason, result.retryable)
+        }
         onStage(ImportStage.SAVING)
-        val now = clock()
-        val id = dao.insert(
-            RecipeEntity(
-                title = recipe.title,
-                sourceUrl = url,
-                siteName = recipe.siteName,
-                description = recipe.description,
-                imageUrl = recipe.imageUrl,
-                yieldText = recipe.yieldText,
-                servings = recipe.servings,
-                prepMinutes = recipe.prepMinutes,
-                cookMinutes = recipe.cookMinutes,
-                totalMinutes = recipe.totalMinutes,
-                ingredients = recipe.ingredients,
-                steps = recipe.steps,
-                siteCategories = recipe.categories,
-                siteCuisines = recipe.cuisines,
-                siteKeywords = recipe.keywords,
-                rawJsonLd = recipe.rawJsonLd,
-                createdAt = now,
-                updatedAt = now,
-            )
-        )
-        recipe.pageSnapshot?.let { pages.savePage(RecipePageEntity(id, it, now)) }
-        dao.getRecipe(id)?.let { tags.refreshRecipe(it) }
+        val id = when (val added = recipes.add(draft)) {
+            is AddResult.AlreadySaved -> return ImportOutcome.AlreadySaved(added.recipeId, dao.getRecipe(added.recipeId)?.title)
+            is AddResult.Saved -> added.recipeId
+        }
         // A missing photo doesn't stop the import; the recipe shows a placeholder.
-        recipe.imageUrl?.let { imageUrl ->
+        draft.imageUrl?.let { imageUrl ->
             photos.downloadCover(imageUrl, id)?.let { dao.setImageFile(id, it) }
         }
-        return ImportOutcome.Saved(id, recipe.title)
+        return ImportOutcome.Saved(id, draft.title)
     }
 
-    /**
-     * Downloads [url] and reads its recipe, falling back to a hidden browser
-     * view when the plain download is refused or has no recipe data.
-     */
-    suspend fun load(url: String, onStage: (ImportStage) -> Unit = {}): PageLoad {
-        onStage(ImportStage.DOWNLOADING)
-        var reason = NO_RECIPE_DATA
-        var extracted: ExtractedRecipe? = null
-        var pageLoaded = false
-        when (val result = fetcher.fetch(url)) {
-            is FetchResult.Page -> {
-                pageLoaded = true
-                extracted = RecipeExtractor.extract(result.html, result.finalUrl)
-            }
-            is FetchResult.Failed -> reason = result.reason
-        }
-        Log.i(TAG, "Download: ${describe(extracted)}; reason=$reason")
+    /** Reads [url] with the first source that handles it. */
+    suspend fun read(url: String, onStage: (ImportStage) -> Unit = {}): SourceResult =
+        sources.first { it.handles(url) }.read(url, onStage)
 
-        if (extracted?.isComplete != true) {
-            onStage(ImportStage.TRYING_BROWSER)
-            val html = browserLoader.load(url)
-            if (html != null) pageLoaded = true
-            val fromBrowser = html?.let { RecipeExtractor.extract(it, url) }
-            if (fromBrowser != null && (extracted == null || fromBrowser.isComplete)) extracted = fromBrowser
-            if (html != null && extracted == null) reason = NO_RECIPE_DATA
-            Log.i(TAG, "Browser view: html=${html?.length ?: "none"}, ${describe(fromBrowser)}")
-        }
-        return PageLoad(extracted?.takeIf { it.isComplete }, reason, pageLoaded)
-    }
-
-    private fun describe(recipe: ExtractedRecipe?): String = recipe?.let {
-        "title=${it.title.isNotBlank()}, ingredients=${it.ingredients.size}, steps=${it.steps.size}"
-    } ?: "no recipe data"
-
-    private companion object {
-        const val TAG = "RecipeImport"
-        const val NO_RECIPE_DATA = "The page loaded, but it doesn't have a recipe Recipe Box can read."
-    }
+    /** The recipe at [url], or null when it can't be read. */
+    suspend fun readDraft(url: String): RecipeDraft? = (read(url) as? SourceResult.Found)?.draft
 }

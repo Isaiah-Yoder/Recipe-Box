@@ -76,7 +76,7 @@ class CardScanViewModel(
             runCatchingCancellable { reader.read(names.map(photos::file)) { reading = it } }
                 .onSuccess { result ->
                     reading = null
-                    onRead(CardDrafts.put(CardDraft(result.recipe, names, result.kind, result.problems)))
+                    onRead(CardDrafts.put(CardDraft(result.recipe.toDraft(names), result.kind, result.problems)))
                 }
                 .onFailure {
                     reading = null
@@ -87,7 +87,7 @@ class CardScanViewModel(
 
     /** Opens the editor with the photos attached and the fields empty. */
     fun typeInstead(onDraft: (Long) -> Unit) {
-        onDraft(CardDrafts.put(CardDraft(CardRecipe(), photoNames.value, kind = null, problems = emptyList())))
+        onDraft(CardDrafts.put(CardDraft(CardRecipe().toDraft(photoNames.value), kind = null, problems = emptyList())))
     }
 
     private companion object {

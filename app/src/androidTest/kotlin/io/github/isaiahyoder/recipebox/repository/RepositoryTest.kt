@@ -6,7 +6,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
+import io.github.isaiahyoder.recipebox.model.RecipeDraft
 import io.github.isaiahyoder.recipebox.model.RecipeLine
+import io.github.isaiahyoder.recipebox.model.SourceKind
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.tags.TagRefresher
 import kotlinx.coroutines.flow.first
@@ -54,6 +56,34 @@ class RepositoryTest {
         createdAt = 1,
         updatedAt = 1,
     )
+
+    @Test fun aDraftFromAnySourceIsSavedOnceWithItsPageAndTags() = runBlocking {
+        val draft = RecipeDraft(
+            title = "Test Brownies",
+            sourceKind = SourceKind.WEB,
+            sourceUrl = "https://example.com/brownies",
+            siteName = "Example",
+            ingredients = listOf(RecipeLine("1 cup cocoa")),
+            steps = listOf(RecipeLine("Bake.")),
+            categories = listOf("Dessert"),
+            pageSnapshot = "<html></html>",
+        )
+        val id = (recipes.add(draft) as AddResult.Saved).recipeId
+        val saved = database.recipeDao().getRecipe(id)!!
+        assertEquals(SourceKind.WEB, saved.sourceKind)
+        assertEquals("<html></html>", database.pageDao().getPage(id)!!.html)
+        assertTrue("Dessert" in database.tagDao().getTagNames(id))
+        assertEquals(listOf("cocoa"), database.ingredientDao().getIngredients(id).map { it.nameKey })
+
+        // The same link, or the same title from the same site at another address, is already saved.
+        assertEquals(AddResult.AlreadySaved(id), recipes.add(draft))
+        assertEquals(AddResult.AlreadySaved(id), recipes.add(draft.copy(sourceUrl = "https://example.com/amp/brownies", title = "Test brownies!")))
+        // Another site's recipe with the same title, and a card, are new recipes.
+        assertTrue(recipes.add(draft.copy(sourceUrl = "https://other.example/brownies", siteName = "Other")) is AddResult.Saved)
+        val card = draft.copy(sourceKind = SourceKind.CARD, sourceUrl = null, sourcePhotos = listOf("card-1.jpg"))
+        val cardId = (recipes.add(card) as AddResult.Saved).recipeId
+        assertEquals(listOf("card-1.jpg"), database.recipeDao().getRecipe(cardId)!!.cardPhotos)
+    }
 
     @Test fun aTagSheAddsFillsTheCategoryItFeeds() = runBlocking {
         val id = recipes.save(cake(), PhotoChange.Keep)

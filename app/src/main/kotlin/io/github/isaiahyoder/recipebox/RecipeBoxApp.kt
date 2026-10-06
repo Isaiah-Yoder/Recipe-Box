@@ -21,6 +21,8 @@ import io.github.isaiahyoder.recipebox.backup.DriveBackup
 import io.github.isaiahyoder.recipebox.backup.PhotoRestorer
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.importer.ImportQueue
+import io.github.isaiahyoder.recipebox.importer.LinkSource
+import io.github.isaiahyoder.recipebox.importer.WebPageSource
 import io.github.isaiahyoder.recipebox.importer.PageFetcher
 import io.github.isaiahyoder.recipebox.importer.RecipeImporter
 import io.github.isaiahyoder.recipebox.importer.RecipeRefresher
@@ -143,15 +145,14 @@ class AppContainer(context: Context) {
         PhotoStore(context, httpClient, userAgent, browserImage = { url, maxEdge -> browserLoader.loadImage(url, maxEdge) })
     }
 
+    /**
+     * Where shared links are read from, in the order they're tried. A source
+     * for videos or social posts goes before web pages, which take any link.
+     */
+    private val linkSources: List<LinkSource> by lazy { listOf(WebPageSource(pageFetcher, browserLoader)) }
+
     val importer: RecipeImporter by lazy {
-        RecipeImporter(
-            dao = database.recipeDao(),
-            pages = database.pageDao(),
-            fetcher = pageFetcher,
-            browserLoader = browserLoader,
-            photos = photos,
-            tags = tagRefresher,
-        )
+        RecipeImporter(dao = database.recipeDao(), sources = linkSources, recipes = recipes, photos = photos)
     }
 
     val importQueue: ImportQueue by lazy { ImportQueue(context, database.importJobDao(), importer) }

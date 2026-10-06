@@ -15,6 +15,7 @@ import io.github.isaiahyoder.recipebox.data.TagEntity
 import io.github.isaiahyoder.recipebox.data.TagSource
 import io.github.isaiahyoder.recipebox.data.newUid
 import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
+import io.github.isaiahyoder.recipebox.model.SourceKind
 import kotlinx.serialization.Serializable
 
 /*
@@ -25,7 +26,8 @@ import kotlinx.serialization.Serializable
  * only the mappers below change. A new field needs a default so older
  * backups still read, and a layout change raises BackupFile.FORMAT.
  *
- * Format 3 adds permanent uids and change times, and the deletions list.
+ * Format 3 adds permanent uids, change times, where recipes came from, and
+ * the deletions list.
  * Records from older backups have neither: they get new uids when restored,
  * and their change time is when they were last updated, or the backup's time.
  */
@@ -64,6 +66,7 @@ data class BackupRecipe(
     val updatedAt: Long,
     val uid: String = "",
     val changedAt: Long = 0,
+    val sourceKind: String = "",
 )
 
 @Serializable
@@ -144,7 +147,7 @@ fun RecipeEntity.toBackup() = BackupRecipe(
     siteCategories = siteCategories, siteCuisines = siteCuisines, siteKeywords = siteKeywords,
     rawJsonLd = rawJsonLd, notes = notes, favorite = favorite, lastScale = lastScale, showUsUnits = showUsUnits,
     cardPhotos = cardPhotos, editedFields = editedFields, createdAt = createdAt, updatedAt = updatedAt,
-    uid = uid, changedAt = changedAt,
+    uid = uid, changedAt = changedAt, sourceKind = sourceKind,
 )
 
 /** The search text isn't in backups; it's rebuilt from the ingredients. */
@@ -157,6 +160,13 @@ fun BackupRecipe.toEntity() = RecipeEntity(
     rawJsonLd = rawJsonLd, notes = notes, favorite = favorite, lastScale = lastScale, showUsUnits = showUsUnits,
     cardPhotos = cardPhotos, editedFields = editedFields, createdAt = createdAt, updatedAt = updatedAt,
     uid = uid.ifBlank { newUid() }, changedAt = changedAt.takeIf { it > 0 } ?: updatedAt,
+    sourceKind = sourceKind.ifBlank {
+        when {
+            cardPhotos.isNotEmpty() -> SourceKind.CARD
+            sourceUrl != null -> SourceKind.WEB
+            else -> SourceKind.TYPED
+        }
+    },
 ).indexed()
 
 fun TagEntity.toBackup() = BackupTag(id, name)

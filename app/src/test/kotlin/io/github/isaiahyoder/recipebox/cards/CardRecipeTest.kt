@@ -1,6 +1,8 @@
 package io.github.isaiahyoder.recipebox.cards
 
+import io.github.isaiahyoder.recipebox.data.toEntity
 import io.github.isaiahyoder.recipebox.model.RecipeLine
+import io.github.isaiahyoder.recipebox.model.SourceKind
 import io.github.isaiahyoder.recipebox.importer.TextDuration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -30,7 +32,7 @@ class CardRecipeTest {
             cookTime = "20 mins",
             ingredients = listOf(CardLine("Ingredients", isHeading = true), CardLine("DRY:", isHeading = true), CardLine("• 2 cups flour")),
             steps = listOf(CardLine("Mix."), CardLine("   ")),
-        ).toEntity(listOf("card-1.jpg", "card-2.jpg"), now = 5)
+        ).toDraft(listOf("card-1.jpg", "card-2.jpg")).toEntity(now = 5)
         assertEquals("Pancakes", entity.title)
         assertEquals("10-12 pancakes", entity.yieldText)
         assertEquals(10, entity.servings)
@@ -39,14 +41,15 @@ class CardRecipeTest {
         assertEquals(listOf(RecipeLine("Mix.")), entity.steps)
         assertEquals(listOf("card-1.jpg", "card-2.jpg"), entity.cardPhotos)
         assertEquals(CardRecipe.SITE_NAME, entity.siteName)
+        assertEquals(SourceKind.CARD, entity.sourceKind)
     }
 
     @Test fun theReadersCourseAndCuisineBecomeLabelsForTags() {
         val entity = CardRecipe(title = "Grandma's Special", course = "Dessert", cuisine = "Eastern European")
-            .toEntity(emptyList(), now = 5)
+            .toDraft(emptyList()).toEntity(now = 5)
         assertEquals(listOf("Dessert"), entity.siteCategories)
         assertEquals(listOf("Eastern European"), entity.siteCuisines)
-        val unsure = CardRecipe(title = "Soup", course = " ", cuisine = "").toEntity(emptyList(), now = 5)
+        val unsure = CardRecipe(title = "Soup", course = " ", cuisine = "").toDraft(emptyList()).toEntity(now = 5)
         assertTrue(unsure.siteCategories.isEmpty())
         assertTrue(unsure.siteCuisines.isEmpty())
     }

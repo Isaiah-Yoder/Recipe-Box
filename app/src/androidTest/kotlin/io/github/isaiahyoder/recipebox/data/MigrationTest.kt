@@ -259,6 +259,7 @@ class MigrationTest {
                 assertTrue(uuid.matches(second.uid))
                 assertTrue(first.uid != second.uid)
                 assertEquals(201L, first.changedAt)
+                assertEquals("A recipe without a link or card photos was typed", "typed", first.sourceKind)
                 assertTrue(uuid.matches(database.categoryDao().getCategories().single().uid))
                 assertTrue(uuid.matches(database.groceryDao().getLists().single().uid))
                 assertEquals(20L, database.groceryDao().getLists().single().changedAt)

@@ -37,10 +37,10 @@ class BackupFormatTest {
          "themeMode":"DARK"}
     """.trimIndent()
 
-    /** Format 3, as 0.6.0 writes it: format 2 with uids, change times, and deletions. */
+    /** Format 3, as 0.6.0 writes it: format 2 with uids, change times, source kinds, and deletions. */
     private val format3 = format2
         .replace("\"format\":2", "\"format\":3")
-        .replace("\"updatedAt\":2}", "\"updatedAt\":2,\"uid\":\"r-1\",\"changedAt\":7}")
+        .replace("\"updatedAt\":2}", "\"updatedAt\":2,\"uid\":\"r-1\",\"changedAt\":7,\"sourceKind\":\"card\"}")
         .replace("\"feederTags\":[\"Dessert\"]}", "\"feederTags\":[\"Dessert\"],\"uid\":\"c-4\",\"changedAt\":8}")
         .replace("\"units\":\"METRIC\"}", "\"units\":\"METRIC\",\"uid\":\"g-5\",\"changedAt\":9}")
         .replace("\"section\":\"OTHER\"}]", "\"section\":\"OTHER\",\"changedAt\":10}]")
@@ -63,6 +63,7 @@ class BackupFormatTest {
         val recipe = backup.recipes.single().toEntity()
         assertTrue(recipe.uid.isNotBlank())
         assertEquals(2L, recipe.changedAt)
+        assertEquals("A backup without a kind judges it from the card photos", "card", recipe.sourceKind)
         assertEquals(100L, backup.categories.single().toEntity(backupTime = 100).changedAt)
         assertTrue(backup.groceryLists.single().toEntity().uid.isNotBlank())
         val format3Backup = json.decodeFromString<BackupFile>(format3)
@@ -85,7 +86,7 @@ class BackupFormatTest {
         val recipe = backup.recipes.single().toEntity()
         assertEquals("2 cups flour", recipe.ingredientText)
         assertTrue(recipe.ingredients.first().isHeader)
-        assertEquals(backup.recipes.single(), recipe.toBackup().copy(uid = "", changedAt = 0))
+        assertEquals(backup.recipes.single(), recipe.toBackup().copy(uid = "", changedAt = 0, sourceKind = ""))
         assertEquals(TagSource.AUTO, backup.recipeTags.single().toEntity().source)
         assertEquals(UnitSystem.METRIC, backup.groceryLists.single().toEntity().units)
         assertEquals(backup.groceryLineStates.single(), backup.groceryLineStates.single().toEntity().toBackup())

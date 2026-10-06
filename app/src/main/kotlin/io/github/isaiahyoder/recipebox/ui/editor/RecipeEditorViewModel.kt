@@ -8,7 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.isaiahyoder.recipebox.cards.CardDrafts
-import io.github.isaiahyoder.recipebox.cards.toEntity
+import io.github.isaiahyoder.recipebox.data.toEntity
 import io.github.isaiahyoder.recipebox.cards.CardReaderKind
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
@@ -81,7 +81,7 @@ class RecipeEditorViewModel(
     init {
         CardDrafts.get(cardDraftId)?.let { draft ->
             val now = System.currentTimeMillis()
-            val entity = draft.recipe.toEntity(draft.photos, now)
+            val entity = draft.draft.toEntity(now)
             draftBase = entity
             fill(entity)
             readBy = draft.kind

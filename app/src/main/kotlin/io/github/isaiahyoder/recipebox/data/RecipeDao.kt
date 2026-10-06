@@ -25,6 +25,9 @@ data class RecipeSummary(
 /** A recipe and the name of one of its tags or suggestions. */
 data class RecipeTagName(val recipeId: Long, val tag: String)
 
+/** A recipe's id and title. */
+data class RecipeTitle(val id: Long, val title: String)
+
 /** One recipe's card photo file names. */
 data class CardPhotoNames(val cardPhotos: List<String>)
 
@@ -86,6 +89,9 @@ interface RecipeDao {
 
     @Query("SELECT id FROM recipes WHERE sourceUrl = :url LIMIT 1")
     suspend fun findIdBySourceUrl(url: String): Long?
+
+    @Query("SELECT id, title FROM recipes WHERE siteName = :siteName")
+    suspend fun titlesFromSite(siteName: String): List<RecipeTitle>
 
     @Insert
     suspend fun insertRow(recipe: RecipeEntity): Long

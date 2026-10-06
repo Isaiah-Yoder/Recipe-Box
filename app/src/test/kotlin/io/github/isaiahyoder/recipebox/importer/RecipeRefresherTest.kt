@@ -2,7 +2,9 @@ package io.github.isaiahyoder.recipebox.importer
 
 import io.github.isaiahyoder.recipebox.data.EditedField
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
+import io.github.isaiahyoder.recipebox.model.RecipeDraft
 import io.github.isaiahyoder.recipebox.model.RecipeLine
+import io.github.isaiahyoder.recipebox.model.SourceKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,7 +28,8 @@ class RecipeRefresherTest {
         updatedAt = 100,
     )
 
-    private val page = ExtractedRecipe(
+    private val page = RecipeDraft(
+        sourceKind = SourceKind.WEB,
         title = "Chili",
         imageUrl = "https://example.com/new.jpg",
         totalMinutes = 485,

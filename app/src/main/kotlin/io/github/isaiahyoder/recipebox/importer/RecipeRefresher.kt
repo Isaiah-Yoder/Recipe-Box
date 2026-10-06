@@ -14,6 +14,7 @@ import io.github.isaiahyoder.recipebox.data.EditedField
 import io.github.isaiahyoder.recipebox.data.PageDao
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
+import io.github.isaiahyoder.recipebox.model.RecipeDraft
 import io.github.isaiahyoder.recipebox.data.RecipePageEntity
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import io.github.isaiahyoder.recipebox.settings.RefreshStatus
@@ -109,7 +110,7 @@ class RecipeRefresher(
         val url = recipe.sourceUrl ?: return false
         val unedited = recipe.copy(editedFields = emptyList())
         val saved = pages.getPage(id)?.let { RecipeExtractor.extract(it.html, url) }?.takeIf { it.isComplete }
-        val page = saved ?: runCatchingCancellable { importer.load(url).recipe }.getOrNull() ?: return false
+        val page = saved ?: runCatchingCancellable { importer.readDraft(url) }.getOrNull() ?: return false
         apply(unedited, page)
         return true
     }
@@ -140,12 +141,12 @@ class RecipeRefresher(
     private suspend fun refreshOne(id: Long): Outcome {
         val recipe = dao.getRecipe(id) ?: return Outcome.GONE
         val url = recipe.sourceUrl ?: return Outcome.GONE
-        val page = runCatchingCancellable { importer.load(url).recipe }.getOrNull() ?: return Outcome.FAILED
+        val page = runCatchingCancellable { importer.readDraft(url) }.getOrNull() ?: return Outcome.FAILED
         apply(recipe, page)
         return Outcome.UPDATED
     }
 
-    private suspend fun apply(recipe: RecipeEntity, page: ExtractedRecipe) {
+    private suspend fun apply(recipe: RecipeEntity, page: RecipeDraft) {
         val refreshed = recipe.refreshedWith(page)
         dao.update(refreshed)
         page.pageSnapshot?.let { pages.savePage(RecipePageEntity(recipe.id, it, clock())) }
@@ -177,7 +178,7 @@ class RecipeRefresher(
  * everything that's hers. The edit time stays, so the recipe keeps its place
  * in the library.
  */
-fun RecipeEntity.refreshedWith(page: ExtractedRecipe): RecipeEntity {
+fun RecipeEntity.refreshedWith(page: RecipeDraft): RecipeEntity {
     val edited = editedFields.toSet()
     return copy(
         title = if (EditedField.TITLE in edited) title else page.title.ifBlank { title },

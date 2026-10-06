@@ -1,6 +1,8 @@
 package io.github.isaiahyoder.recipebox.importer
 
+import io.github.isaiahyoder.recipebox.model.RecipeDraft
 import io.github.isaiahyoder.recipebox.model.RecipeLine
+import io.github.isaiahyoder.recipebox.model.SourceKind
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -13,31 +15,6 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.net.URI
 
-/** A recipe read from a web page, before it is saved. */
-data class ExtractedRecipe(
-    val title: String,
-    val description: String? = null,
-    val imageUrl: String? = null,
-    val siteName: String? = null,
-    val yieldText: String? = null,
-    val servings: Int? = null,
-    val prepMinutes: Int? = null,
-    val cookMinutes: Int? = null,
-    val totalMinutes: Int? = null,
-    val ingredients: List<RecipeLine> = emptyList(),
-    val steps: List<RecipeLine> = emptyList(),
-    val categories: List<String> = emptyList(),
-    val cuisines: List<String> = emptyList(),
-    val keywords: List<String> = emptyList(),
-    val rawJsonLd: String? = null,
-    /** The page's structured data and recipe card, small enough to keep and read again later. */
-    val pageSnapshot: String? = null,
-) {
-    /** True when the recipe has everything the requirements call a recipe. */
-    val isComplete: Boolean
-        get() = title.isNotBlank() && ingredients.isNotEmpty() && steps.isNotEmpty()
-}
-
 /**
  * Reads the structured recipe data that sites publish for search engines.
  *
@@ -49,7 +26,7 @@ data class ExtractedRecipe(
 object RecipeExtractor {
     private val json = Json { isLenient = true; ignoreUnknownKeys = true }
 
-    fun extract(html: String, pageUrl: String): ExtractedRecipe? {
+    fun extract(html: String, pageUrl: String): RecipeDraft? {
         val document = Jsoup.parse(html, pageUrl)
         val siteName = siteName(document, pageUrl)
         val fromJsonLd = fromJsonLd(document, siteName)
@@ -66,7 +43,7 @@ object RecipeExtractor {
             null
         }
         val read = if (pageList != null) recipe.copy(ingredients = PageIngredientList.lines(pageList)) else recipe
-        return read.copy(pageSnapshot = snapshot(document, pageList))
+        return read.copy(sourceUrl = pageUrl, pageSnapshot = snapshot(document, pageList))
     }
 
     /**
@@ -86,10 +63,11 @@ object RecipeExtractor {
     }
 
     /** Uses the card's lists when they hold at least as much as the data. */
-    private fun withCard(recipe: ExtractedRecipe?, card: RecipeCardHtml.Lists?, document: Document): ExtractedRecipe? {
+    private fun withCard(recipe: RecipeDraft?, card: RecipeCardHtml.Lists?, document: Document): RecipeDraft? {
         if (card == null) return recipe
         fun count(lines: List<RecipeLine>) = lines.count { !it.isHeader }
-        val base = recipe ?: ExtractedRecipe(
+        val base = recipe ?: RecipeDraft(
+            sourceKind = SourceKind.WEB,
             title = RecipeTextCleanup.title(document.selectFirst("meta[property=og:title]")?.attr("content") ?: document.title()),
         )
         return base.copy(
@@ -100,7 +78,7 @@ object RecipeExtractor {
 
     // JSON-LD
 
-    private fun fromJsonLd(document: Document, siteName: String?): ExtractedRecipe? {
+    private fun fromJsonLd(document: Document, siteName: String?): RecipeDraft? {
         val candidates = mutableListOf<JsonObject>()
         for (script in document.select("script[type*=ld+json]")) {
             val element = parseJson(script.data()) ?: continue
@@ -129,14 +107,15 @@ object RecipeExtractor {
 
     private fun types(obj: JsonObject): List<String> = strings(obj["@type"])
 
-    private fun toExtracted(recipe: JsonObject, siteName: String?): ExtractedRecipe {
+    private fun toExtracted(recipe: JsonObject, siteName: String?): RecipeDraft {
         val yields = strings(recipe["recipeYield"])
         val servings = yields.firstNotNullOfOrNull { Regex("""\d+""").find(it)?.value?.toIntOrNull() }
         val yieldText = yields.filter { it.toIntOrNull() == null }.map(RecipeTextCleanup::yieldText).distinct()
             .joinToString(", ").ifBlank { null }
         val ingredients = strings(recipe["recipeIngredient"] ?: recipe["ingredients"])
             .mapNotNull { RecipeTextCleanup.ingredient(cleanText(it)) }
-        return ExtractedRecipe(
+        return RecipeDraft(
+            sourceKind = SourceKind.WEB,
             title = RecipeTextCleanup.title(cleanText(text(recipe["name"]) ?: "")),
             description = text(recipe["description"])?.let(::cleanText)?.ifBlank { null },
             imageUrl = image(recipe["image"]),
@@ -241,7 +220,7 @@ object RecipeExtractor {
 
     // Microdata
 
-    private fun fromMicrodata(document: Document, siteName: String?): ExtractedRecipe? {
+    private fun fromMicrodata(document: Document, siteName: String?): RecipeDraft? {
         val scope = document.select("[itemtype*=schema.org/Recipe]").firstOrNull() ?: return null
         fun props(name: String): List<Element> = scope.select("[itemprop=$name]")
         val ingredients = (props("recipeIngredient") + props("ingredients"))
@@ -250,7 +229,8 @@ object RecipeExtractor {
             val items = element.select("li").map { it.text() }
             (items.ifEmpty { listOf(element.text()) }).map(::cleanText)
         }.filter { it.isNotBlank() }.map { RecipeLine(it) }
-        return ExtractedRecipe(
+        return RecipeDraft(
+            sourceKind = SourceKind.WEB,
             title = cleanText(props("name").firstOrNull()?.text() ?: document.title()),
             imageUrl = props("image").firstOrNull()?.let { it.absUrl("src").ifBlank { it.attr("content") } },
             siteName = siteName,

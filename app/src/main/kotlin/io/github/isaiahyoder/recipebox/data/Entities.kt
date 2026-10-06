@@ -6,6 +6,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import io.github.isaiahyoder.recipebox.model.SourceKind
 import kotlinx.serialization.Serializable
 
 @Entity(
@@ -70,6 +71,9 @@ data class RecipeEntity(
     /** When anything a backup keeps last changed; see Identity.kt. The DAO sets it on every update. */
     @ColumnInfo(defaultValue = "0")
     val changedAt: Long = System.currentTimeMillis(),
+    /** Where the recipe came from, a [SourceKind] name. [sourceUrl] and [siteName] say more. */
+    @ColumnInfo(defaultValue = SourceKind.TYPED)
+    val sourceKind: String = SourceKind.TYPED,
 ) {
     /** This recipe with [ingredientText] matching its ingredients. */
     fun indexed(): RecipeEntity = copy(ingredientText = ingredients.filterNot { it.isHeader }.joinToString("\n") { it.text })

@@ -12,8 +12,9 @@ private const val UUID_SQL = "lower(hex(randomblob(4))) || '-' || lower(hex(rand
  * Version 7 gives recipes, categories, and grocery lists a permanent uid and
  * a change time, and adds the table of deletions; see Identity.kt. Existing
  * recipes and lists count as changed when they were last updated, and
- * categories and store sections as changed now. It also adds the ingredient
- * index, which the app fills for existing recipes at startup.
+ * categories and store sections as changed now. It also records where each
+ * recipe came from and adds the ingredient index, which the app fills for
+ * existing recipes at startup.
  *
  * It's written by hand because an automatic migration can't give each row its
  * own uid before the unique index on uid is created.
@@ -26,6 +27,12 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
             db.execSQL("UPDATE `$table` SET `uid` = $UUID_SQL, `changedAt` = $changedAt")
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_${table}_uid` ON `$table` (`uid`)")
         }
+        // Where each recipe came from, judged from what it has: card photos, a link, or neither.
+        db.execSQL("ALTER TABLE `recipes` ADD COLUMN `sourceKind` TEXT NOT NULL DEFAULT 'typed'")
+        db.execSQL(
+            "UPDATE `recipes` SET `sourceKind` = CASE WHEN `cardPhotos` != '[]' THEN 'card' " +
+                "WHEN `sourceUrl` IS NOT NULL THEN 'web' ELSE 'typed' END"
+        )
         db.execSQL("ALTER TABLE `section_overrides` ADD COLUMN `changedAt` INTEGER NOT NULL DEFAULT 0")
         db.execSQL("UPDATE `section_overrides` SET `changedAt` = $NOW_MS")
         db.execSQL(

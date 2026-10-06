@@ -4,6 +4,10 @@ import androidx.room.withTransaction
 import io.github.isaiahyoder.recipebox.data.RecipeDao
 import io.github.isaiahyoder.recipebox.data.RecipeDatabase
 import io.github.isaiahyoder.recipebox.data.RecipeEntity
+import io.github.isaiahyoder.recipebox.data.RecipePageEntity
+import io.github.isaiahyoder.recipebox.data.toEntity
+import io.github.isaiahyoder.recipebox.model.RecipeDraft
+import io.github.isaiahyoder.recipebox.model.SourceKind
 import io.github.isaiahyoder.recipebox.photos.PhotoStore
 import io.github.isaiahyoder.recipebox.tags.TagRefresher
 
@@ -17,18 +21,63 @@ sealed interface PhotoChange {
     data object Remove : PhotoChange
 }
 
+/** The result of adding a recipe from a source. */
+sealed interface AddResult {
+    data class Saved(val recipeId: Long) : AddResult
+
+    /** She already has the recipe, by its link or by its title on the same website. */
+    data class AlreadySaved(val recipeId: Long) : AddResult
+}
+
 /**
  * Saving and deleting whole recipes, with their tags and photo files.
  *
- * A save is one transaction: the recipe row and its tags change together.
- * Photo files that are no longer used are deleted only after it commits.
+ * Every new recipe, from any source, is saved here: imports through [add],
+ * and recipes she checked or typed in the editor through [save]. A save is
+ * one transaction: the recipe row, its saved page, and its tags change
+ * together. Photo files that are no longer used are deleted only after it commits.
  */
 class RecipeRepository(
     private val database: RecipeDatabase,
     private val photos: PhotoStore,
     private val tagRefresher: TagRefresher,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val recipes: RecipeDao get() = database.recipeDao()
+
+    /**
+     * Adds a recipe read from a source without her checking it first, such as
+     * a shared link, unless she already has it.
+     */
+    suspend fun add(draft: RecipeDraft): AddResult = database.withTransaction {
+        val existing = findDuplicate(draft)
+        if (existing != null) {
+            AddResult.AlreadySaved(existing)
+        } else {
+            val now = clock()
+            val id = insertNew(draft.toEntity(now))
+            draft.pageSnapshot?.let { database.pageDao().savePage(RecipePageEntity(id, it, now)) }
+            AddResult.Saved(id)
+        }
+    }
+
+    /**
+     * A recipe she already has that [draft] repeats: one with the same link, or
+     * a web recipe with the same title from the same website.
+     */
+    suspend fun findDuplicate(draft: RecipeDraft): Long? {
+        draft.sourceUrl?.let { url -> recipes.findIdBySourceUrl(url)?.let { return it } }
+        val site = draft.siteName
+        if (draft.sourceKind != SourceKind.WEB || site == null) return null
+        return recipes.titlesFromSite(site).firstOrNull { RecipeDraft.titleKey(it.title) == draft.titleKey }?.id
+    }
+
+    /** Saves a new recipe with its automatic tags and categories. */
+    private suspend fun insertNew(recipe: RecipeEntity): Long {
+        val id = recipes.insert(recipe.copy(id = 0))
+        tagRefresher.refreshRecipe(recipe.copy(id = id))
+        return id
+    }
 
     /**
      * Saves a new recipe (id 0) or her edits to one, and returns its id.
@@ -63,9 +112,13 @@ class RecipeRepository(
                     row.copy(imageFile = null, imageIsOwn = false, imageUrl = null)
                 }
             }
-            val id = if (current == null) recipes.insert(row.copy(id = 0)) else row.id.also { recipes.update(row) }
-            tagRefresher.refreshRecipe(row.copy(id = id))
-            id
+            if (current == null) {
+                insertNew(row)
+            } else {
+                recipes.update(row)
+                tagRefresher.refreshRecipe(row)
+                row.id
+            }
         }
         oldFiles.forEach(photos::delete)
         return id
