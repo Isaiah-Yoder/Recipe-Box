@@ -2,6 +2,7 @@ package io.github.isaiahyoder.recipebox.ui.grocery
 
 import io.github.isaiahyoder.recipebox.ui.components.UnitToggle
 import android.content.Intent
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDecoration
@@ -51,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.data.GroceryRecipeRow
 import io.github.isaiahyoder.recipebox.grocery.GroceryLine
@@ -60,6 +63,20 @@ import io.github.isaiahyoder.recipebox.ui.categories.NameDialog
 
 /** Scales a recipe can have on a list. */
 val groceryScales = listOf(0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0)
+
+/** The section's name as the app shows it. */
+@get:StringRes
+val StoreSection.labelRes: Int
+    get() = when (this) {
+        StoreSection.PRODUCE -> R.string.grocery_section_produce
+        StoreSection.MEAT_SEAFOOD -> R.string.grocery_section_meat_seafood
+        StoreSection.DAIRY_EGGS -> R.string.grocery_section_dairy_eggs
+        StoreSection.BAKERY -> R.string.grocery_section_bakery
+        StoreSection.PANTRY -> R.string.grocery_section_pantry
+        StoreSection.SPICES -> R.string.grocery_section_spices
+        StoreSection.FROZEN -> R.string.grocery_section_frozen
+        StoreSection.OTHER -> R.string.grocery_section_other
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,33 +98,38 @@ fun GroceryListScreen(listId: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> 
             TopAppBar(
                 title = { Text(list?.name ?: "") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.grocery_back))
+                    }
                 },
                 actions = {
                     IconButton(onClick = {
-                        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, vm.shareText())
-                        context.startActivity(Intent.createChooser(send, "Share grocery list"))
-                    }) { Icon(Icons.Filled.Share, contentDescription = "Share list") }
+                        val text = vm.shareText(context.getString(R.string.grocery_default_name)) { context.getString(it.labelRes) }
+                        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                        context.startActivity(Intent.createChooser(send, context.getString(R.string.grocery_share_chooser)))
+                    }) { Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.grocery_share_list)) }
                     Box {
-                        IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More options") }
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.grocery_more_options))
+                        }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
-                                text = { Text("Hide pantry staples") },
+                                text = { Text(stringResource(R.string.grocery_hide_staples)) },
                                 trailingIcon = { Checkbox(checked = list?.hideStaples == true, onCheckedChange = null) },
                                 onClick = {
                                     menuOpen = false
                                     vm.setHideStaples(list?.hideStaples != true)
                                 },
                             )
-                            DropdownMenuItem(text = { Text("Uncheck everything") }, onClick = {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.grocery_uncheck_all)) }, onClick = {
                                 menuOpen = false
                                 vm.uncheckAll()
                             })
-                            DropdownMenuItem(text = { Text("Rename list") }, onClick = {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.grocery_rename_list)) }, onClick = {
                                 menuOpen = false
                                 renaming = true
                             })
-                            DropdownMenuItem(text = { Text("Delete list") }, onClick = {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.grocery_delete_list)) }, onClick = {
                                 menuOpen = false
                                 confirmDelete = true
                             })
@@ -128,7 +150,7 @@ fun GroceryListScreen(listId: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> 
                     OutlinedTextField(
                         value = newItem,
                         onValueChange = { newItem = it },
-                        placeholder = { Text("Add an item, such as paper towels") },
+                        placeholder = { Text(stringResource(R.string.grocery_add_item_hint)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Sentences,
@@ -143,11 +165,13 @@ fun GroceryListScreen(listId: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> 
                     IconButton(onClick = {
                         vm.addItem(newItem)
                         newItem = ""
-                    }, enabled = newItem.isNotBlank()) { Icon(Icons.Filled.Add, contentDescription = "Add item") }
+                    }, enabled = newItem.isNotBlank()) {
+                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.grocery_add_item))
+                    }
                 }
             }
             if (recipes.isNotEmpty()) {
-                item { SectionTitle("Recipes on this list") }
+                item { SectionTitle(stringResource(R.string.grocery_recipes_on_list)) }
                 items(recipes, key = { "recipe-${it.recipeId}" }) { row ->
                     RecipeOnList(row, onOpen = { onOpenRecipe(row.recipeId) }, onScale = { vm.setScale(row.recipeId, it) }, onRemove = { vm.removeRecipe(row.recipeId) })
                 }
@@ -156,14 +180,14 @@ fun GroceryListScreen(listId: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> 
             if (current != null && current.isEmpty() && recipes.isEmpty()) {
                 item {
                     Text(
-                        "This list is empty. Open a recipe and choose Add to grocery list, or type an item above.",
+                        stringResource(R.string.grocery_list_empty),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(24.dp),
                     )
                 }
             }
             current.orEmpty().forEach { group ->
-                item(key = "section-${group.section}") { SectionTitle(group.section.label) }
+                item(key = "section-${group.section}") { SectionTitle(stringResource(group.section.labelRes)) }
                 items(group.lines, key = { it.key }) { line ->
                     LineRow(line, onToggle = { vm.toggle(line) }, onEdit = { editingKey = line.key })
                 }
@@ -186,15 +210,22 @@ fun GroceryListScreen(listId: Long, onOpenRecipe: (Long) -> Unit, onBack: () -> 
         )
     }
     if (renaming) {
-        NameDialog("Rename list", list?.name.orEmpty(), onSave = { renaming = false; vm.rename(it) }, onDismiss = { renaming = false })
+        NameDialog(
+            stringResource(R.string.grocery_rename_list),
+            list?.name.orEmpty(),
+            onSave = { renaming = false; vm.rename(it) },
+            onDismiss = { renaming = false },
+        )
     }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this list?") },
-            text = { Text("\"${list?.name.orEmpty()}\" is removed. Your recipes aren't affected.") },
-            confirmButton = { TextButton(onClick = { confirmDelete = false; vm.deleteList(onBack) }) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+            title = { Text(stringResource(R.string.grocery_delete_title)) },
+            text = { Text(stringResource(R.string.grocery_delete_message, list?.name.orEmpty())) },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; vm.deleteList(onBack) }) { Text(stringResource(R.string.grocery_delete)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.grocery_cancel)) } },
         )
     }
 }
@@ -218,17 +249,19 @@ private fun RecipeOnList(row: GroceryRecipeRow, onOpen: () -> Unit, onScale: (Do
     ) {
         Text(row.title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Box {
-            AssistChip(onClick = { scaleMenu = true }, label = { Text("${Fractions.format(row.scale)}×") })
+            AssistChip(onClick = { scaleMenu = true }, label = { Text(stringResource(R.string.grocery_scale, Fractions.format(row.scale))) })
             DropdownMenu(expanded = scaleMenu, onDismissRequest = { scaleMenu = false }) {
                 groceryScales.forEach { scale ->
-                    DropdownMenuItem(text = { Text("${Fractions.format(scale)}×") }, onClick = {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.grocery_scale, Fractions.format(scale))) }, onClick = {
                         scaleMenu = false
                         onScale(scale)
                     })
                 }
             }
         }
-        IconButton(onClick = onRemove) { Icon(Icons.Filled.Close, contentDescription = "Remove ${row.title} from the list") }
+        IconButton(onClick = onRemove) {
+            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.grocery_remove_recipe, row.title))
+        }
     }
 }
 
@@ -271,27 +304,29 @@ private fun EditLineDialog(
     var section by rememberSaveable { mutableStateOf(line.section) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit item") },
+        title = { Text(stringResource(R.string.grocery_edit_item_title)) },
         text = {
             Column {
-                OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text("Item") })
-                Text("Store section", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp))
+                OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text(stringResource(R.string.grocery_item_label)) })
+                Text(stringResource(R.string.grocery_store_section), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp))
                 StoreSection.entries.forEach { option ->
                     Row(
                         Modifier.fillMaxWidth().clickable { section = option },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(selected = section == option, onClick = { section = option })
-                        Text(option.label)
+                        Text(stringResource(option.labelRes))
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(text, section) }, enabled = text.isNotBlank()) { Text("Save") } },
+        confirmButton = {
+            TextButton(onClick = { onSave(text, section) }, enabled = text.isNotBlank()) { Text(stringResource(R.string.grocery_save)) }
+        },
         dismissButton = {
             Row {
-                TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDelete) { Text(stringResource(R.string.grocery_delete), color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.grocery_cancel)) }
             }
         },
     )

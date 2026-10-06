@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared words on the update banner and Settings item -->
+    <string name="update_cancel">Cancel</string>
+    <string name="update_update">Update</string>
+
+    <!-- Problems the updater reports -->
+    <string name="update_check_failed">Couldn\'t check for updates. Check your internet connection.</string>
+    <string name="update_download_failed">The download didn\'t finish. Check your internet connection and try again.</string>
+    <string name="update_damaged">The download is damaged. Try again.</string>
+    <string name="update_not_recipe_box">The download isn\'t Recipe Box.</string>
+    <string name="update_not_newer">The download isn\'t newer than the installed version.</string>
+    <string name="update_wrong_signer">The download isn\'t signed like this app, so it wasn\'t installed.</string>
+    <string name="update_verify_offline">Android couldn\'t check the update while offline. Try again with an internet connection.</string>
+    <string name="update_verify_blocked">Android blocked the update because it couldn\'t verify the app\'s developer.</string>
+    <string name="update_play_protect_stopped">Play Protect stopped the update. Tap Try again, then on its warning tap More details and Install anyway.</string>
+    <string name="update_canceled">The update was canceled or blocked. Tap Try again, or download it from GitHub.</string>
+    <string name="update_no_space">There isn\'t enough free space on the phone for the update.</string>
+    <string name="update_not_installed">Android didn\'t install the update. Tap Try again, or download it from GitHub.</string>
+
+    <!-- Details kept for Copy details in Settings. %2$s is the error's own text. -->
+    <string name="update_problem_download">Download of %1$s failed: %2$s</string>
+    <!-- %1$d is the HTTP status code. -->
+    <string name="update_problem_http">Download answered %1$d</string>
+    <!-- %1$s is the installer's status code, such as aborted. -->
+    <string name="update_problem_android">Android answered %1$s</string>
+    <!-- %1$s is the installer's status code; %2$s is Android's message. -->
+    <string name="update_problem_android_message">Android answered %1$s: %2$s</string>
+    <!-- %1$s is one of the two texts above. -->
+    <string name="update_problem_verification">%1$s (developer verification reason %2$d)</string>
+
+    <!-- Asking for the install permission -->
+    <string name="update_permission_title">Allow Recipe Box to update itself</string>
+    <string name="update_permission_message">Android asks once before an app can install its own updates. On the next screen, turn on Allow from this source, then go back.</string>
+    <string name="update_continue">Continue</string>
+
+    <!-- What's new -->
+    <string name="update_whats_new_title">What\'s new in %1$s</string>
+    <string name="update_no_notes">This update has no notes.</string>
+    <string name="update_not_now">Not now</string>
+
+    <!-- Banner -->
+    <string name="update_available">Recipe Box %1$s is available</string>
+    <string name="update_downloading_version">Downloading %1$s…</string>
+    <string name="update_installing_version">Installing %1$s…</string>
+    <string name="update_play_protect_hint">If Google Play Protect says the app is blocked, tap More details, then Install anyway.</string>
+    <string name="update_whats_new">What\'s new</string>
+    <string name="update_later">Later</string>
+    <string name="update_install">Install</string>
+    <string name="update_download">Download</string>
+    <string name="update_try_again">Try again</string>
+
+    <!-- Settings item -->
+    <string name="update_settings_title">Updates</string>
+    <string name="update_test_builds">Test builds don\'t update themselves.</string>
+    <string name="update_update_to">Update to %1$s</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_idle">Updates come from the Recipe Box page on GitHub.</string>
+    <string name="update_checking">Checking…</string>
+    <!-- %1$s is a relative time, such as 5 minutes ago. -->
+    <string name="update_up_to_date">You have the latest version. Checked %1$s.</string>
+    <string name="update_tap_to_update">Tap to see what\'s new and update.</string>
+    <string name="update_downloading_percent">Downloading… %1$d%%</string>
+    <string name="update_installing">Installing…</string>
+    <!-- %1$s is the problem shown above; %2$s is the saved details. -->
+    <string name="update_failed_details">%1$s Details: %2$s</string>
+    <string name="update_download_from_github">Download from GitHub</string>
+    <string name="update_copy_details">Copy details</string>
+    <string name="update_problem_clip_label">Update problem</string>
+    <string name="update_problem_summary">Recipe Box %1$s update to %2$s</string>
+    <string name="update_unknown_version">unknown</string>
+</resources>

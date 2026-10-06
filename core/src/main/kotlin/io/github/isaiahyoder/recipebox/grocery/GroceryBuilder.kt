@@ -161,13 +161,20 @@ object GroceryBuilder {
         return display.substring(0, start) + changed
     }
 
-    /** The unchecked lines as plain text, grouped by section, for sharing in a message. */
-    fun shareText(listName: String, groups: List<GrocerySectionGroup>): String = buildString {
+    /**
+     * The unchecked lines as plain text, grouped by section, for sharing in a
+     * message. [sectionLabel] gives each section's name as the app shows it.
+     */
+    fun shareText(
+        listName: String,
+        groups: List<GrocerySectionGroup>,
+        sectionLabel: (StoreSection) -> String,
+    ): String = buildString {
         append(listName)
         for (group in groups) {
             val open = group.lines.filterNot { it.checked }
             if (open.isEmpty()) continue
-            append("\n\n").append(group.section.label).append(':')
+            append("\n\n").append(sectionLabel(group.section)).append(':')
             open.forEach { append("\n- ").append(it.text) }
         }
     }

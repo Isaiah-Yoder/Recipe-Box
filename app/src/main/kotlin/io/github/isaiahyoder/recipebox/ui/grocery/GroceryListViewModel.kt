@@ -108,5 +108,7 @@ class GroceryListViewModel(private val dao: GroceryDao, private val listId: Long
         onDeleted()
     }
 
-    fun shareText(): String = GroceryBuilder.shareText(list.value?.name ?: "Grocery list", groups.value.orEmpty())
+    /** The list as text to share, named [defaultName] if it has no name yet, with [sectionLabel] naming each section. */
+    fun shareText(defaultName: String, sectionLabel: (StoreSection) -> String): String =
+        GroceryBuilder.shareText(list.value?.name ?: defaultName, groups.value.orEmpty(), sectionLabel)
 }

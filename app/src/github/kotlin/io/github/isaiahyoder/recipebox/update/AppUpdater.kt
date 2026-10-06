@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.IntentCompat
 import androidx.core.content.pm.PackageInfoCompat
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.updater
 import io.github.isaiahyoder.recipebox.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
@@ -87,7 +88,7 @@ class AppUpdater(
         _state.value = UpdateState.Checking
         val result = runCatchingCancellable { fetchLatest() }.fold(
             onSuccess = { update -> update?.let { UpdateState.Available(it) } ?: UpdateState.UpToDate(System.currentTimeMillis()) },
-            onFailure = { UpdateState.Failed(null, "Couldn't check for updates. Check your internet connection.") },
+            onFailure = { UpdateState.Failed(null, context.getString(R.string.update_check_failed)) },
         )
         _state.value = result
         result
@@ -133,11 +134,14 @@ class AppUpdater(
                 install(file)
             }.onFailure { error ->
                 // Kept for Copy details in Settings, like Android's install errors.
-                settings.updateProblem = "Download of ${update.versionName} failed: " +
-                    (error.message ?: error::class.java.simpleName)
+                settings.updateProblem = context.getString(
+                    R.string.update_problem_download,
+                    update.versionName,
+                    error.message ?: error::class.java.simpleName,
+                )
                 _state.value = UpdateState.Failed(
                     update,
-                    (error as? UpdateException)?.message ?: "The download didn't finish. Check your internet connection and try again.",
+                    (error as? UpdateException)?.message ?: context.getString(R.string.update_download_failed),
                 )
             }
         }
@@ -149,7 +153,7 @@ class AppUpdater(
         val file = File(downloadFolder, "recipe-box-${update.versionName}.apk")
         val request = Request.Builder().url(update.apkUrl).build()
         http.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Download answered ${response.code}")
+            if (!response.isSuccessful) throw IOException(context.getString(R.string.update_problem_http, response.code))
             val total = response.body.contentLength().takeIf { it > 0 } ?: update.apkSize
             var copied = 0L
             var lastShown = 0f
@@ -179,17 +183,17 @@ class AppUpdater(
         val pm = context.packageManager
         val signingFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else 0
         val archive = pm.getPackageArchiveInfo(file.path, signingFlag)
-            ?: throw UpdateException("The download is damaged. Try again.")
-        if (archive.packageName != context.packageName) throw UpdateException("The download isn't Recipe Box.")
+            ?: throw UpdateException(context.getString(R.string.update_damaged))
+        if (archive.packageName != context.packageName) throw UpdateException(context.getString(R.string.update_not_recipe_box))
         if (PackageInfoCompat.getLongVersionCode(archive) <= PackageInfoCompat.getLongVersionCode(installed)) {
-            throw UpdateException("The download isn't newer than the installed version.")
+            throw UpdateException(context.getString(R.string.update_not_newer))
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val own = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
             val ownSigners = own.signingInfo?.apkContentsSigners?.map { it.toCharsString() }?.toSet()
             val newSigners = archive.signingInfo?.apkContentsSigners?.map { it.toCharsString() }?.toSet()
             if (ownSigners.isNullOrEmpty() || ownSigners != newSigners) {
-                throw UpdateException("The download isn't signed like this app, so it wasn't installed.")
+                throw UpdateException(context.getString(R.string.update_wrong_signer))
             }
         }
     }
@@ -231,18 +235,25 @@ class AppUpdater(
     /** [verificationFailure] is Android's developer verification reason, or -1. */
     internal fun onInstallFailed(status: Int, message: String?, verificationFailure: Int = -1) {
         val update = (_state.value as? UpdateState.Installing)?.update
-        settings.updateProblem = buildString {
-            append("Android answered ").append(STATUS_NAMES[status] ?: "status $status")
-            if (!message.isNullOrBlank()) append(": ").append(message)
-            if (verificationFailure >= 0) append(" (developer verification reason $verificationFailure)")
+        // The status names are Android's own codes, so they stay in English.
+        val statusName = STATUS_NAMES[status] ?: "status $status"
+        val answer = if (message.isNullOrBlank()) {
+            context.getString(R.string.update_problem_android, statusName)
+        } else {
+            context.getString(R.string.update_problem_android_message, statusName, message)
+        }
+        settings.updateProblem = if (verificationFailure >= 0) {
+            context.getString(R.string.update_problem_verification, answer, verificationFailure)
+        } else {
+            answer
         }
         if (verificationFailure >= 0) {
             _state.value = UpdateState.Failed(
                 update,
                 if (verificationFailure == PackageInstaller.DEVELOPER_VERIFICATION_FAILED_REASON_NETWORK_UNAVAILABLE) {
-                    "Android couldn't check the update while offline. Try again with an internet connection."
+                    context.getString(R.string.update_verify_offline)
                 } else {
-                    "Android blocked the update because it couldn't verify the app's developer."
+                    context.getString(R.string.update_verify_blocked)
                 },
             )
             return
@@ -252,16 +263,14 @@ class AppUpdater(
             // Install anyway button is hidden until she opens More details. Tapping Got it
             // reports "aborted: INSTALL_FAILED_VERIFICATION_FAILURE", so check the message first.
             status == PackageInstaller.STATUS_FAILURE_BLOCKED || message?.contains("VERIFICATION") == true ->
-                "Play Protect stopped the update. Tap Try again, then on its warning tap More details and Install anyway."
+                R.string.update_play_protect_stopped
             // Cancel on Android's screen reports this too, but so do blocks by security settings,
             // so it isn't treated as a choice to skip the update.
-            status == PackageInstaller.STATUS_FAILURE_ABORTED ->
-                "The update was canceled or blocked. Tap Try again, or download it from GitHub."
-            status == PackageInstaller.STATUS_FAILURE_STORAGE ->
-                "There isn't enough free space on the phone for the update."
-            else -> "Android didn't install the update. Tap Try again, or download it from GitHub."
+            status == PackageInstaller.STATUS_FAILURE_ABORTED -> R.string.update_canceled
+            status == PackageInstaller.STATUS_FAILURE_STORAGE -> R.string.update_no_space
+            else -> R.string.update_not_installed
         }
-        _state.value = UpdateState.Failed(update, text)
+        _state.value = UpdateState.Failed(update, context.getString(text))
     }
 
     private class UpdateException(message: String) : Exception(message)

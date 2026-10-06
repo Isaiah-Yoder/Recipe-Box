@@ -40,11 +40,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.ui.categories.NameDialog
 
@@ -59,9 +62,11 @@ fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Grocery lists") },
+                title = { Text(stringResource(R.string.grocery_lists_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.grocery_back))
+                    }
                 },
             )
         },
@@ -69,7 +74,7 @@ fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
             ExtendedFloatingActionButton(
                 onClick = { creating = true },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("New list") },
+                text = { Text(stringResource(R.string.grocery_new_list)) },
             )
         },
     ) { padding ->
@@ -77,7 +82,7 @@ fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
         if (current.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "Make a list for each trip, then add recipes to it from a recipe's menu.",
+                    stringResource(R.string.grocery_lists_empty),
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -89,11 +94,15 @@ fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
                 ListItem(
                     headlineContent = { Text(list.name) },
                     supportingContent = {
+                        val recipes = list.recipeCount.takeIf { it > 0 }
+                            ?.let { pluralStringResource(R.plurals.grocery_lists_recipe_count, it, it) }
+                        val items = list.manualCount.takeIf { it > 0 }
+                            ?.let { pluralStringResource(R.plurals.grocery_lists_item_count, it, it) }
                         Text(
-                            listOfNotNull(
-                                list.recipeCount.takeIf { it > 0 }?.let { "$it ${if (it == 1) "recipe" else "recipes"}" },
-                                list.manualCount.takeIf { it > 0 }?.let { "$it ${if (it == 1) "item" else "items"}" },
-                            ).joinToString(" · ").ifEmpty { "Empty" }
+                            when {
+                                recipes != null && items != null -> stringResource(R.string.grocery_lists_summary_both, recipes, items)
+                                else -> recipes ?: items ?: stringResource(R.string.grocery_lists_summary_empty)
+                            }
                         )
                     },
                     modifier = Modifier.clickable { onOpenList(list.id) },
@@ -104,7 +113,7 @@ fun GroceryListsScreen(onOpenList: (Long) -> Unit, onBack: () -> Unit) {
     }
 
     if (creating) {
-        NameDialog("New grocery list", "", onSave = { name ->
+        NameDialog(stringResource(R.string.grocery_new_list_title), "", onSave = { name ->
             creating = false
             vm.create(name, onOpenList)
         }, onDismiss = { creating = false })
@@ -132,7 +141,7 @@ fun AddToGroceryListDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add to grocery list") },
+        title = { Text(stringResource(R.string.grocery_add_to_list_title)) },
         text = {
             Column {
                 Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
@@ -150,14 +159,14 @@ fun AddToGroceryListDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(selected = creatingNew, onClick = { chosen = -1L })
-                        Text("New list")
+                        Text(stringResource(R.string.grocery_new_list))
                     }
                 }
                 if (creatingNew) {
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = { Text("List name") },
+                        label = { Text(stringResource(R.string.grocery_list_name)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                         modifier = Modifier.padding(top = 8.dp),
@@ -169,8 +178,8 @@ fun AddToGroceryListDialog(
             TextButton(
                 enabled = !creatingNew || newName.isNotBlank(),
                 onClick = { vm.addRecipe(recipeId, scale, selected, newName.takeIf { creatingNew }, onDone) },
-            ) { Text("Add") }
+            ) { Text(stringResource(R.string.grocery_add)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.grocery_cancel)) } },
     )
 }

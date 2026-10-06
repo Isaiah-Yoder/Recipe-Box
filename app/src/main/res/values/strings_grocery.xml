@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared words on the grocery screens -->
+    <string name="grocery_back">Back</string>
+    <string name="grocery_cancel">Cancel</string>
+    <string name="grocery_delete">Delete</string>
+    <string name="grocery_save">Save</string>
+    <string name="grocery_add">Add</string>
+
+    <!-- Store sections -->
+    <string name="grocery_section_produce">Produce</string>
+    <string name="grocery_section_meat_seafood">Meat and seafood</string>
+    <string name="grocery_section_dairy_eggs">Dairy and eggs</string>
+    <string name="grocery_section_bakery">Bakery</string>
+    <string name="grocery_section_pantry">Pantry</string>
+    <string name="grocery_section_spices">Spices and seasonings</string>
+    <string name="grocery_section_frozen">Frozen</string>
+    <string name="grocery_section_other">Other</string>
+
+    <!-- One grocery list -->
+    <string name="grocery_default_name">Grocery list</string>
+    <string name="grocery_share_chooser">Share grocery list</string>
+    <string name="grocery_share_list">Share list</string>
+    <string name="grocery_more_options">More options</string>
+    <string name="grocery_hide_staples">Hide pantry staples</string>
+    <string name="grocery_uncheck_all">Uncheck everything</string>
+    <string name="grocery_rename_list">Rename list</string>
+    <string name="grocery_delete_list">Delete list</string>
+    <string name="grocery_add_item_hint">Add an item, such as paper towels</string>
+    <string name="grocery_add_item">Add item</string>
+    <string name="grocery_recipes_on_list">Recipes on this list</string>
+    <string name="grocery_list_empty">This list is empty. Open a recipe and choose Add to grocery list, or type an item above.</string>
+    <string name="grocery_delete_title">Delete this list?</string>
+    <string name="grocery_delete_message">\"%1$s\" is removed. Your recipes aren\'t affected.</string>
+    <!-- A recipe's scale on the list, such as 1½× -->
+    <string name="grocery_scale">%1$s×</string>
+    <string name="grocery_remove_recipe">Remove %1$s from the list</string>
+    <string name="grocery_edit_item_title">Edit item</string>
+    <string name="grocery_item_label">Item</string>
+    <string name="grocery_store_section">Store section</string>
+
+    <!-- The grocery lists -->
+    <string name="grocery_lists_title">Grocery lists</string>
+    <string name="grocery_new_list">New list</string>
+    <string name="grocery_lists_empty">Make a list for each trip, then add recipes to it from a recipe\'s menu.</string>
+    <plurals name="grocery_lists_recipe_count">
+        <item quantity="one">%1$d recipe</item>
+        <item quantity="other">%1$d recipes</item>
+    </plurals>
+    <plurals name="grocery_lists_item_count">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
+    <!-- A list's recipe count and item count, such as 3 recipes · 2 items -->
+    <string name="grocery_lists_summary_both">%1$s · %2$s</string>
+    <string name="grocery_lists_summary_empty">Empty</string>
+    <string name="grocery_new_list_title">New grocery list</string>
+    <string name="grocery_add_to_list_title">Add to grocery list</string>
+    <string name="grocery_list_name">List name</string>
+</resources>

@@ -158,6 +158,7 @@ class GroceryBuilderTest {
             GroceryRecipeInput("A", 1.0, listOf("1 onion", "1 cup milk")),
             states = mapOf("r:milk" to GroceryLineStateInput(checked = true, hidden = false, customText = null)),
         )
-        assertEquals("Weekend\n\nProduce:\n- 1 onion", GroceryBuilder.shareText("Weekend", groups))
+        val labels = mapOf(StoreSection.PRODUCE to "Produce", StoreSection.DAIRY_EGGS to "Dairy and eggs")
+        assertEquals("Weekend\n\nProduce:\n- 1 onion", GroceryBuilder.shareText("Weekend", groups) { labels.getValue(it) })
     }
 }

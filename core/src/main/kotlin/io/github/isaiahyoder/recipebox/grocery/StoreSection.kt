@@ -1,15 +1,18 @@
 package io.github.isaiahyoder.recipebox.grocery
 
-/** Store sections, in the order a typical trip passes them. */
-enum class StoreSection(val label: String) {
-    PRODUCE("Produce"),
-    MEAT_SEAFOOD("Meat and seafood"),
-    DAIRY_EGGS("Dairy and eggs"),
-    BAKERY("Bakery"),
-    PANTRY("Pantry"),
-    SPICES("Spices and seasonings"),
-    FROZEN("Frozen"),
-    OTHER("Other"),
+/**
+ * Store sections, in the order a typical trip passes them. The app shows each
+ * section's name from its string resources.
+ */
+enum class StoreSection {
+    PRODUCE,
+    MEAT_SEAFOOD,
+    DAIRY_EGGS,
+    BAKERY,
+    PANTRY,
+    SPICES,
+    FROZEN,
+    OTHER,
     ;
 
     companion object {

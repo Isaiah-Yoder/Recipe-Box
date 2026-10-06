@@ -39,9 +39,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.isaiahyoder.recipebox.R
 import io.github.isaiahyoder.recipebox.updater
 import io.github.isaiahyoder.recipebox.ui.copyToClipboard
 import io.github.isaiahyoder.recipebox.ui.formatAgo
@@ -69,13 +71,8 @@ private fun rememberStartUpdate(): (AvailableUpdate) -> Unit {
     explaining?.let { update ->
         AlertDialog(
             onDismissRequest = { explaining = null },
-            title = { Text("Allow Recipe Box to update itself") },
-            text = {
-                Text(
-                    "Android asks once before an app can install its own updates. On the next screen, " +
-                        "turn on Allow from this source, then go back."
-                )
-            },
+            title = { Text(stringResource(R.string.update_permission_title)) },
+            text = { Text(stringResource(R.string.update_permission_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     explaining = null
@@ -83,9 +80,9 @@ private fun rememberStartUpdate(): (AvailableUpdate) -> Unit {
                     permission.launch(
                         Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:${context.packageName}".toUri())
                     )
-                }) { Text("Continue") }
+                }) { Text(stringResource(R.string.update_continue)) }
             },
-            dismissButton = { TextButton(onClick = { explaining = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { explaining = null }) { Text(stringResource(R.string.update_cancel)) } },
         )
     }
 
@@ -96,15 +93,15 @@ private fun rememberStartUpdate(): (AvailableUpdate) -> Unit {
 private fun WhatsNewDialog(update: AvailableUpdate, onDismiss: () -> Unit, onUpdate: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("What's new in ${update.versionName}") },
+        title = { Text(stringResource(R.string.update_whats_new_title, update.versionName)) },
         text = {
             Text(
-                update.notes.ifBlank { "This update has no notes." },
+                update.notes.ifBlank { stringResource(R.string.update_no_notes) },
                 modifier = Modifier.verticalScroll(rememberScrollState()),
             )
         },
-        confirmButton = { TextButton(onClick = onUpdate) { Text("Update") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Not now") } },
+        confirmButton = { TextButton(onClick = onUpdate) { Text(stringResource(R.string.update_update)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.update_not_now)) } },
     )
 }
 
@@ -140,9 +137,9 @@ fun UpdateBanner() {
                     Icon(Icons.Filled.SystemUpdate, contentDescription = null)
                     Text(
                         when (current) {
-                            is UpdateState.Available -> "Recipe Box ${current.update.versionName} is available"
-                            is UpdateState.Downloading -> "Downloading ${current.update.versionName}…"
-                            is UpdateState.Installing -> "Installing ${current.update.versionName}…"
+                            is UpdateState.Available -> stringResource(R.string.update_available, current.update.versionName)
+                            is UpdateState.Downloading -> stringResource(R.string.update_downloading_version, current.update.versionName)
+                            is UpdateState.Installing -> stringResource(R.string.update_installing_version, current.update.versionName)
                             is UpdateState.Failed -> current.message
                             else -> ""
                         },
@@ -159,7 +156,7 @@ fun UpdateBanner() {
                 // Play Protect's warning covers this banner, so the hint comes before it appears.
                 if (current is UpdateState.Downloading || current is UpdateState.Installing) {
                     Text(
-                        PLAY_PROTECT_HINT,
+                        stringResource(R.string.update_play_protect_hint),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(end = 8.dp, bottom = 12.dp),
                     )
@@ -167,19 +164,21 @@ fun UpdateBanner() {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     when (current) {
                         is UpdateState.Available -> {
-                            TextButton(onClick = { showNotes = true }) { Text("What's new") }
+                            TextButton(onClick = { showNotes = true }) { Text(stringResource(R.string.update_whats_new)) }
                             TextButton(onClick = {
                                 updater.putOff(current.update)
                                 putOffCount++
-                            }) { Text("Later") }
-                            TextButton(onClick = { startUpdate(current.update) }) { Text("Update") }
+                            }) { Text(stringResource(R.string.update_later)) }
+                            TextButton(onClick = { startUpdate(current.update) }) { Text(stringResource(R.string.update_update)) }
                         }
                         is UpdateState.Installing -> current.confirm?.let { confirm ->
-                            TextButton(onClick = { runCatching { context.startActivity(confirm) } }) { Text("Install") }
+                            TextButton(onClick = { runCatching { context.startActivity(confirm) } }) {
+                                Text(stringResource(R.string.update_install))
+                            }
                         }
                         is UpdateState.Failed -> current.update?.let { update ->
-                            TextButton(onClick = { openReleasePage(context) }) { Text("Download") }
-                            TextButton(onClick = { startUpdate(update) }) { Text("Try again") }
+                            TextButton(onClick = { openReleasePage(context) }) { Text(stringResource(R.string.update_download)) }
+                            TextButton(onClick = { startUpdate(update) }) { Text(stringResource(R.string.update_try_again)) }
                         }
                         else -> Unit
                     }
@@ -211,8 +210,8 @@ fun UpdateSettingsItem() {
 
     if (!updater.enabled) {
         ListItem(
-            headlineContent = { Text("Updates") },
-            supportingContent = { Text("Test builds don't update themselves.") },
+            headlineContent = { Text(stringResource(R.string.update_settings_title)) },
+            supportingContent = { Text(stringResource(R.string.update_test_builds)) },
         )
         return
     }
@@ -220,19 +219,26 @@ fun UpdateSettingsItem() {
     val current = state
     ListItem(
         headlineContent = {
-            Text(if (current is UpdateState.Available) "Update to ${current.update.versionName}" else "Check for updates")
+            Text(
+                if (current is UpdateState.Available) {
+                    stringResource(R.string.update_update_to, current.update.versionName)
+                } else {
+                    stringResource(R.string.update_check)
+                }
+            )
         },
         supportingContent = {
             Text(
                 when (current) {
-                    UpdateState.Idle -> "Updates come from the Recipe Box page on GitHub."
-                    UpdateState.Checking -> "Checking…"
-                    is UpdateState.UpToDate -> "You have the latest version. Checked ${formatAgo(current.checkedAt)}."
-                    is UpdateState.Available -> "Tap to see what's new and update."
-                    is UpdateState.Downloading -> "Downloading… ${(current.progress * 100).toInt()}%"
-                    is UpdateState.Installing -> "Installing…"
-                    is UpdateState.Failed -> listOfNotNull(current.message, updater.lastProblem?.let { "Details: $it" })
-                        .joinToString(" ")
+                    UpdateState.Idle -> stringResource(R.string.update_idle)
+                    UpdateState.Checking -> stringResource(R.string.update_checking)
+                    is UpdateState.UpToDate -> stringResource(R.string.update_up_to_date, formatAgo(current.checkedAt))
+                    is UpdateState.Available -> stringResource(R.string.update_tap_to_update)
+                    is UpdateState.Downloading -> stringResource(R.string.update_downloading_percent, (current.progress * 100).toInt())
+                    is UpdateState.Installing -> stringResource(R.string.update_installing)
+                    is UpdateState.Failed -> updater.lastProblem
+                        ?.let { stringResource(R.string.update_failed_details, current.message, it) }
+                        ?: current.message
                 }
             )
         },
@@ -254,15 +260,19 @@ fun UpdateSettingsItem() {
     if (current is UpdateState.Failed) {
         val context = LocalContext.current
         Row(Modifier.padding(horizontal = 8.dp)) {
-            TextButton(onClick = { openReleasePage(context) }) { Text("Download from GitHub") }
+            TextButton(onClick = { openReleasePage(context) }) { Text(stringResource(R.string.update_download_from_github)) }
             TextButton(onClick = {
                 val details = listOfNotNull(
-                    "Recipe Box ${updater.installedVersion} update to ${current.update?.versionName ?: "unknown"}",
+                    context.getString(
+                        R.string.update_problem_summary,
+                        updater.installedVersion,
+                        current.update?.versionName ?: context.getString(R.string.update_unknown_version),
+                    ),
                     current.message,
                     updater.lastProblem,
                 ).joinToString("\n")
-                copyToClipboard(context, "Update problem", details)
-            }) { Text("Copy details") }
+                copyToClipboard(context, context.getString(R.string.update_problem_clip_label), details)
+            }) { Text(stringResource(R.string.update_copy_details)) }
         }
     }
 
@@ -286,7 +296,3 @@ private fun openReleasePage(context: android.content.Context) {
         )
     }
 }
-
-/** Google Play Protect blocks updates from developers it hasn't seen, with its way past hidden. */
-private const val PLAY_PROTECT_HINT =
-    "If Google Play Protect says the app is blocked, tap More details, then Install anyway."
