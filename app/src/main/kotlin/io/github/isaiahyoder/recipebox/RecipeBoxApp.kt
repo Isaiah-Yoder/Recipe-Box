@@ -13,6 +13,7 @@ import android.webkit.WebView
 import io.github.isaiahyoder.recipebox.backup.BackupManager
 import io.github.isaiahyoder.recipebox.cards.CardAssets
 import io.github.isaiahyoder.recipebox.cards.CardReader
+import io.github.isaiahyoder.recipebox.cards.GeminiKeyCardReader
 import io.github.isaiahyoder.recipebox.cards.GeminiCardReader
 import io.github.isaiahyoder.recipebox.cards.NanoCardReader
 import io.github.isaiahyoder.recipebox.cards.TextCardReader
@@ -156,6 +157,9 @@ class AppContainer(context: Context) {
 
     val updater: AppUpdater by lazy { AppUpdater(context, httpClient, settings) }
 
+    /** How this build gets updates; shared code goes through this, not the updater. */
+    val distribution: AppDistribution by lazy { GitHubDistribution(updater) }
+
     val recipeRefresher: RecipeRefresher by lazy {
         RecipeRefresher(context, database.recipeDao(), database.pageDao(), importer, tagRefresher, settings)
     }
@@ -169,7 +173,13 @@ class AppContainer(context: Context) {
 
     val onDeviceCards: NanoCardReader by lazy { NanoCardReader(cardAssets, appScope) }
 
-    val cardReader: CardReader by lazy { CardReader(settings, geminiCards, onDeviceCards, TextCardReader(context)) }
+    /**
+     * Card readers in the order they're tried. A build for an app store can
+     * supply its own list here, such as a cloud reader in place of her own key.
+     */
+    val cardReader: CardReader by lazy {
+        CardReader(listOf(GeminiKeyCardReader(settings, geminiCards), onDeviceCards, TextCardReader(context)))
+    }
 
     private companion object {
         const val FALLBACK_CHROME_VERSION = "140.0.0.0"

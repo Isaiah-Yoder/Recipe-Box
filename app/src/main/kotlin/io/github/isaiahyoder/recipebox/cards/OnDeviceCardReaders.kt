@@ -31,7 +31,11 @@ enum class OnDeviceAiStatus { CHECKING, READY, DOWNLOADING, UNAVAILABLE }
  * such as the Galaxy S26. Nothing leaves the phone. Phones without it,
  * including the emulator, report [OnDeviceAiStatus.UNAVAILABLE].
  */
-class NanoCardReader(private val assets: CardAssets, private val scope: CoroutineScope) {
+class NanoCardReader(private val assets: CardAssets, private val scope: CoroutineScope) : RecipeCardReader {
+    override val kind = CardReaderKind.ON_DEVICE_AI
+
+    override fun isAvailable() = status.value == OnDeviceAiStatus.READY
+
     private val model: GenerativeModel? by lazy { runCatching { Generation.getClient() }.getOrNull() }
 
     private val _status = MutableStateFlow(OnDeviceAiStatus.CHECKING)
@@ -64,7 +68,7 @@ class NanoCardReader(private val assets: CardAssets, private val scope: Coroutin
         }
     }
 
-    suspend fun read(photos: List<File>): CardRecipe {
+    override suspend fun read(photos: List<File>): CardRecipe {
         val model = model ?: throw CardReadException("This phone doesn't have on-device AI.")
         if (runCatchingCancellable { model.checkStatus() }.getOrNull() != FeatureStatus.AVAILABLE) {
             throw CardReadException("On-device AI isn't ready on this phone.")
@@ -104,8 +108,12 @@ class NanoCardReader(private val assets: CardAssets, private val scope: Coroutin
  * with [CardTextParser]. It works on any phone with Google Play services and
  * reads printed cards well, but often misreads handwriting.
  */
-class TextCardReader(private val context: Context) {
-    suspend fun read(photos: List<File>): CardRecipe {
+class TextCardReader(private val context: Context) : RecipeCardReader {
+    override val kind = CardReaderKind.TEXT_RECOGNITION
+
+    override fun isAvailable() = true
+
+    override suspend fun read(photos: List<File>): CardRecipe {
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         try {
             val pages = photos.map { file ->

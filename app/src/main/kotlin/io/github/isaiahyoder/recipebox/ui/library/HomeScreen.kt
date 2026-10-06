@@ -60,7 +60,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.importer.Links
 import io.github.isaiahyoder.recipebox.ui.queue.QueueBanner
-import io.github.isaiahyoder.recipebox.ui.update.UpdateBanner
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,7 +98,7 @@ fun HomeScreen(
         },
         bottomBar = {
             Column(Modifier.navigationBarsPadding()) {
-                UpdateBanner()
+                container.distribution.UpdateBanner()
                 QueueBanner(onOpenQueue)
             }
         },

@@ -31,7 +31,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.isaiahyoder.recipebox.BuildConfigValues
 import io.github.isaiahyoder.recipebox.appContainer
 import io.github.isaiahyoder.recipebox.settings.ThemeMode
-import io.github.isaiahyoder.recipebox.ui.update.UpdateSettingsItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,7 +80,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 headlineContent = { Text("Recipe Box ${BuildConfigValues.versionName(LocalContext.current)}") },
                 supportingContent = { Text("Your recipes stay on this phone and in your own backups.") },
             )
-            UpdateSettingsItem()
+            LocalContext.current.appContainer.distribution.SettingsItem()
             StallReportsItem()
         }
     }

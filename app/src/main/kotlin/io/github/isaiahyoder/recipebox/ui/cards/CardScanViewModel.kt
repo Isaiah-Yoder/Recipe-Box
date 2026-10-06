@@ -71,7 +71,7 @@ class CardScanViewModel(
         val names = photoNames.value
         if (names.isEmpty() || reading != null) return
         error = null
-        reading = CardReaderKind.GEMINI
+        reading = reader.firstKind()
         viewModelScope.launch {
             runCatchingCancellable { reader.read(names.map(photos::file)) { reading = it } }
                 .onSuccess { result ->
