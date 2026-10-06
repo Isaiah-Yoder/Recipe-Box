@@ -47,7 +47,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RecipeDatabase::class.java,
             DB_NAME,
-        ).build()
+        ).addMigrations(*ALL_MIGRATIONS).build()
         try {
             runBlocking {
                 val dao = database.recipeDao()
@@ -91,7 +91,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RecipeDatabase::class.java,
             DB_NAME_V2,
-        ).build()
+        ).addMigrations(*ALL_MIGRATIONS).build()
         try {
             runBlocking {
                 assertEquals("Test Bread", database.recipeDao().getRecipe(7)!!.title)
@@ -125,7 +125,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RecipeDatabase::class.java,
             DB_NAME_V3,
-        ).build()
+        ).addMigrations(*ALL_MIGRATIONS).build()
         try {
             runBlocking {
                 val dao = database.recipeDao()
@@ -168,7 +168,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RecipeDatabase::class.java,
             DB_NAME_V4,
-        ).build()
+        ).addMigrations(*ALL_MIGRATIONS).build()
         try {
             runBlocking {
                 val dao = database.recipeDao()
@@ -205,7 +205,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RecipeDatabase::class.java,
             DB_NAME_V5,
-        ).build()
+        ).addMigrations(*ALL_MIGRATIONS).build()
         try {
             runBlocking {
                 val dao = database.recipeDao()
@@ -223,7 +223,65 @@ class MigrationTest {
         }
     }
 
+    @Test fun version6RecordsGetPermanentIdsInTheUpdateToVersion7() {
+        helper.createDatabase(DB_NAME_V6, 6).apply {
+            for (id in 1..2) {
+                execSQL(
+                    """
+                    INSERT INTO recipes (id, title, imageIsOwn, ingredients, steps, siteCategories, siteCuisines,
+                        siteKeywords, notes, favorite, lastScale, showUsUnits, cardPhotos, editedFields, createdAt,
+                        updatedAt, ingredientText)
+                    VALUES ($id, 'Test Recipe $id', 0, '[{"text":"1 cup flour"}]', '[]', '[]', '[]', '[]', '', 0, 1.0,
+                        1, '[]', '[]', 100, ${200 + id}, '1 cup flour')
+                    """.trimIndent()
+                )
+            }
+            execSQL("INSERT INTO categories (id, name, position, feederTags) VALUES (1, 'Weeknight', 0, '[]')")
+            execSQL("INSERT INTO grocery_lists (id, name, hideStaples, createdAt, updatedAt, units) VALUES (1, 'Party', 0, 10, 20, 'US')")
+            execSQL("INSERT INTO section_overrides (nameKey, section) VALUES ('candle', 'OTHER')")
+            close()
+        }
+
+        helper.runMigrationsAndValidate(DB_NAME_V6, 7, true, *ALL_MIGRATIONS).close()
+
+        val database = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RecipeDatabase::class.java,
+            DB_NAME_V6,
+        ).addMigrations(*ALL_MIGRATIONS).build()
+        try {
+            runBlocking {
+                val dao = database.recipeDao()
+                val first = dao.getRecipe(1)!!
+                val second = dao.getRecipe(2)!!
+                val uuid = Regex("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
+                assertTrue(first.uid, uuid.matches(first.uid))
+                assertTrue(uuid.matches(second.uid))
+                assertTrue(first.uid != second.uid)
+                assertEquals(201L, first.changedAt)
+                assertTrue(uuid.matches(database.categoryDao().getCategories().single().uid))
+                assertTrue(uuid.matches(database.groceryDao().getLists().single().uid))
+                assertEquals(20L, database.groceryDao().getLists().single().changedAt)
+
+                // Her changes count; the uid stays through an update.
+                dao.setFavorite(1, true)
+                assertTrue(dao.getRecipe(1)!!.changedAt > 201L)
+                dao.update(first.copy(title = "Renamed", uid = ""))
+                assertEquals(first.uid, dao.getRecipe(1)!!.uid)
+
+                // A deletion is remembered by uid.
+                dao.delete(2)
+                val deletion = database.backupDao().deletions().single()
+                assertEquals(second.uid, deletion.uid)
+                assertEquals(DeletedKind.RECIPE, deletion.kind)
+            }
+        } finally {
+            database.close()
+        }
+    }
+
     private companion object {
+        const val DB_NAME_V6 = "migration-test-v6.db"
         const val DB_NAME_V5 = "migration-test-v5.db"
         const val DB_NAME_V4 = "migration-test-v4.db"
         const val DB_NAME = "migration-test.db"

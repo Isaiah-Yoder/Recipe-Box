@@ -91,9 +91,16 @@ interface RecipeDao {
     @Update
     suspend fun updateRow(recipe: RecipeEntity)
 
-    suspend fun insert(recipe: RecipeEntity): Long = insertRow(recipe.indexed())
+    @Query("SELECT uid FROM recipes WHERE id = :id")
+    suspend fun getUid(id: Long): String?
 
-    suspend fun update(recipe: RecipeEntity) = updateRow(recipe.indexed())
+    suspend fun insert(recipe: RecipeEntity): Long =
+        insertRow(recipe.indexed().copy(uid = recipe.uid.ifBlank { newUid() }, changedAt = System.currentTimeMillis()))
+
+    /** Saves a changed recipe. Its permanent uid stays, even if [recipe] was built without it. */
+    @Transaction
+    suspend fun update(recipe: RecipeEntity) =
+        updateRow(recipe.indexed().copy(uid = getUid(recipe.id) ?: recipe.uid, changedAt = System.currentTimeMillis()))
 
     /** Recipes whose search text is missing, such as those saved before version 6. */
     @Query("SELECT * FROM recipes WHERE ingredientText = '' AND ingredients != '[]'")
@@ -110,22 +117,23 @@ interface RecipeDao {
         return missing.size
     }
 
-    @Query("UPDATE recipes SET lastScale = :scale WHERE id = :id")
+    @Query("UPDATE recipes SET lastScale = :scale, changedAt = $NOW_MS WHERE id = :id")
     suspend fun setLastScale(id: Long, scale: Double)
 
-    @Query("UPDATE recipes SET showUsUnits = :show WHERE id = :id")
+    @Query("UPDATE recipes SET showUsUnits = :show, changedAt = $NOW_MS WHERE id = :id")
     suspend fun setShowUsUnits(id: Long, show: Boolean)
 
-    @Query("UPDATE recipes SET favorite = :favorite WHERE id = :id")
+    @Query("UPDATE recipes SET favorite = :favorite, changedAt = $NOW_MS WHERE id = :id")
     suspend fun setFavorite(id: Long, favorite: Boolean)
 
     @Query("SELECT cardPhotos FROM recipes WHERE cardPhotos != '[]'")
     suspend fun allCardPhotos(): List<CardPhotoNames>
 
+    /** The downloaded photo's file name is this phone's own, so it isn't a change. */
     @Query("UPDATE recipes SET imageFile = :imageFile WHERE id = :id")
     suspend fun setImageFile(id: Long, imageFile: String?)
 
-    @Query("UPDATE recipes SET imageUrl = :imageUrl, imageFile = :imageFile WHERE id = :id")
+    @Query("UPDATE recipes SET imageUrl = :imageUrl, imageFile = :imageFile, changedAt = $NOW_MS WHERE id = :id")
     suspend fun setImage(id: Long, imageUrl: String, imageFile: String)
 
     @Query("SELECT * FROM recipes WHERE imageFile IS NOT NULL AND imageIsOwn = 0")
@@ -139,7 +147,18 @@ interface RecipeDao {
     fun observeMissingCoverCount(): Flow<Int>
 
     @Query("DELETE FROM recipes WHERE id = :id")
-    suspend fun delete(id: Long)
+    suspend fun deleteRow(id: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun recordDeletion(deletion: DeletionEntity)
+
+    /** Deletes a recipe and records the deletion for later merges. */
+    @Transaction
+    suspend fun delete(id: Long) {
+        val uid = getUid(id) ?: return
+        recordDeletion(DeletionEntity(uid, DeletedKind.RECIPE, System.currentTimeMillis()))
+        deleteRow(id)
+    }
 
     // Light queries, so work over the whole library never loads every recipe at once.
 

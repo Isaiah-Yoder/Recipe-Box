@@ -100,8 +100,7 @@ class GroceryListViewModel(private val dao: GroceryDao, private val listId: Long
     fun setUnits(units: UnitSystem) = viewModelScope.launch { dao.setUnits(listId, units) }
 
     fun uncheckAll() = viewModelScope.launch {
-        dao.uncheckAllLines(listId)
-        dao.uncheckAllManual(listId)
+        dao.uncheckAll(listId)
     }
 
     fun deleteList(onDeleted: () -> Unit) = viewModelScope.launch {

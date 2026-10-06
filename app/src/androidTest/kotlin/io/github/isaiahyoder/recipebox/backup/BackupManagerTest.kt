@@ -81,6 +81,11 @@ class BackupManagerTest {
         grocery.insertManualItem(GroceryManualItemEntity(listId = list, text = "paper towels", createdAt = 1))
         grocery.upsertLineState(GroceryLineStateEntity(list, "r:milk", checked = true))
         grocery.setSectionOverride(SectionOverrideEntity("milk", "OTHER"))
+        val deleted = dao.insert(RecipeEntity(title = "Deleted Pie", createdAt = 7, updatedAt = 7))
+        val deletedUid = dao.getUid(deleted)!!
+        dao.delete(deleted)
+        val soupUid = dao.getUid(imported)!!
+        val listUid = grocery.getLists().single().uid
 
         val bytes = ByteArrayOutputStream().also { manager.writeZip(manager.snapshot(), it, includePhotos = true) }.toByteArray()
         val (backup, photoBytes) = manager.readZip(ByteArrayInputStream(bytes))
@@ -112,6 +117,10 @@ class BackupManagerTest {
         assertEquals(listOf("paper towels"), grocery.observeManualItems(list).first().map { it.text })
         assertTrue(grocery.getLineState(list, "r:milk")!!.checked)
         assertEquals(listOf(imported), dao.recipesMissingCover().map { it.id })
+        // Permanent identities and deletions survive, so backups can be merged later.
+        assertEquals(soupUid, dao.getUid(imported))
+        assertEquals(listUid, grocery.getLists().single().uid)
+        assertEquals(listOf(deletedUid), database.backupDao().deletions().map { it.uid })
     }
 
     @Test fun aBackupFromBeforeCardPhotosStillReads() {

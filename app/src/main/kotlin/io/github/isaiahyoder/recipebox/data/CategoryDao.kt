@@ -30,7 +30,7 @@ interface CategoryDao {
         return insertCategory(CategoryEntity(name = trimmed, position = nextCategoryPosition()))
     }
 
-    @Query("UPDATE categories SET name = :name WHERE id = :id")
+    @Query("UPDATE categories SET name = :name, changedAt = $NOW_MS WHERE id = :id")
     suspend fun setCategoryName(id: Long, name: String)
 
     /**
@@ -46,11 +46,28 @@ interface CategoryDao {
         return true
     }
 
-    /** Deletes a category; its recipes stay in the library. */
     @Query("DELETE FROM categories WHERE id = :id")
-    suspend fun deleteCategory(id: Long)
+    suspend fun deleteCategoryRow(id: Long)
 
-    @Query("UPDATE categories SET position = :position WHERE id = :id")
+    @Query("SELECT uid FROM categories WHERE id = :id")
+    suspend fun getCategoryUid(id: Long): String?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun recordDeletion(deletion: DeletionEntity)
+
+    /** Deletes a category and records the deletion; its recipes stay in the library. */
+    @Transaction
+    suspend fun deleteCategory(id: Long) {
+        val uid = getCategoryUid(id) ?: return
+        recordDeletion(DeletionEntity(uid, DeletedKind.CATEGORY, System.currentTimeMillis()))
+        deleteCategoryRow(id)
+    }
+
+    /** Her category choices are part of the recipe, so they count as a change to it. Feeder tags' don't. */
+    @Query("UPDATE recipes SET changedAt = $NOW_MS WHERE id = :recipeId")
+    suspend fun markRecipeChanged(recipeId: Long)
+
+    @Query("UPDATE categories SET position = :position, changedAt = $NOW_MS WHERE id = :id AND position != :position")
     suspend fun setCategoryPosition(id: Long, position: Int)
 
     @Transaction
@@ -87,12 +104,14 @@ interface CategoryDao {
         for (link in links.values) {
             if (link.categoryId !in categoryIds && !link.hidden) upsertCategoryLink(link.copy(hidden = true))
         }
+        markRecipeChanged(recipeId)
     }
 
     /** Adds a recipe to a category as her choice, such as from a category's suggestions. */
     @Transaction
     suspend fun addToCategoryByHand(recipeId: Long, categoryId: Long) {
         upsertCategoryLink(RecipeCategoryEntity(recipeId, categoryId, TagSource.MANUAL))
+        markRecipeChanged(recipeId)
     }
 
     @Query("SELECT categoryId FROM recipe_categories WHERE recipeId = :recipeId AND hidden = 0")
@@ -110,6 +129,6 @@ interface CategoryDao {
     @Query("SELECT * FROM recipe_categories WHERE hidden = 0")
     fun observeCategoryLinks(): Flow<List<RecipeCategoryEntity>>
 
-    @Query("UPDATE categories SET feederTags = :feederTags WHERE id = :id")
+    @Query("UPDATE categories SET feederTags = :feederTags, changedAt = $NOW_MS WHERE id = :id")
     suspend fun setFeederTags(id: Long, feederTags: List<String>)
 }

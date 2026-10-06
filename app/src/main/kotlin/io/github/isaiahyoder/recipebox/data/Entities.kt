@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "recipes",
-    indices = [Index("sourceUrl")],
+    indices = [Index("sourceUrl"), Index(value = ["uid"], unique = true)],
 )
 data class RecipeEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -64,6 +64,12 @@ data class RecipeEntity(
      */
     @ColumnInfo(defaultValue = "")
     val ingredientText: String = "",
+    /** Permanent identity; see Identity.kt. The DAO keeps it when a row is updated. */
+    @ColumnInfo(defaultValue = "")
+    val uid: String = newUid(),
+    /** When anything a backup keeps last changed; see Identity.kt. The DAO sets it on every update. */
+    @ColumnInfo(defaultValue = "0")
+    val changedAt: Long = System.currentTimeMillis(),
 ) {
     /** This recipe with [ingredientText] matching its ingredients. */
     fun indexed(): RecipeEntity = copy(ingredientText = ingredients.filterNot { it.isHeader }.joinToString("\n") { it.text })
@@ -115,7 +121,7 @@ data class RecipeTagEntity(
 
 @Entity(
     tableName = "categories",
-    indices = [Index(value = ["name"], unique = true)],
+    indices = [Index(value = ["name"], unique = true), Index(value = ["uid"], unique = true)],
 )
 data class CategoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -123,6 +129,10 @@ data class CategoryEntity(
     val position: Int,
     /** Tag names that add recipes to this category automatically, now and in the future. */
     @ColumnInfo(defaultValue = "[]") val feederTags: List<String> = emptyList(),
+    /** Permanent identity; see Identity.kt. */
+    @ColumnInfo(defaultValue = "") val uid: String = newUid(),
+    /** When its name, place, or feeder tags last changed; see Identity.kt. */
+    @ColumnInfo(defaultValue = "0") val changedAt: Long = System.currentTimeMillis(),
 )
 
 @Entity(

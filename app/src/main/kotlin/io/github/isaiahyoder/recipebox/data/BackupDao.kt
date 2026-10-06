@@ -18,6 +18,7 @@ interface BackupDao {
     @Query("SELECT * FROM grocery_manual_items") suspend fun groceryManualItems(): List<GroceryManualItemEntity>
     @Query("SELECT * FROM grocery_line_state") suspend fun groceryLineStates(): List<GroceryLineStateEntity>
     @Query("SELECT * FROM section_overrides") suspend fun sectionOverrides(): List<SectionOverrideEntity>
+    @Query("SELECT * FROM deletions") suspend fun deletions(): List<DeletionEntity>
 
     @Query("DELETE FROM grocery_line_state") suspend fun clearGroceryLineStates()
     @Query("DELETE FROM grocery_manual_items") suspend fun clearGroceryManualItems()
@@ -29,6 +30,7 @@ interface BackupDao {
     @Query("DELETE FROM recipe_tags") suspend fun clearRecipeTags()
     @Query("DELETE FROM tags") suspend fun clearTags()
     @Query("DELETE FROM recipes") suspend fun clearRecipes()
+    @Query("DELETE FROM deletions") suspend fun clearDeletions()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertRecipes(items: List<RecipeEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertTags(items: List<TagEntity>)
@@ -40,4 +42,5 @@ interface BackupDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertGroceryManualItems(items: List<GroceryManualItemEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertGroceryLineStates(items: List<GroceryLineStateEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertSectionOverrides(items: List<SectionOverrideEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertDeletions(items: List<DeletionEntity>)
 }

@@ -15,7 +15,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
-@Entity(tableName = "grocery_lists")
+@Entity(tableName = "grocery_lists", indices = [Index(value = ["uid"], unique = true)])
 data class GroceryListEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
@@ -25,6 +25,10 @@ data class GroceryListEntity(
     val updatedAt: Long,
     /** The units amounts are added up in, chosen per list. Lists from before 0.5.0 use US units. */
     @ColumnInfo(defaultValue = "US") val units: UnitSystem = UnitSystem.US,
+    /** Permanent identity; see Identity.kt. */
+    @ColumnInfo(defaultValue = "") val uid: String = newUid(),
+    /** When the list, its recipes, or its items last changed; see Identity.kt. */
+    @ColumnInfo(defaultValue = "0") val changedAt: Long = System.currentTimeMillis(),
 )
 
 /** A recipe on a list, at its own scale. */
@@ -83,6 +87,7 @@ data class GroceryLineStateEntity(
 data class SectionOverrideEntity(
     @PrimaryKey val nameKey: String,
     val section: String,
+    @ColumnInfo(defaultValue = "0") val changedAt: Long = System.currentTimeMillis(),
 )
 
 /** A recipe on a list, with what the list needs to build its lines. */
@@ -121,20 +126,42 @@ interface GroceryDao {
     @Insert
     suspend fun insertList(list: GroceryListEntity): Long
 
-    @Query("UPDATE grocery_lists SET name = :name, updatedAt = :now WHERE id = :id")
+    /** A change to a list, its recipes, or its items; see Identity.kt. */
+    @Query("UPDATE grocery_lists SET changedAt = $NOW_MS WHERE id = :id")
+    suspend fun markListChanged(id: Long)
+
+    @Query("UPDATE grocery_lists SET changedAt = $NOW_MS WHERE id = (SELECT listId FROM grocery_manual_items WHERE id = :itemId)")
+    suspend fun markItemListChanged(itemId: Long)
+
+    @Query("UPDATE grocery_lists SET name = :name, updatedAt = :now, changedAt = :now WHERE id = :id")
     suspend fun renameList(id: Long, name: String, now: Long)
 
-    @Query("UPDATE grocery_lists SET hideStaples = :hide WHERE id = :id")
+    @Query("UPDATE grocery_lists SET hideStaples = :hide, changedAt = $NOW_MS WHERE id = :id")
     suspend fun setHideStaples(id: Long, hide: Boolean)
 
-    @Query("UPDATE grocery_lists SET units = :units WHERE id = :id")
+    @Query("UPDATE grocery_lists SET units = :units, changedAt = $NOW_MS WHERE id = :id")
     suspend fun setUnits(id: Long, units: UnitSystem)
 
-    @Query("UPDATE grocery_lists SET updatedAt = :now WHERE id = :id")
+    /** Moves a list to the top of her lists, after something was added to it. */
+    @Query("UPDATE grocery_lists SET updatedAt = :now, changedAt = :now WHERE id = :id")
     suspend fun touch(id: Long, now: Long)
 
     @Query("DELETE FROM grocery_lists WHERE id = :id")
-    suspend fun deleteList(id: Long)
+    suspend fun deleteListRow(id: Long)
+
+    @Query("SELECT uid FROM grocery_lists WHERE id = :id")
+    suspend fun getListUid(id: Long): String?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun recordDeletion(deletion: DeletionEntity)
+
+    /** Deletes a list and records the deletion for later merges. */
+    @Transaction
+    suspend fun deleteList(id: Long) {
+        val uid = getListUid(id) ?: return
+        recordDeletion(DeletionEntity(uid, DeletedKind.GROCERY_LIST, System.currentTimeMillis()))
+        deleteListRow(id)
+    }
 
     @Query(
         """
@@ -145,31 +172,71 @@ interface GroceryDao {
     fun observeRecipes(listId: Long): Flow<List<GroceryRecipeRow>>
 
     @Upsert
-    suspend fun upsertRecipe(link: GroceryListRecipeEntity)
+    suspend fun upsertRecipeRow(link: GroceryListRecipeEntity)
+
+    @Transaction
+    suspend fun upsertRecipe(link: GroceryListRecipeEntity) {
+        upsertRecipeRow(link)
+        markListChanged(link.listId)
+    }
 
     @Query("SELECT * FROM grocery_list_recipes WHERE listId = :listId AND recipeId = :recipeId")
     suspend fun getRecipeLink(listId: Long, recipeId: Long): GroceryListRecipeEntity?
 
     @Query("UPDATE grocery_list_recipes SET scale = :scale WHERE listId = :listId AND recipeId = :recipeId")
-    suspend fun setRecipeScale(listId: Long, recipeId: Long, scale: Double)
+    suspend fun setRecipeScaleRow(listId: Long, recipeId: Long, scale: Double)
+
+    @Transaction
+    suspend fun setRecipeScale(listId: Long, recipeId: Long, scale: Double) {
+        setRecipeScaleRow(listId, recipeId, scale)
+        markListChanged(listId)
+    }
 
     @Query("DELETE FROM grocery_list_recipes WHERE listId = :listId AND recipeId = :recipeId")
-    suspend fun removeRecipe(listId: Long, recipeId: Long)
+    suspend fun removeRecipeRow(listId: Long, recipeId: Long)
+
+    @Transaction
+    suspend fun removeRecipe(listId: Long, recipeId: Long) {
+        removeRecipeRow(listId, recipeId)
+        markListChanged(listId)
+    }
 
     @Query("SELECT * FROM grocery_manual_items WHERE listId = :listId ORDER BY createdAt")
     fun observeManualItems(listId: Long): Flow<List<GroceryManualItemEntity>>
 
     @Insert
-    suspend fun insertManualItem(item: GroceryManualItemEntity): Long
+    suspend fun insertManualItemRow(item: GroceryManualItemEntity): Long
+
+    @Transaction
+    suspend fun insertManualItem(item: GroceryManualItemEntity): Long =
+        insertManualItemRow(item).also { markListChanged(item.listId) }
 
     @Query("UPDATE grocery_manual_items SET text = :text, section = :section WHERE id = :id")
-    suspend fun updateManualItem(id: Long, text: String, section: String?)
+    suspend fun updateManualItemRow(id: Long, text: String, section: String?)
+
+    @Transaction
+    suspend fun updateManualItem(id: Long, text: String, section: String?) {
+        updateManualItemRow(id, text, section)
+        markItemListChanged(id)
+    }
 
     @Query("UPDATE grocery_manual_items SET checked = :checked WHERE id = :id")
-    suspend fun setManualChecked(id: Long, checked: Boolean)
+    suspend fun setManualCheckedRow(id: Long, checked: Boolean)
+
+    @Transaction
+    suspend fun setManualChecked(id: Long, checked: Boolean) {
+        setManualCheckedRow(id, checked)
+        markItemListChanged(id)
+    }
 
     @Query("DELETE FROM grocery_manual_items WHERE id = :id")
-    suspend fun deleteManualItem(id: Long)
+    suspend fun deleteManualItemRow(id: Long)
+
+    @Transaction
+    suspend fun deleteManualItem(id: Long) {
+        markItemListChanged(id)
+        deleteManualItemRow(id)
+    }
 
     @Query("SELECT * FROM grocery_line_state WHERE listId = :listId")
     fun observeLineStates(listId: Long): Flow<List<GroceryLineStateEntity>>
@@ -184,13 +251,22 @@ interface GroceryDao {
     suspend fun updateLineState(listId: Long, lineKey: String, change: (GroceryLineStateEntity) -> GroceryLineStateEntity) {
         val current = getLineState(listId, lineKey) ?: GroceryLineStateEntity(listId, lineKey)
         upsertLineState(change(current))
+        markListChanged(listId)
     }
 
     @Query("UPDATE grocery_line_state SET checked = 0 WHERE listId = :listId")
-    suspend fun uncheckAllLines(listId: Long)
+    suspend fun uncheckAllLinesRows(listId: Long)
 
     @Query("UPDATE grocery_manual_items SET checked = 0 WHERE listId = :listId")
-    suspend fun uncheckAllManual(listId: Long)
+    suspend fun uncheckAllManualRows(listId: Long)
+
+    /** Unchecks every line and item, such as before the next shopping trip. */
+    @Transaction
+    suspend fun uncheckAll(listId: Long) {
+        uncheckAllLinesRows(listId)
+        uncheckAllManualRows(listId)
+        markListChanged(listId)
+    }
 
     @Query("SELECT * FROM section_overrides")
     fun observeSectionOverrides(): Flow<List<SectionOverrideEntity>>

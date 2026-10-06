@@ -1,6 +1,7 @@
 package io.github.isaiahyoder.recipebox.backup
 
 import io.github.isaiahyoder.recipebox.data.CategoryEntity
+import io.github.isaiahyoder.recipebox.data.DeletionEntity
 import io.github.isaiahyoder.recipebox.data.GroceryLineStateEntity
 import io.github.isaiahyoder.recipebox.data.GroceryListEntity
 import io.github.isaiahyoder.recipebox.data.GroceryListRecipeEntity
@@ -12,6 +13,7 @@ import io.github.isaiahyoder.recipebox.data.RecipeTagEntity
 import io.github.isaiahyoder.recipebox.data.SectionOverrideEntity
 import io.github.isaiahyoder.recipebox.data.TagEntity
 import io.github.isaiahyoder.recipebox.data.TagSource
+import io.github.isaiahyoder.recipebox.data.newUid
 import io.github.isaiahyoder.recipebox.ingredients.UnitSystem
 import kotlinx.serialization.Serializable
 
@@ -19,10 +21,13 @@ import kotlinx.serialization.Serializable
  * The backup file's layout, separate from the database's classes.
  *
  * Every backup she has ever saved must keep restoring, so these field names
- * and defaults never change; they are format 2's. The database can rename or
- * add columns freely: only the mappers below change. A new field needs a
- * default so older backups still read, and a layout change raises
- * BackupFile.FORMAT.
+ * and defaults never change. The database can rename or add columns freely:
+ * only the mappers below change. A new field needs a default so older
+ * backups still read, and a layout change raises BackupFile.FORMAT.
+ *
+ * Format 3 adds permanent uids and change times, and the deletions list.
+ * Records from older backups have neither: they get new uids when restored,
+ * and their change time is when they were last updated, or the backup's time.
  */
 
 @Serializable
@@ -57,6 +62,8 @@ data class BackupRecipe(
     val editedFields: List<String> = emptyList(),
     val createdAt: Long,
     val updatedAt: Long,
+    val uid: String = "",
+    val changedAt: Long = 0,
 )
 
 @Serializable
@@ -66,7 +73,14 @@ data class BackupTag(val id: Long = 0, val name: String)
 data class BackupRecipeTag(val recipeId: Long, val tagId: Long, val source: TagSource, val hidden: Boolean = false)
 
 @Serializable
-data class BackupCategory(val id: Long = 0, val name: String, val position: Int, val feederTags: List<String> = emptyList())
+data class BackupCategory(
+    val id: Long = 0,
+    val name: String,
+    val position: Int,
+    val feederTags: List<String> = emptyList(),
+    val uid: String = "",
+    val changedAt: Long = 0,
+)
 
 @Serializable
 data class BackupRecipeCategory(
@@ -84,6 +98,8 @@ data class BackupGroceryList(
     val createdAt: Long,
     val updatedAt: Long,
     val units: UnitSystem = UnitSystem.US,
+    val uid: String = "",
+    val changedAt: Long = 0,
 )
 
 @Serializable
@@ -109,7 +125,11 @@ data class BackupGroceryLineState(
 )
 
 @Serializable
-data class BackupSectionOverride(val nameKey: String, val section: String)
+data class BackupSectionOverride(val nameKey: String, val section: String, val changedAt: Long = 0)
+
+/** A recipe, category, or grocery list she deleted, by its uid. */
+@Serializable
+data class BackupDeletion(val uid: String, val kind: String, val deletedAt: Long)
 
 // Mappers between the backup layout and the database.
 
@@ -124,6 +144,7 @@ fun RecipeEntity.toBackup() = BackupRecipe(
     siteCategories = siteCategories, siteCuisines = siteCuisines, siteKeywords = siteKeywords,
     rawJsonLd = rawJsonLd, notes = notes, favorite = favorite, lastScale = lastScale, showUsUnits = showUsUnits,
     cardPhotos = cardPhotos, editedFields = editedFields, createdAt = createdAt, updatedAt = updatedAt,
+    uid = uid, changedAt = changedAt,
 )
 
 /** The search text isn't in backups; it's rebuilt from the ingredients. */
@@ -135,6 +156,7 @@ fun BackupRecipe.toEntity() = RecipeEntity(
     siteCategories = siteCategories, siteCuisines = siteCuisines, siteKeywords = siteKeywords,
     rawJsonLd = rawJsonLd, notes = notes, favorite = favorite, lastScale = lastScale, showUsUnits = showUsUnits,
     cardPhotos = cardPhotos, editedFields = editedFields, createdAt = createdAt, updatedAt = updatedAt,
+    uid = uid.ifBlank { newUid() }, changedAt = changedAt.takeIf { it > 0 } ?: updatedAt,
 ).indexed()
 
 fun TagEntity.toBackup() = BackupTag(id, name)
@@ -143,14 +165,18 @@ fun BackupTag.toEntity() = TagEntity(id, name)
 fun RecipeTagEntity.toBackup() = BackupRecipeTag(recipeId, tagId, source, hidden)
 fun BackupRecipeTag.toEntity() = RecipeTagEntity(recipeId, tagId, source, hidden)
 
-fun CategoryEntity.toBackup() = BackupCategory(id, name, position, feederTags)
-fun BackupCategory.toEntity() = CategoryEntity(id, name, position, feederTags)
+fun CategoryEntity.toBackup() = BackupCategory(id, name, position, feederTags, uid, changedAt)
+
+/** [backupTime] is the change time for a category from a backup older than format 3. */
+fun BackupCategory.toEntity(backupTime: Long) =
+    CategoryEntity(id, name, position, feederTags, uid.ifBlank { newUid() }, changedAt.takeIf { it > 0 } ?: backupTime)
 
 fun RecipeCategoryEntity.toBackup() = BackupRecipeCategory(recipeId, categoryId, source, hidden)
 fun BackupRecipeCategory.toEntity() = RecipeCategoryEntity(recipeId, categoryId, source, hidden)
 
-fun GroceryListEntity.toBackup() = BackupGroceryList(id, name, hideStaples, createdAt, updatedAt, units)
-fun BackupGroceryList.toEntity() = GroceryListEntity(id, name, hideStaples, createdAt, updatedAt, units)
+fun GroceryListEntity.toBackup() = BackupGroceryList(id, name, hideStaples, createdAt, updatedAt, units, uid, changedAt)
+fun BackupGroceryList.toEntity() =
+    GroceryListEntity(id, name, hideStaples, createdAt, updatedAt, units, uid.ifBlank { newUid() }, changedAt.takeIf { it > 0 } ?: updatedAt)
 
 fun GroceryListRecipeEntity.toBackup() = BackupGroceryListRecipe(listId, recipeId, scale, addedAt)
 fun BackupGroceryListRecipe.toEntity() = GroceryListRecipeEntity(listId, recipeId, scale, addedAt)
@@ -161,5 +187,8 @@ fun BackupGroceryManualItem.toEntity() = GroceryManualItemEntity(id, listId, tex
 fun GroceryLineStateEntity.toBackup() = BackupGroceryLineState(listId, lineKey, checked, hidden, customText)
 fun BackupGroceryLineState.toEntity() = GroceryLineStateEntity(listId, lineKey, checked, hidden, customText)
 
-fun SectionOverrideEntity.toBackup() = BackupSectionOverride(nameKey, section)
-fun BackupSectionOverride.toEntity() = SectionOverrideEntity(nameKey, section)
+fun SectionOverrideEntity.toBackup() = BackupSectionOverride(nameKey, section, changedAt)
+fun BackupSectionOverride.toEntity(backupTime: Long) = SectionOverrideEntity(nameKey, section, changedAt.takeIf { it > 0 } ?: backupTime)
+
+fun DeletionEntity.toBackup() = BackupDeletion(uid, kind, deletedAt)
+fun BackupDeletion.toEntity() = DeletionEntity(uid, kind, deletedAt)

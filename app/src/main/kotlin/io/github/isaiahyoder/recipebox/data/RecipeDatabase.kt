@@ -27,8 +27,9 @@ import androidx.room.TypeConverters
         GroceryLineStateEntity::class,
         SectionOverrideEntity::class,
         RecipePageEntity::class,
+        DeletionEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
     autoMigrations = [
         // Version 2 adds the import queue table; recipes are unchanged.
@@ -44,6 +45,7 @@ import androidx.room.TypeConverters
         // Version 6 adds the ingredient lines as plain text for search. The app fills
         // it for existing recipes at startup.
         AutoMigration(from = 5, to = 6),
+        // Version 7 is MIGRATION_6_7, written by hand.
     ],
 )
 @TypeConverters(Converters::class)
@@ -65,6 +67,7 @@ abstract class RecipeDatabase : RoomDatabase() {
     companion object {
         fun create(context: Context): RecipeDatabase =
             Room.databaseBuilder(context, RecipeDatabase::class.java, "recipes.db")
+                .addMigrations(*ALL_MIGRATIONS)
                 .build()
     }
 }

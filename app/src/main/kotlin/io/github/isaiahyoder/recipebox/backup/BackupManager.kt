@@ -39,6 +39,7 @@ data class BackupFile(
     val groceryLineStates: List<BackupGroceryLineState>,
     val sectionOverrides: List<BackupSectionOverride>,
     val themeMode: String? = null,
+    val deletions: List<BackupDeletion> = emptyList(),
 ) {
     /** File names of her own photos and card photos, which travel with the backup. */
     val ownPhotoNames: List<String>
@@ -48,9 +49,10 @@ data class BackupFile(
         /**
          * Raise when the backup layout changes; restore must keep reading older formats.
          * Format 2 (0.5.0) adds edited parts, suggested tags, category feeder tags, and
-         * where each category membership came from. Format 1 backups read with defaults.
+         * where each category membership came from. Format 3 (0.6.0) adds permanent
+         * uids, change times, and deletions. Older backups read with defaults.
          */
-        const val FORMAT = 2
+        const val FORMAT = 3
     }
 }
 
@@ -82,6 +84,7 @@ class BackupManager(
             groceryLineStates = dao.groceryLineStates().map { it.toBackup() },
             sectionOverrides = dao.sectionOverrides().map { it.toBackup() },
             themeMode = settings.themeMode.value.name,
+            deletions = dao.deletions().map { it.toBackup() },
         )
     }
 
@@ -167,16 +170,18 @@ class BackupManager(
             dao.clearRecipeTags()
             dao.clearTags()
             dao.clearRecipes()
+            dao.clearDeletions()
             dao.insertRecipes(recipes.map { it.toEntity() })
             dao.insertTags(backup.tags.map { it.toEntity() })
             dao.insertRecipeTags(backup.recipeTags.map { it.toEntity() })
-            dao.insertCategories(backup.categories.map { it.toEntity() })
+            dao.insertCategories(backup.categories.map { it.toEntity(backup.exportedAt) })
             dao.insertRecipeCategories(backup.recipeCategories.map { it.toEntity() })
             dao.insertGroceryLists(backup.groceryLists.map { it.toEntity() })
             dao.insertGroceryListRecipes(backup.groceryListRecipes.map { it.toEntity() })
             dao.insertGroceryManualItems(backup.groceryManualItems.map { it.toEntity() })
             dao.insertGroceryLineStates(backup.groceryLineStates.map { it.toEntity() })
-            dao.insertSectionOverrides(backup.sectionOverrides.map { it.toEntity() })
+            dao.insertSectionOverrides(backup.sectionOverrides.map { it.toEntity(backup.exportedAt) })
+            dao.insertDeletions(backup.deletions.map { it.toEntity() })
         }
 
         // Old photo files no restored recipe uses are removed; cover photos download again.

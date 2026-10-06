@@ -102,11 +102,16 @@ interface TagDao {
     @Transaction
     suspend fun acceptSuggestion(recipeId: Long, name: String) = addManualTag(recipeId, name)
 
+    /** Her tag choices are part of the recipe, so they count as a change to it. Automatic tags don't. */
+    @Query("UPDATE recipes SET changedAt = $NOW_MS WHERE id = :recipeId")
+    suspend fun markRecipeChanged(recipeId: Long)
+
     /** Adds a tag she chose. It becomes hers, so recomputing automatic tags never removes it. */
     @Transaction
     suspend fun addManualTag(recipeId: Long, name: String) {
         val tagId = findTagId(name) ?: insertTag(TagEntity(name = name))
         upsertRecipeTag(RecipeTagEntity(recipeId, tagId, TagSource.MANUAL))
+        markRecipeChanged(recipeId)
     }
 
     /**
@@ -119,6 +124,7 @@ interface TagDao {
         val tagId = findTagId(name) ?: return
         val link = getRecipeTags(recipeId).firstOrNull { it.tagId == tagId } ?: return
         upsertRecipeTag(link.copy(hidden = true))
+        markRecipeChanged(recipeId)
     }
 
 
